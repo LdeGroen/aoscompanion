@@ -39,12 +39,20 @@ export function findAccount(name) {
   return getAccounts().find((a) => a.name.toLowerCase() === name.toLowerCase()) || null;
 }
 
-export function setSession(name) {
-  localStorage.setItem(SESSION_KEY, name);
+export function setSession(name, isAdmin) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ name, isAdmin }));
 }
 
 export function getSession() {
-  return localStorage.getItem(SESSION_KEY);
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    // Oudere versies sloegen alleen de naam op als platte string
+    if (!raw.startsWith("{")) return { name: raw, isAdmin: raw.toLowerCase() === SUPERADMIN.name.toLowerCase() };
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function clearSession() {

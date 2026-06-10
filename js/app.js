@@ -1,4 +1,5 @@
 import * as store from "./storage.js";
+import * as backend from "./backend.js";
 import { AOS_FACTIONS } from "./factions.js";
 import { renderSetup } from "./setup.js";
 import { renderCompanion } from "./companion.js";
@@ -20,17 +21,37 @@ export function navigate(screen, opts = {}) {
 
 export function saveData() {
   store.saveUserData(state.user.name, state.data);
+  // Met backend: ook (debounced) naar de server syncen
+  if (backend.hasBackend() && backend.getToken()) {
+    backend.pushData(state.data);
+  }
 }
 
-function login(name) {
-  state.user = { name, isAdmin: name.toLowerCase() === store.SUPERADMIN.name.toLowerCase() };
+async function login(name, isAdmin) {
+  state.user = { name, isAdmin };
   state.data = store.getUserData(name);
-  store.setSession(name);
+  // Met backend: serverdata is leidend (en wordt lokaal gecachet)
+  if (backend.hasBackend() && backend.getToken()) {
+    try {
+      const remote = await backend.fetchData();
+      if (remote) {
+        state.data = remote;
+        store.saveUserData(name, remote);
+      } else if (state.data.armies.length) {
+        // Eerste keer online met bestaande lokale data: upload die
+        backend.pushData(state.data);
+      }
+    } catch (e) {
+      console.warn("Backend niet bereikbaar, lokale data wordt gebruikt:", e.message);
+    }
+  }
+  store.setSession(name, isAdmin);
   navigate("home");
 }
 
 function logout() {
   store.clearSession();
+  backend.logout();
   state.user = null;
   state.data = null;
   navigate("login");
@@ -87,17 +108,33 @@ function renderLogin() {
     pwBlock.style.display = isAdminName() ? "block" : "none";
   });
 
-  const doLogin = () => {
+  const doLogin = async () => {
     const name = nameInput.value.trim();
     if (!name) { err.textContent = "Vul je naam in."; return; }
+
+    // Met backend: de server bepaalt of naam/wachtwoord klopt
+    if (backend.hasBackend()) {
+      err.textContent = "Bezig met inloggen…";
+      try {
+        const result = await backend.login(name, isAdminName() ? pwInput.value : undefined);
+        await login(name, result.isAdmin);
+      } catch (e) {
+        err.textContent = e.message === "Failed to fetch"
+          ? "Backend niet bereikbaar. Controleer je internetverbinding."
+          : e.message;
+      }
+      return;
+    }
+
+    // Zonder backend: lokale accounts
     if (isAdminName()) {
       if (pwInput.value !== store.SUPERADMIN.password) { err.textContent = "Onjuist wachtwoord."; return; }
-      login(store.SUPERADMIN.name);
+      await login(store.SUPERADMIN.name, true);
       return;
     }
     const account = store.findAccount(name);
     if (!account) { err.textContent = "Geen account gevonden met deze naam."; return; }
-    login(account.name);
+    await login(account.name, false);
   };
   wrap.querySelector("#login-btn").addEventListener("click", doLogin);
   wrap.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
@@ -186,29 +223,39 @@ function renderAdmin() {
     <input type="text" id="acc-pw" autocomplete="off" />
     <p id="acc-err" style="color:var(--red);min-height:1.2em;font-size:0.9rem"></p>
     <button class="primary" id="acc-add">Account aanmaken</button>
-    <p class="subtitle" style="margin-top:10px">Let op: accounts en legerdata staan lokaal op het apparaat (localStorage).
-    Een account dat je hier aanmaakt bestaat alleen op dit apparaat — op een ander apparaat kan iemand gewoon
-    zijn naam invoeren zodra daar ooit met die naam is ingelogd, of je maakt het account daar opnieuw aan.</p>
+    <p class="subtitle" style="margin-top:10px">${backend.hasBackend()
+      ? "Accounts staan op de server: ze werken op ieder apparaat en data synct automatisch."
+      : "Let op: accounts en legerdata staan lokaal op het apparaat (localStorage). Een account dat je hier aanmaakt bestaat alleen op dit apparaat."}</p>
   </div>`);
   app.appendChild(card);
 
   const list = el(`<div class="card"><h3>Bestaande accounts</h3><div id="acc-list"></div></div>`);
   app.appendChild(list);
 
-  const refreshList = () => {
+  const refreshList = async () => {
     const target = list.querySelector("#acc-list");
     target.innerHTML = "";
-    const accounts = store.getAccounts();
+    let accounts;
+    try {
+      accounts = backend.hasBackend() ? await backend.listAccounts() : store.getAccounts();
+    } catch (e) {
+      target.appendChild(el(`<p class="empty" style="color:var(--red)">Accounts ophalen mislukt: ${esc(e.message)}</p>`));
+      return;
+    }
     if (!accounts.length) target.appendChild(el(`<p class="empty">Nog geen accounts.</p>`));
     for (const a of accounts) {
       const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
         <span>${esc(a.name)} <span class="subtitle">(ww: ${esc(a.password)})</span></span>
         <button class="danger small">Verwijderen</button>
       </div>`);
-      row.querySelector("button").addEventListener("click", () => {
-        if (confirm(`Account "${a.name}" en alle bijbehorende legers verwijderen?`)) {
-          store.deleteAccount(a.name);
+      row.querySelector("button").addEventListener("click", async () => {
+        if (!confirm(`Account "${a.name}" en alle bijbehorende legers verwijderen?`)) return;
+        try {
+          if (backend.hasBackend()) await backend.deleteAccount(a.name);
+          else store.deleteAccount(a.name);
           refreshList();
+        } catch (e) {
+          alert("Verwijderen mislukt: " + e.message);
         }
       });
       target.appendChild(row);
@@ -216,13 +263,14 @@ function renderAdmin() {
   };
   refreshList();
 
-  card.querySelector("#acc-add").addEventListener("click", () => {
+  card.querySelector("#acc-add").addEventListener("click", async () => {
     const name = card.querySelector("#acc-name").value.trim();
     const pw = card.querySelector("#acc-pw").value.trim();
     const err = card.querySelector("#acc-err");
     if (!name || !pw) { err.textContent = "Vul naam en wachtwoord in."; return; }
     try {
-      store.addAccount(name, pw);
+      if (backend.hasBackend()) await backend.createAccount(name, pw);
+      else store.addAccount(name, pw);
       err.textContent = "";
       card.querySelector("#acc-name").value = "";
       card.querySelector("#acc-pw").value = "";
@@ -236,7 +284,7 @@ function renderAdmin() {
 // ---------- Init ----------
 const session = store.getSession();
 if (session) {
-  login(session);
+  login(session.name, session.isAdmin);
 } else {
   render();
 }
