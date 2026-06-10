@@ -16,7 +16,7 @@ export function renderCompanion(ctx) {
   function newGame() {
     return {
       round: 1,
-      stage: "roundSetup", // roundSetup | turn
+      stage: "deployment", // deployment (alleen vóór battleround 1) | roundSetup | turn
       firstTurn: "player", // wie heeft de eerste beurt deze ronde
       turnIndex: 0,        // 0 = eerste beurt van de ronde, 1 = tweede
       phaseIndex: 0,
@@ -64,7 +64,10 @@ export function renderCompanion(ctx) {
 
   // ---------- Abilities verzamelen voor een phase ----------
   function abilitiesFor(owner, phaseKey) {
-    const fullKey = `${owner === "player" ? "own" : "enemy"}-${phaseKey}`;
+    return collectAbilities(`${owner === "player" ? "own" : "enemy"}-${phaseKey}`);
+  }
+
+  function collectAbilities(fullKey) {
     const result = [];
     for (const m of army.models) {
       for (const ab of m.abilities) {
@@ -89,7 +92,8 @@ export function renderCompanion(ctx) {
   function rerender() {
     app.innerHTML = "";
     window.scrollTo(0, 0);
-    if (game.stage === "roundSetup") renderRoundSetup();
+    if (game.stage === "deployment") renderDeployment();
+    else if (game.stage === "roundSetup") renderRoundSetup();
     else renderTurn();
   }
 
@@ -113,6 +117,26 @@ export function renderCompanion(ctx) {
       }
     });
     app.appendChild(bar);
+  }
+
+  // ===================== Deployment (alleen vóór battleround 1) =====================
+  function renderDeployment() {
+    topbar("Deployment");
+    app.appendChild(el(`<h2>Deployment</h2>`));
+    const abs = collectAbilities("deployment");
+    if (abs.length) {
+      app.appendChild(el(`<h3>Abilities tijdens deployment</h3>`));
+      for (const ab of abs) app.appendChild(abilityCard(ab));
+    } else {
+      app.appendChild(el(`<p class="empty">Geen abilities voor de deployment.</p>`));
+    }
+    const nextBtn = el(`<button class="primary bigbtn">▶ Deployment klaar — naar battleround 1</button>`);
+    nextBtn.addEventListener("click", () => {
+      game.stage = "roundSetup";
+      saveData();
+      rerender();
+    });
+    app.appendChild(nextBtn);
   }
 
   // ===================== Battleround set-up =====================

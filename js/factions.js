@@ -45,10 +45,15 @@ export const PHASES = [
   { key: "end",      label: "End of Turn" },
 ];
 
-export const PHASE_OPTIONS = PHASES.flatMap((p) => [
-  { key: `own-${p.key}`,   label: `Eigen ${p.label}` },
-  { key: `enemy-${p.key}`, label: `Enemy ${p.label}` },
-]);
+export const PHASE_OPTIONS = [
+  // Deployment is er alleen vóór battleround 1 en valt buiten de beurten,
+  // dus die bestaat niet dubbel
+  { key: "deployment", label: "Deployment" },
+  ...PHASES.flatMap((p) => [
+    { key: `own-${p.key}`,   label: `Eigen ${p.label}` },
+    { key: `enemy-${p.key}`, label: `Enemy ${p.label}` },
+  ]),
+];
 
 export function phaseLabel(key) {
   const opt = PHASE_OPTIONS.find((o) => o.key === key);
