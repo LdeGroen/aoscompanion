@@ -15,7 +15,7 @@ export function getToken() {
 async function call(action, body = {}, withToken = true) {
   const headers = { "Content-Type": "application/json" };
   if (withToken && getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
-  const res = await fetch(`${API_URL}/index.php?action=${action}`, {
+  const res = await fetch(`${API_URL}/api?action=${action}`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
