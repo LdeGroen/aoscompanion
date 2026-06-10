@@ -12,9 +12,10 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-async function call(action, body = {}, withToken = true) {
+async function call(action, body = {}, withToken = true, tokenOverride = null) {
   const headers = { "Content-Type": "application/json" };
-  if (withToken && getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
+  const token = tokenOverride || getToken();
+  if (withToken && token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_URL}/api?action=${action}`, {
     method: "POST",
     headers,
@@ -32,6 +33,9 @@ export async function login(name, password) {
 }
 
 export function logout() {
+  // Nog lopende (debounced) sync annuleren, anders kan die data van de
+  // vorige gebruiker onder het token van de volgende gebruiker pushen.
+  clearTimeout(pushTimer);
   localStorage.removeItem(TOKEN_KEY);
 }
 
@@ -41,12 +45,15 @@ export async function fetchData() {
 }
 
 // Debounced zodat tikken in een invoerveld niet per toetsaanslag een request doet.
+// Het token wordt bij het inplannen vastgelegd, zodat een late push nooit
+// onder het token van een inmiddels andere ingelogde gebruiker belandt.
 let pushTimer = null;
 export function pushData(data) {
   clearTimeout(pushTimer);
   const snapshot = JSON.stringify(data);
+  const token = getToken();
   pushTimer = setTimeout(() => {
-    call("setData", { app: APP_KEY, data: JSON.parse(snapshot) }).catch((e) =>
+    call("setData", { app: APP_KEY, data: JSON.parse(snapshot) }, true, token).catch((e) =>
       console.warn("Sync naar backend mislukt (lokaal wel opgeslagen):", e.message)
     );
   }, 800);

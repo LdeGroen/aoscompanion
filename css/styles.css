@@ -212,6 +212,8 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 .ability .asrc { font-size: 0.75rem; color: var(--text-dim); }
 .ability .adesc { font-size: 0.9rem; margin-top: 2px; }
 .ability.faction { border-left-color: var(--gold); }
+.ability.used { opacity: 0.6; border-left-color: var(--text-dim); }
+.ability.used .aname, .ability.used .adesc { text-decoration: line-through; }
 
 .lore-entry { padding: 6px 0; border-bottom: 1px dashed var(--border); }
 .lore-entry:last-child { border-bottom: none; }

@@ -22,8 +22,10 @@ export function renderCompanion(ctx) {
       phaseIndex: 0,
       cp: 0,
       usedCommands: {},    // commandId -> true (per beurt)
+      usedAbilities: {},   // abilityKey -> true (once per battle, hele spel)
     };
   }
+  game.usedAbilities = game.usedAbilities || {}; // voor spellen gestart vóór deze feature
 
   const currentTurnOwner = () =>
     game.turnIndex === 0 ? game.firstTurn : game.firstTurn === "player" ? "enemy" : "player";
@@ -292,13 +294,15 @@ export function renderCompanion(ctx) {
 
   function weaponTable(weapons, toHitTransform) {
     const wrap = el(`<div></div>`);
+    const hasRange = weapons.some((w) => w.range);
     const table = el(`<table class="weapons">
-      <tr><th>Wapen</th><th>Atk</th><th>Hit</th><th>Wnd</th><th>Rend</th><th>Dmg</th></tr>
+      <tr><th>Wapen</th>${hasRange ? "<th>Range</th>" : ""}<th>Atk</th><th>Hit</th><th>Wnd</th><th>Rend</th><th>Dmg</th></tr>
     </table>`);
     for (const w of weapons) {
       const hit = toHitTransform ? toHitTransform(w.toHit) : w.toHit;
       table.appendChild(el(`<tr>
         <td class="name">${esc(w.name)}</td>
+        ${hasRange ? `<td>${esc(w.range || "")}"</td>` : ""}
         <td>${esc(w.attacks)}</td>
         <td>${esc(hit)}</td>
         <td>${esc(w.toWound)}</td>
@@ -337,10 +341,30 @@ export function renderCompanion(ctx) {
   }
 
   function abilityCard(ab) {
-    return el(`<div class="ability ${ab.type === "faction" ? "faction" : ""}">
+    if (!ab.oncePerBattle) {
+      return el(`<div class="ability ${ab.type === "faction" ? "faction" : ""}">
+        <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
+        <div class="adesc">${esc(ab.description)}</div>
+      </div>`);
+    }
+    // Once per battle: knop om hem te gebruiken; daarna doorgestreept zichtbaar
+    const key = `${ab.source}|${ab.name}`;
+    const used = !!game.usedAbilities[key];
+    const card = el(`<div class="ability ${ab.type === "faction" ? "faction" : ""} ${used ? "used" : ""}">
       <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
+      <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       <div class="adesc">${esc(ab.description)}</div>
+      <div class="btnrow">
+        <button class="small ${used ? "" : "primary"}">${used ? "↩ Toch niet gebruikt" : "⚡ Gebruik (once per battle)"}</button>
+      </div>
     </div>`);
+    card.querySelector("button").addEventListener("click", () => {
+      if (game.usedAbilities[key]) delete game.usedAbilities[key];
+      else game.usedAbilities[key] = true;
+      saveData();
+      rerender();
+    });
+    return card;
   }
 
   function commandRow(cmd, owner) {

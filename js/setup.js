@@ -269,10 +269,12 @@ export function renderSetup(ctx) {
           <div class="chips" data-chips></div>
           <label>Wat doet de ability?</label>
           <textarea data-f="description">${esc(ab.description)}</textarea>
+          <div class="checkline"><input type="checkbox" data-f="once" ${ab.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
           <div class="btnrow"><button class="danger small">Verwijder ability</button></div>
         </div>`);
         card.querySelector('[data-f="name"]').addEventListener("input", (e) => { ab.name = e.target.value; });
         card.querySelector('[data-f="description"]').addEventListener("input", (e) => { ab.description = e.target.value; });
+        card.querySelector('[data-f="once"]').addEventListener("change", (e) => { ab.oncePerBattle = e.target.checked; });
         const chips = card.querySelector("[data-chips]");
         for (const opt of PHASE_OPTIONS) {
           const chip = el(`<span class="chip ${ab.phases.includes(opt.key) ? "active" : ""}">${opt.label}</span>`);
@@ -335,6 +337,7 @@ export function renderSetup(ctx) {
           <label>Naam wapen</label>
           <input type="text" data-f="name" value="${esc(w.name)}" placeholder="bijv. Warhammer" />
           <div class="row tight">
+            ${key === "rangedAttacks" ? `<div><label>Range (")</label><input type="text" data-f="range" value="${esc(w.range ?? "")}" placeholder='bijv. 12' /></div>` : ""}
             <div><label>Attacks</label><input type="number" data-f="attacks" min="0" value="${esc(w.attacks)}" /></div>
             <div><label>To hit</label><select data-f="toHit">${TO_HIT_WOUND.map((s) => `<option ${s === w.toHit ? "selected" : ""}>${s}</option>`).join("")}</select></div>
             <div><label>To wound</label><select data-f="toWound">${TO_HIT_WOUND.map((s) => `<option ${s === w.toWound ? "selected" : ""}>${s}</option>`).join("")}</select></div>
@@ -346,8 +349,9 @@ export function renderSetup(ctx) {
           <button class="small" data-bonus-add>+ Bonus</button>
           <div class="btnrow"><button class="danger small" data-del>Verwijder wapen</button></div>
         </div>`);
-        for (const f of ["name", "attacks", "toHit", "toWound", "rend", "damage"]) {
+        for (const f of ["name", "range", "attacks", "toHit", "toWound", "rend", "damage"]) {
           const input = card.querySelector(`[data-f="${f}"]`);
+          if (!input) continue;
           input.addEventListener("input", (e) => { w[f] = e.target.value; });
           input.addEventListener("change", (e) => { w[f] = e.target.value; });
         }
@@ -372,7 +376,7 @@ export function renderSetup(ctx) {
     };
     draw();
     wrap.querySelector("[data-add]").addEventListener("click", () => {
-      m[key].push({ name: "", attacks: 1, toHit: "4+", toWound: "4+", rend: 0, damage: "1", bonuses: [] });
+      m[key].push({ name: "", range: "", attacks: 1, toHit: "4+", toWound: "4+", rend: 0, damage: "1", bonuses: [] });
       draw();
     });
   }
@@ -464,10 +468,12 @@ export function renderSetup(ctx) {
           <div class="chips" data-chips></div>
           <label>Beschrijving</label>
           <textarea data-f="description">${esc(r.description)}</textarea>
+          <div class="checkline"><input type="checkbox" data-f="once" ${r.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
           <div class="btnrow"><button class="danger small">Verwijder rule</button></div>
         </div>`);
         card.querySelector('[data-f="name"]').addEventListener("input", (e) => { r.name = e.target.value; saveData(); });
         card.querySelector('[data-f="description"]').addEventListener("input", (e) => { r.description = e.target.value; saveData(); });
+        card.querySelector('[data-f="once"]').addEventListener("change", (e) => { r.oncePerBattle = e.target.checked; saveData(); });
         const chips = card.querySelector("[data-chips]");
         for (const opt of PHASE_OPTIONS) {
           const chip = el(`<span class="chip ${r.phases.includes(opt.key) ? "active" : ""}">${opt.label}</span>`);
