@@ -1,5 +1,6 @@
 import { PHASES, phaseLabel } from "./factions.js";
 import { effectiveModel, enhancementSource } from "./enhancements.js";
+import { icon } from "./icons.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -49,7 +50,7 @@ export function renderCompanion(ctx) {
   // Destroyed-knop op de vakjes van een gesummende manifestation
   function attachDestroyed(row, m) {
     if (m.type !== "Manifestation") return row;
-    const btn = el(`<button class="danger small">💥 Destroyed</button>`);
+    const btn = el(`<button class="danger small">${icon("skull")} Destroyed</button>`);
     btn.addEventListener("click", () => {
       delete game.summoned[m.id];
       saveData();
@@ -142,8 +143,8 @@ export function renderCompanion(ctx) {
         <div class="subtitle">${esc(subtitle)}</div>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="small" id="btn-endgame">Einde spel</button>
-        <button class="small" id="btn-home">← Legers</button>
+        <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
+        <button class="small" id="btn-home">${icon("back")} Legers</button>
       </div>
     </div>`);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
@@ -168,7 +169,7 @@ export function renderCompanion(ctx) {
     } else {
       app.appendChild(el(`<p class="empty">Geen abilities voor de deployment.</p>`));
     }
-    const nextBtn = el(`<button class="primary bigbtn">▶ Deployment klaar — naar battleround 1</button>`);
+    const nextBtn = el(`<button class="primary bigbtn">${icon("play")} Deployment klaar — naar battleround 1</button>`);
     nextBtn.addEventListener("click", () => {
       game.stage = "roundSetup";
       saveData();
@@ -197,7 +198,7 @@ export function renderCompanion(ctx) {
       </div>
       <label>Met hoeveel command points begin je deze battleround?</label>
       <input type="number" id="cp-input" min="0" value="${game.round === 1 ? 4 : game.cp || 4}" />
-      <button class="primary bigbtn" id="btn-start">▶ Start battleround ${game.round}</button>
+      <button class="primary bigbtn" id="btn-start">${icon("play")} Start battleround ${game.round}</button>
     </div>`);
     app.appendChild(card);
 
@@ -369,7 +370,7 @@ export function renderCompanion(ctx) {
         <span>${esc(m.name)}${summoned ? ' <span class="chip tag">In het spel</span>' : ""}</span>
         <span style="display:flex;gap:6px;align-items:center">
           ${m.banishment ? `<span class="stat" style="display:inline-block"><span class="v">${esc(m.banishment)}</span><span class="k">banish</span></span>` : ""}
-          <button class="small ${summoned ? "danger" : "primary"}">${summoned ? "💥 Destroyed" : "⚡ Summoned"}</button>
+          <button class="small ${summoned ? "danger" : "primary"}">${summoned ? `${icon("skull")} Destroyed` : `${icon("zap")} Summoned`}</button>
         </span>
       </div>`);
       row.querySelector("button").addEventListener("click", () => {
@@ -495,7 +496,7 @@ export function renderCompanion(ctx) {
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       <div class="adesc">${esc(ab.description)}</div>
       <div class="btnrow">
-        <button class="small ${used ? "" : "primary"}">${used ? "↩ Toch niet gebruikt" : "⚡ Gebruik (once per battle)"}</button>
+        <button class="small ${used ? "" : "primary"}">${used ? `${icon("undo")} Toch niet gebruikt` : `${icon("zap")} Gebruik (once per battle)`}</button>
       </div>
     </div>`);
     card.querySelector("button").addEventListener("click", () => {

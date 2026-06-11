@@ -3,6 +3,7 @@ import { modLabel } from "./enhancements.js";
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
+import { icon } from "./icons.js";
 
 // De gedeelde database: per faction alle gedeelde kaartjes, enhancements en
 // rules, toegankelijk voor alle accounts. Open je hem vanuit set-up, dan kun
@@ -85,8 +86,8 @@ export function renderDatabase(ctx) {
     if (editing?.kind === "model") return drawModelEdit();
 
     const header = el(`<div class="topbar">
-      <span class="title">📚 Database</span>
-      <button class="small" id="btn-back">← Terug</button>
+      <span class="title">${icon("book", 18)} Database</span>
+      <button class="small" id="btn-back">${icon("back")} Terug</button>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => {
       saveData();
@@ -166,9 +167,9 @@ export function renderDatabase(ctx) {
           </div>
         </div>
         <div class="btnrow">
-          ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
-          ${canEdit(m) ? `<button class="small" data-act="edit">✎ Bewerken</button>
-          <button class="danger small" data-act="del">Verwijderen</button>` : ""}
+          ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
+          ${canEdit(m) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+          <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
         </div>
       </div>`);
       const armyBtn = item.querySelector('[data-act="army"]');
@@ -196,14 +197,14 @@ export function renderDatabase(ctx) {
     const m = editing.copy;
     const header = el(`<div class="topbar">
       <span class="title">Database-kaartje bewerken</span>
-      <button class="small" id="btn-cancel">← Annuleren</button>
+      <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
     </div>`);
     header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; draw(); });
     app.appendChild(header);
 
     m.enhancementIds = m.enhancementIds || [];
     const editor = buildModelEditor({ container: app, m, el, esc });
-    const saveBtn = el(`<button class="primary bigbtn">✔ Opslaan in de database</button>`);
+    const saveBtn = el(`<button class="primary bigbtn">${icon("check")} Opslaan in de database</button>`);
     saveBtn.addEventListener("click", () => {
       if (!editor.commit()) { alert("Geef het model een naam."); return; }
       finishEdit();
@@ -250,9 +251,9 @@ export function renderDatabase(ctx) {
           <div class="muted-list">${esc(enh.description)}</div>
           <div class="subtitle">${ownerLabel(enh)}</div>
           <div class="btnrow">
-            ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
-            ${canEdit(enh) ? `<button class="small" data-act="edit">✎ Bewerken</button>
-            <button class="danger small" data-act="del">Verwijderen</button>` : ""}
+            ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
+            ${canEdit(enh) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+            <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
           </div>
         </div>`);
         const armyBtn = item.querySelector('[data-act="army"]');
@@ -313,9 +314,9 @@ export function renderDatabase(ctx) {
           ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
           <div class="subtitle">${ownerLabel(lore)}</div>
           <div class="btnrow">
-            ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
-            ${canEdit(lore) ? `<button class="small" data-act="edit">✎ Bewerken</button>
-            <button class="danger small" data-act="del">Verwijderen</button>` : ""}
+            ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
+            ${canEdit(lore) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+            <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
           </div>
         </div>`);
         const armyBtn = item.querySelector('[data-act="army"]');
@@ -369,9 +370,9 @@ export function renderDatabase(ctx) {
         <div class="muted-list">${esc(r.description)}</div>
         <div class="subtitle">${ownerLabel(r)}</div>
         <div class="btnrow">
-          ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
-          ${canEdit(r) ? `<button class="small" data-act="edit">✎ Bewerken</button>
-          <button class="danger small" data-act="del">Verwijderen</button>` : ""}
+          ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
+          ${canEdit(r) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+          <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
         </div>
       </div>`);
       const armyBtn = item.querySelector('[data-act="army"]');
@@ -401,7 +402,7 @@ export function renderDatabase(ctx) {
 
   function editActions() {
     return [
-      { label: "✔ Opslaan in de database", primary: true, onClick: () => finishEdit() },
+      { label: `${icon("check")} Opslaan in de database`, primary: true, onClick: () => finishEdit() },
       { label: "Annuleren", onClick: () => { editing = null; draw(); } },
     ];
   }

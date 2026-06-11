@@ -2,6 +2,7 @@ import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, groupByType, loreKind } from "./f
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
+import { icon } from "./icons.js";
 
 // Set-up mode: leger samenstellen, models invoeren, enhancements, lores en faction rules.
 export function renderSetup(ctx) {
@@ -100,8 +101,8 @@ export function renderSetup(ctx) {
     const header = el(`<div class="topbar">
       <span class="title">Set-up mode</span>
       <div style="display:flex;gap:6px">
-        <button class="small" id="btn-db">📚 Database</button>
-        <button class="small" id="btn-back">← Mijn legers</button>
+        <button class="small" id="btn-db">${icon("book")} Database</button>
+        <button class="small" id="btn-back">${icon("back")} Mijn legers</button>
       </div>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => { saveData(); navigate("home"); });
@@ -160,8 +161,8 @@ export function renderSetup(ctx) {
     // --- Models ---
     const modelsCard = el(`<div class="card"><h2>Models</h2><div id="models-list"></div>
       <div class="btnrow">
-        <button class="primary" id="btn-new-model">+ Nieuw model</button>
-        <button id="btn-from-lib">📚 Kaartje uit de database</button>
+        <button class="primary" id="btn-new-model">${icon("plus")} Nieuw model</button>
+        <button id="btn-from-lib">${icon("import")} Kaartje uit de database</button>
       </div>
     </div>`);
     app.appendChild(modelsCard);
@@ -199,10 +200,10 @@ export function renderSetup(ctx) {
           </div>
         </div>
         <div class="btnrow">
-          <button class="small" data-act="edit">✎ Bewerken</button>
-          <button class="small" data-act="copy">⧉ Dupliceren</button>
-          <button class="small" data-act="share">📚 Deel in database</button>
-          <button class="danger small" data-act="del">Verwijderen</button>
+          <button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+          <button class="small" data-act="copy">${icon("copy")} Dupliceren</button>
+          <button class="small" data-act="share">${icon("share")} Deel in database</button>
+          <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>
         </div>
       </div>`);
       card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(); });
@@ -242,7 +243,7 @@ export function renderSetup(ctx) {
     renderRulesSection("Faction rules", army.factionRules, false);
     renderRulesSection("Subfaction rules", army.subfactionRules, true);
 
-    const done = el(`<button class="primary bigbtn">✔ Klaar — terug naar mijn legers</button>`);
+    const done = el(`<button class="primary bigbtn">${icon("check")} Klaar — terug naar mijn legers</button>`);
     done.addEventListener("click", () => { saveData(); navigate("home"); });
     app.appendChild(done);
   }
@@ -254,7 +255,7 @@ export function renderSetup(ctx) {
     app.innerHTML = "";
     const header = el(`<div class="topbar">
       <span class="title">Kaartjes uit de database</span>
-      <button class="small" id="btn-back">← Terug</button>
+      <button class="small" id="btn-back">${icon("back")} Terug</button>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", rerender);
     app.appendChild(header);
@@ -293,7 +294,7 @@ export function renderSetup(ctx) {
             </div>
           </div>
           <div class="btnrow">
-            <button class="primary small" data-act="add">+ Toevoegen aan leger</button>
+            <button class="primary small" data-act="add">${icon("plus")} Toevoegen aan leger</button>
           </div>
         </div>`);
         card.querySelector('[data-act="add"]').addEventListener("click", () => {
@@ -343,7 +344,7 @@ export function renderSetup(ctx) {
     const isNew = !army.models.some((x) => x.id === m.id);
     const header = el(`<div class="topbar">
       <span class="title">${isNew ? "Nieuw model" : "Model bewerken"}</span>
-      <button class="small" id="btn-cancel">← Annuleren</button>
+      <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
     </div>`);
     header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; rerender(); });
     app.appendChild(header);
@@ -356,7 +357,7 @@ export function renderSetup(ctx) {
       <span>Deel dit kaartje ook in de gedeelde database (zichtbaar voor alle accounts; universal manifestations gaan naar de universal database, de rest naar de ${esc(army.faction)}-database)</span>
     </div></div>`);
     app.appendChild(shareLine);
-    const saveBtn = el(`<button class="primary bigbtn">✔ Model opslaan</button>`);
+    const saveBtn = el(`<button class="primary bigbtn">${icon("check")} Model opslaan</button>`);
     saveBtn.addEventListener("click", () => {
       if (!editor.commit()) { alert("Geef het model een naam."); return; }
       if (isNew) army.models.push(m);
@@ -395,7 +396,7 @@ export function renderSetup(ctx) {
     const singular = { artifact: "Artifact of Power", heroicTrait: "Heroic Trait", other: "Other Enhancement" };
     for (const cat of ENHANCEMENT_CATEGORIES) {
       const section = el(`<div class="card inner"><h3>${cat.label}</h3><div data-list></div>
-        <button class="small" data-add>+ ${singular[cat.key]} toevoegen</button>
+        <button class="small" data-add>${icon("plus")} ${singular[cat.key]} toevoegen</button>
       </div>`);
       cats.appendChild(section);
       const list = section.querySelector("[data-list]");
@@ -410,7 +411,7 @@ export function renderSetup(ctx) {
             onChange: saveData,
             actions: [
               {
-                label: "📚 Deel in database",
+                label: `${icon("share")} Deel in database`,
                 onClick: () => shareToDb(() => sharedb.shareEnhancement(army.faction, enh, state.user), `Enhancement "${enh.name}"`),
               },
               {
@@ -469,7 +470,7 @@ export function renderSetup(ctx) {
       body.innerHTML = "";
       const lore = army[def.armyField];
       if (!lore) {
-        const btn = el(`<button class="small">+ ${def.label} kiezen</button>`);
+        const btn = el(`<button class="small">${icon("plus")} ${def.label} kiezen</button>`);
         btn.addEventListener("click", () => {
           army[def.armyField] = {
             name: "",
@@ -478,7 +479,7 @@ export function renderSetup(ctx) {
           saveData();
           draw();
         });
-        body.appendChild(el(`<p class="empty">Nog geen ${def.label.toLowerCase()} gekozen (optioneel). Je kunt er ook een importeren via 📚 Database.</p>`));
+        body.appendChild(el(`<p class="empty">Nog geen ${def.label.toLowerCase()} gekozen (optioneel). Je kunt er ook een importeren via de Database.</p>`));
         body.appendChild(btn);
         return;
       }
@@ -490,7 +491,7 @@ export function renderSetup(ctx) {
         onRedraw: draw,
         actions: [
           {
-            label: "📚 Deel in database",
+            label: `${icon("share")} Deel in database`,
             onClick: async () => {
               if (!lore.name.trim()) { alert("Geef de lore eerst een naam."); return; }
               const target = kindKey === "manifestation" && lore.universal ? "universal database" : `${army.faction}-database`;
@@ -503,7 +504,7 @@ export function renderSetup(ctx) {
             },
           },
           {
-            label: `✕ ${def.label} verwijderen`,
+            label: `${icon("trash")} ${def.label} verwijderen`,
             danger: true,
             onClick: () => {
               if (confirm(`${def.label} verwijderen?`)) { army[def.armyField] = null; saveData(); draw(); }
@@ -521,7 +522,7 @@ export function renderSetup(ctx) {
 
   // ===================== Faction / subfaction rules =====================
   function renderRulesSection(title, rules, isSubfaction) {
-    const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>+ Rule toevoegen</button></div>`);
+    const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>${icon("plus")} Rule toevoegen</button></div>`);
     app.appendChild(wrap);
     const list = wrap.querySelector("[data-list]");
 
@@ -534,7 +535,7 @@ export function renderSetup(ctx) {
           onChange: saveData,
           actions: [
             {
-              label: "📚 Deel in database",
+              label: `${icon("share")} Deel in database`,
               onClick: () => {
                 if (isSubfaction && !army.subfaction) { alert("Kies eerst een subfaction voor dit leger."); return; }
                 shareToDb(() => sharedb.shareRule(army.faction, isSubfaction ? army.subfaction : null, r, state.user), `Rule "${r.name}"`);

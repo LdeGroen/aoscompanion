@@ -4,6 +4,7 @@ import { AOS_FACTIONS } from "./factions.js";
 import { renderSetup } from "./setup.js";
 import { renderCompanion } from "./companion.js";
 import { renderDatabase } from "./database.js";
+import { icon } from "./icons.js";
 
 const app = document.getElementById("app");
 
@@ -65,12 +66,16 @@ const THEME_KEY = "aoscomp_theme"; // "dark" | "light" | "system"
 const lightMedia = window.matchMedia("(prefers-color-scheme: light)");
 
 const getTheme = () => localStorage.getItem(THEME_KEY) || "dark";
-const themeLabel = () => ({ dark: "🌙 Donker", light: "☀️ Licht", system: "🖥️ Systeem" }[getTheme()]);
+const themeLabel = () => ({
+  dark: `${icon("moon")} Donker`,
+  light: `${icon("sun")} Licht`,
+  system: `${icon("monitor")} Systeem`,
+}[getTheme()]);
 
 function applyTheme() {
   const mode = getTheme();
   const light = mode === "light" || (mode === "system" && lightMedia.matches);
-  document.body.classList.toggle("theme-light", light);
+  document.documentElement.classList.toggle("theme-light", light);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = light ? "#f2efe8" : "#15161c";
 }
@@ -113,7 +118,7 @@ function render() {
 
 function renderLogin() {
   const wrap = el(`<div class="login-wrap">
-    <h1>⚔️ AoS Companion</h1>
+    <h1>${icon("sword", 22)} AoS Companion</h1>
     <p class="subtitle" style="text-align:center">Voer je naam in om bij je legers te komen.</p>
     <div class="card">
       <label>Naam</label>
@@ -173,19 +178,19 @@ function renderLogin() {
 
 function renderHome() {
   const header = el(`<div class="topbar">
-    <span class="title">⚔️ AoS Companion</span>
+    <span class="title">${icon("sword", 18)} AoS Companion</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       <button class="small" id="btn-theme" title="Wissel tussen donker, licht en systeem">${themeLabel()}</button>
-      <button class="small" id="btn-db">📚 Database</button>
-      ${state.user.isAdmin ? `<button class="small" id="btn-admin">Accounts</button>` : ""}
-      <button class="small" id="btn-logout">Uitloggen (${esc(state.user.name)})</button>
+      <button class="small" id="btn-db">${icon("book")} Database</button>
+      ${state.user.isAdmin ? `<button class="small" id="btn-admin">${icon("users")} Accounts</button>` : ""}
+      <button class="small" id="btn-logout">${icon("logout")} ${esc(state.user.name)}</button>
     </div>
   </div>`);
   app.appendChild(header);
   header.querySelector("#btn-logout").addEventListener("click", logout);
   header.querySelector("#btn-theme").addEventListener("click", (e) => {
     cycleTheme();
-    e.target.textContent = themeLabel();
+    e.currentTarget.innerHTML = themeLabel();
   });
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
@@ -206,9 +211,9 @@ function renderHome() {
         </div>
       </div>
       <div class="btnrow">
-        <button class="primary" data-act="play">▶ Spelen</button>
-        <button data-act="edit">✎ Set-up</button>
-        <button class="danger small" data-act="del">Verwijderen</button>
+        <button class="primary" data-act="play">${icon("play")} Spelen</button>
+        <button data-act="edit">${icon("edit")} Set-up</button>
+        <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>
       </div>
     </div>`);
     card.querySelector('[data-act="play"]').addEventListener("click", () => navigate("companion", { armyId: army.id }));
@@ -223,7 +228,7 @@ function renderHome() {
     app.appendChild(card);
   }
 
-  const newBtn = el(`<button class="primary bigbtn">+ Nieuw leger</button>`);
+  const newBtn = el(`<button class="primary bigbtn">${icon("plus")} Nieuw leger</button>`);
   newBtn.addEventListener("click", () => {
     const army = {
       id: store.uid(),
@@ -248,7 +253,7 @@ function renderHome() {
 function renderAdmin() {
   const header = el(`<div class="topbar">
     <span class="title">Accountbeheer</span>
-    <button class="small" id="btn-back">← Terug</button>
+    <button class="small" id="btn-back">${icon("back")} Terug</button>
   </div>`);
   header.querySelector("#btn-back").addEventListener("click", () => navigate("home"));
   app.appendChild(header);
@@ -284,7 +289,7 @@ function renderAdmin() {
     for (const a of accounts) {
       const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
         <span>${esc(a.name)} <span class="subtitle">(ww: ${esc(a.password)})</span></span>
-        <button class="danger small">Verwijderen</button>
+        <button class="danger small">${icon("trash")} Verwijderen</button>
       </div>`);
       row.querySelector("button").addEventListener("click", async () => {
         if (!confirm(`Account "${a.name}" en alle bijbehorende legers verwijderen?`)) return;

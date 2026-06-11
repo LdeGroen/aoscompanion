@@ -12,11 +12,14 @@
   --red: #b34a4a;
   --green: #5d9b6c;
   --blue: #5b7fb3;
-  --radius: 10px;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --focus-ring: rgba(201, 162, 39, 0.25);
 }
 
-/* Lichte modus: zelfde goud-accenten (iets donkerder voor contrast) op licht perkament */
-body.theme-light {
+/* Lichte modus: zelfde goud-accenten (iets donkerder voor contrast) op licht perkament.
+   De klasse staat op <html>, zodat ook de achtergrond buiten de body meekleurt. */
+.theme-light {
   --bg: #f2efe8;
   --bg-card: #ffffff;
   --bg-card-2: #f6f3ea;
@@ -30,6 +33,8 @@ body.theme-light {
   --red: #a23b3b;
   --green: #2e7d44;
   --blue: #2f5e9e;
+  --shadow: 0 1px 4px rgba(60, 50, 20, 0.10);
+  --focus-ring: rgba(143, 116, 29, 0.22);
 }
 
 * { box-sizing: border-box; }
@@ -80,8 +85,9 @@ h3 { font-size: 1.05rem; }
   border-radius: var(--radius);
   padding: 14px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow);
 }
-.card.inner { background: var(--bg-card-2); }
+.card.inner { background: var(--bg-card-2); box-shadow: none; }
 
 .card-header {
   display: flex;
@@ -104,7 +110,12 @@ input[type="text"], input[type="number"], input[type="password"], select, textar
   font-size: 1rem;
 }
 textarea { min-height: 70px; resize: vertical; }
-input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold-dark); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gold-dark);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+input, select, textarea { transition: border-color 0.15s, box-shadow 0.15s; }
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 .row > div { flex: 1; min-width: 130px; }
@@ -116,20 +127,38 @@ input:focus, select:focus, textarea:focus { outline: 1px solid var(--gold-dark);
 
 /* --- Buttons --- */
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 0.95rem;
   padding: 9px 14px;
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-card-2);
   color: var(--text);
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, filter 0.15s;
 }
+button:hover { border-color: var(--gold-dark); }
 button:active { transform: scale(0.98); }
-button.primary { background: var(--gold-dark); border-color: var(--gold); color: #fff; font-weight: 600; }
+button.primary {
+  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  border-color: var(--gold-dark);
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+button.primary:hover { filter: brightness(1.08); }
 button.danger { background: transparent; border-color: var(--red); color: var(--red); }
+button.danger:hover { background: rgba(179, 74, 74, 0.12); border-color: var(--red); }
 button.small { padding: 5px 10px; font-size: 0.85rem; }
 button.link { background: none; border: none; color: var(--blue); padding: 4px; }
 .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Inline SVG-iconen kleuren mee met de tekst */
+svg.ic { flex-shrink: 0; }
+h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 
 /* --- Chips (phase multi-select) --- */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
@@ -162,15 +191,22 @@ button.link { background: none; border: none; color: var(--blue); padding: 4px; 
 
 /* --- Weapon tabel --- */
 table.weapons { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 6px 0; }
-table.weapons th, table.weapons td { border: 1px solid var(--border); padding: 5px 6px; text-align: center; }
-table.weapons th { background: var(--bg-input); color: var(--text-dim); font-weight: normal; font-size: 0.75rem; }
+table.weapons th, table.weapons td { border: 1px solid var(--border); padding: 6px 7px; text-align: center; }
+table.weapons th { background: var(--bg-input); color: var(--text-dim); font-weight: normal; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
+table.weapons tr:nth-child(odd) td { background: var(--bg-input); }
 table.weapons td.name { text-align: left; font-weight: 600; }
 .weapon-bonus { font-size: 0.8rem; color: var(--gold); margin: 2px 0 6px; }
 
 /* --- Companion mode --- */
-.phase-nav { display: flex; gap: 4px; overflow-x: auto; padding: 6px 0; }
-.phase-nav button { white-space: nowrap; font-size: 0.8rem; padding: 7px 10px; flex-shrink: 0; }
-.phase-nav button.active { background: var(--gold-dark); border-color: var(--gold); color: #fff; }
+.phase-nav { display: flex; gap: 5px; overflow-x: auto; padding: 6px 0 10px; }
+.phase-nav button { white-space: nowrap; font-size: 0.8rem; padding: 7px 13px; flex-shrink: 0; border-radius: 999px; }
+.phase-nav button.active {
+  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  border-color: var(--gold-dark);
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
 
 .turnbar {
   display: flex;
@@ -184,8 +220,9 @@ table.weapons td.name { text-align: left; font-weight: 600; }
   padding: 10px 14px;
   margin-bottom: 10px;
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 10;
+  box-shadow: var(--shadow);
 }
 .turnbar .who { font-family: Georgia, serif; font-weight: bold; }
 .turnbar .who.player { color: var(--green); }
@@ -257,6 +294,7 @@ details.type-group { margin-bottom: 6px; }
 details.type-group > summary {
   cursor: pointer;
   user-select: none;
+  list-style: none;
   font-family: Georgia, "Times New Roman", serif;
   font-weight: bold;
   color: var(--gold);
@@ -264,4 +302,19 @@ details.type-group > summary {
   border-bottom: 1px dashed var(--border);
   margin-bottom: 8px;
 }
+details.type-group > summary::-webkit-details-marker { display: none; }
+details.type-group > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 7px;
+  transition: transform 0.15s;
+  color: var(--text-dim);
+}
+details[open].type-group > summary::before { transform: rotate(90deg); }
 details.type-group > summary .count { color: var(--text-dim); font-weight: normal; font-size: 0.85rem; font-family: "Segoe UI", system-ui, sans-serif; }
+
+/* --- Scrollbar in appstijl --- */
+::-webkit-scrollbar { width: 10px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold-dark); }

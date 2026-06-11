@@ -27,7 +27,9 @@ laadt dezelfde URL.
 - Bestanden: `index.html` · `css/styles.css` · `js/app.js` (router, login, home, accountbeheer)
   · `js/setup.js` (set-up mode) · `js/companion.js` (spelmodus) · `js/factions.js` (data + phases
   + model types/wards/stat-mod-definities) · `js/enhancements.js` (mod-logica: effectiveModel e.d.)
-  · `js/editors.js` (herbruikbare model/enhancement/rule-editors, gebruikt door setup én database)
+  · `js/editors.js` (herbruikbare model/enhancement/rule/lore-editors, gebruikt door setup én database)
+  · `js/icons.js` (inline SVG-iconen, lucide-stijl — gebruik `${icon("naam")}` in templates,
+  geen emoji's in knoppen: die renderen per toestel anders)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
 - UI is mobile-first (gebruikt aan de speltafel). **Thema's**: donker (default), licht of

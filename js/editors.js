@@ -1,5 +1,6 @@
 import { PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, STAT_MODS, enhancementCategoryLabel, loreKind } from "./factions.js";
 import { enhancementFits, modLabel } from "./enhancements.js";
+import { icon } from "./icons.js";
 
 // Herbruikbare editors voor models, enhancements en rules.
 // Gebruikt door set-up mode én het database-scherm (bewerken van gedeelde entries).
@@ -86,7 +87,7 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
   buildWeaponSection({ container, m, key: "meleeAttacks", title: "Melee attacks", el, esc, onChange });
 
   // --- Abilities ---
-  const abWrap = el(`<div class="card"><h2>Abilities</h2><div id="ab-list"></div><button class="small" id="ab-add">+ Ability toevoegen</button></div>`);
+  const abWrap = el(`<div class="card"><h2>Abilities</h2><div id="ab-list"></div><button class="small" id="ab-add">${icon("plus")} Ability toevoegen</button></div>`);
   container.appendChild(abWrap);
   const abList = abWrap.querySelector("#ab-list");
   const drawAbilities = () => {
@@ -101,7 +102,7 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
         <label>Wat doet de ability?</label>
         <textarea data-f="description">${esc(ab.description)}</textarea>
         <div class="checkline"><input type="checkbox" data-f="once" ${ab.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
-        <div class="btnrow"><button class="danger small">Verwijder ability</button></div>
+        <div class="btnrow"><button class="danger small">${icon("trash")} Verwijder ability</button></div>
       </div>`);
       card.querySelector('[data-f="name"]').addEventListener("input", (e) => { ab.name = e.target.value; onChange(); });
       card.querySelector('[data-f="description"]').addEventListener("input", (e) => { ab.description = e.target.value; onChange(); });
@@ -187,7 +188,7 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
 }
 
 function buildWeaponSection({ container, m, key, title, el, esc, onChange }) {
-  const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>+ ${title === "Ranged attacks" ? "Ranged attack" : "Melee attack"} toevoegen</button></div>`);
+  const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>${icon("plus")} ${title === "Ranged attacks" ? "Ranged attack" : "Melee attack"} toevoegen</button></div>`);
   container.appendChild(wrap);
   const list = wrap.querySelector("[data-list]");
 
@@ -208,8 +209,8 @@ function buildWeaponSection({ container, m, key, title, el, esc, onChange }) {
         </div>
         <label>Conditionele bonussen (bijv. "+1 damage on the charge")</label>
         <div data-bonuses></div>
-        <button class="small" data-bonus-add>+ Bonus</button>
-        <div class="btnrow"><button class="danger small" data-del>Verwijder wapen</button></div>
+        <button class="small" data-bonus-add>${icon("plus")} Bonus</button>
+        <div class="btnrow"><button class="danger small" data-del>${icon("trash")} Verwijder wapen</button></div>
       </div>`);
       for (const f of ["name", "range", "attacks", "toHit", "toWound", "rend", "damage"]) {
         const input = card.querySelector(`[data-f="${f}"]`);
@@ -260,7 +261,7 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
     <textarea data-f="description">${esc(enh.description)}</textarea>
     <label>Stat improvements (optioneel)</label>
     <div data-mods></div>
-    <button class="small" data-mod-add>+ Stat improvement</button>
+    <button class="small" data-mod-add>${icon("plus")} Stat improvement</button>
     <label>Phases waarin de ability getoond wordt (optioneel — laat leeg als de enhancement alleen stats verbetert)</label>
     <div class="chips" data-chips></div>
     <div class="checkline"><input type="checkbox" data-f="once" ${enh.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
