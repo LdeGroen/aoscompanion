@@ -645,7 +645,8 @@ export function renderCompanion(ctx) {
     const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : "";
     if (!ab.oncePerBattle) {
       const card = el(`<div class="ability ${typeClass}">
-        <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
+        <div class="owner">${esc(ab.source)}</div>
+        <span class="aname">${esc(ab.name)}</span>
         <div class="adesc">${esc(ab.description)}</div>
       </div>`);
       if (ab.model) makeClickable(card, ab.model);
@@ -655,7 +656,8 @@ export function renderCompanion(ctx) {
     const key = `${ab.source}|${ab.name}`;
     const used = !!game.usedAbilities[key];
     const card = el(`<div class="ability ${typeClass} ${used ? "used" : ""}">
-      <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
+      <div class="owner">${esc(ab.source)}</div>
+      <span class="aname">${esc(ab.name)}</span>
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       <div class="adesc">${esc(ab.description)}</div>
       <div class="btnrow">

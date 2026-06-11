@@ -280,6 +280,15 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 }
 .ability .aname { font-weight: 600; }
 .ability .asrc { font-size: 0.75rem; color: var(--text-dim); }
+/* Van wie is de ability? De modelnaam prominent boven de ability */
+.ability .owner {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: bold;
+  font-size: 1.02rem;
+  color: var(--gold);
+  margin-bottom: 1px;
+}
+.ability.used .owner { text-decoration: line-through; }
 .ability .adesc { font-size: 0.9rem; margin-top: 2px; }
 /* Regeleinden in ingevoerde beschrijvingen ook tonen */
 .ability .adesc, .command .cdesc, .muted-list, .lore-entry .subtitle { white-space: pre-line; }
