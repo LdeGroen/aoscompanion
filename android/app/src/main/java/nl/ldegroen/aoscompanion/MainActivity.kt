@@ -2,6 +2,7 @@ package nl.ldegroen.aoscompanion
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
@@ -45,6 +46,11 @@ class MainActivity : AppCompatActivity() {
             domStorageEnabled = true // nodig voor localStorage (alle app-data)
             cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         }
+        // Zonder WebChromeClient toont een WebView geen JavaScript-dialogen:
+        // confirm() doet dan stilletjes alsof je annuleert en alert() verdwijnt.
+        // De app gebruikt die voor bevestigingen (einde spel, verwijderen) en
+        // meldingen, dus de standaard-implementatie is hier verplicht.
+        webView.webChromeClient = WebChromeClient()
         webView.webViewClient = object : WebViewClient() {
             override fun onReceivedError(
                 view: WebView,

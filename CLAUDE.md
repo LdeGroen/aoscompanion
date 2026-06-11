@@ -125,6 +125,9 @@ draai appsync lokaal (`node server.mjs` in die repo, poort 3100) en zet API_URL 
 ## Android-app (`android/`)
 - Minimaal Kotlin WebView-project: laadt de live-URL, `domStorageEnabled` (localStorage!),
   donker thema (geen witte flits), offline-foutpagina, terugknop navigeert in de WebView.
+- ⚠️ De WebView heeft een **WebChromeClient** nodig — zonder die toont Android geen
+  JavaScript-dialogen: `confirm()` "annuleert" dan stilletjes (einde spel/verwijderen
+  deed niets) en `alert()`-meldingen verdwijnen. Niet weghalen dus.
 - Bouwen op de Windows-pc van Luc:
   ```
   cd android
