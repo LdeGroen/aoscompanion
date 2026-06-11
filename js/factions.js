@@ -62,3 +62,37 @@ export function phaseLabel(key) {
 
 export const SAVES = ["2+", "3+", "4+", "5+", "6+", "-"];
 export const TO_HIT_WOUND = ["2+", "3+", "4+", "5+", "6+"];
+
+// Ieder uniek model heeft een type; "-" = geen ward save
+export const MODEL_TYPES = ["Hero", "Named hero", "Infantry", "Cavalry", "Warmachine", "Monster"];
+export const WARDS = ["-", "2+", "3+", "4+", "5+", "6+"];
+
+// Enhancements: artifacts/heroic traits alleen voor models met type "Hero"
+// (Named heroes mogen volgens de regels géén enhancements); "other" geldt
+// voor één specifiek model-type dat je zelf kiest (forType).
+export const ENHANCEMENT_CATEGORIES = [
+  { key: "artifact",    label: "Artifacts of Power",  heroOnly: true },
+  { key: "heroicTrait", label: "Heroic Traits",       heroOnly: true },
+  { key: "other",       label: "Other Enhancements",  heroOnly: false },
+];
+
+export function enhancementCategoryLabel(key) {
+  const cat = ENHANCEMENT_CATEGORIES.find((c) => c.key === key);
+  return cat ? cat.label : key;
+}
+
+// Stat improvements die een enhancement kan geven.
+// kind bepaalt de invoer: "steps" = aantal stappen beter (bijv. save 4+ → 3+),
+// "amount" = +N op een getal/dobbelsteen-notatie, "ward" = ward save waarde.
+export const STAT_MODS = [
+  { key: "save",    label: "Save",            kind: "steps"  },
+  { key: "ward",    label: "Ward save",       kind: "ward"   },
+  { key: "toHit",   label: "To hit",          kind: "steps"  },
+  { key: "toWound", label: "To wound",        kind: "steps"  },
+  { key: "rend",    label: "Rend",            kind: "amount" },
+  { key: "attacks", label: "Attacks",         kind: "amount" },
+  { key: "damage",  label: "Damage",          kind: "amount" },
+  { key: "health",  label: "Health",          kind: "amount" },
+  { key: "move",    label: "Movement (\")",   kind: "amount" },
+  { key: "control", label: "Control",         kind: "amount" },
+];

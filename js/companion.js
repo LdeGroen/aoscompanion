@@ -1,10 +1,22 @@
 import { PHASES, phaseLabel } from "./factions.js";
+import { effectiveModel, enhancementSource } from "./enhancements.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
   const { state, app, navigate, saveData, el, esc } = ctx;
   const army = state.data.armies.find((a) => a.id === state.armyId);
   if (!army) return navigate("home");
+
+  // Migratie voor data van vóór type/ward/enhancements
+  army.enhancements = army.enhancements || [];
+  for (const m of army.models) {
+    m.type = m.type || "";
+    m.ward = m.ward || "";
+    m.enhancementIds = m.enhancementIds || [];
+  }
+
+  // Effectieve stats: enhancement stat improvements verwerkt
+  const eff = (m) => effectiveModel(army, m);
 
   // Spelstatus wordt op het leger bewaard zodat je app kunt verversen zonder je spel kwijt te raken.
   if (!army.game) {
@@ -72,6 +84,11 @@ export function renderCompanion(ctx) {
     for (const m of army.models) {
       for (const ab of m.abilities) {
         if (ab.phases.includes(fullKey)) result.push({ ...ab, source: m.name, type: "model" });
+      }
+      for (const enh of eff(m).enhancements) {
+        if ((enh.phases || []).includes(fullKey)) {
+          result.push({ ...enh, source: enhancementSource(enh, m.name), type: "enhancement" });
+        }
       }
     }
     for (const r of army.factionRules) {
@@ -268,9 +285,10 @@ export function renderCompanion(ctx) {
       app.appendChild(el(`<h3>Movement van je units</h3>`));
       const card = el(`<div class="card"></div>`);
       for (const m of army.models) {
+        const e = eff(m);
         card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
           <span>${esc(m.name)}</span>
-          <span><span class="stat" style="display:inline-block"><span class="v">${esc(m.move)}"</span></span>${m.fly ? ' <span class="chip tag">Fly</span>' : ""}</span>
+          <span><span class="stat" style="display:inline-block"><span class="v">${esc(e.model.move)}"${e.changed.has("move") ? "✦" : ""}</span></span>${m.fly ? ' <span class="chip tag">Fly</span>' : ""}</span>
         </div>`));
       }
       app.appendChild(card);
@@ -280,8 +298,14 @@ export function renderCompanion(ctx) {
       renderWeaponsDisplay("rangedAttacks", "Ranged attacks");
     }
 
+    if (phaseKey === "shooting" && owner === "enemy") {
+      // De tegenstander schiet: wat zijn de saves van mijn units?
+      renderDefenceDisplay();
+    }
+
     if (phaseKey === "combat") {
       // Speler-combat altijd; bij de tegenstander mogen alle melee profielen ook getoond worden
+      renderDefenceDisplay();
       renderWeaponsDisplay("meleeAttacks", "Melee attacks");
     }
 
@@ -289,15 +313,39 @@ export function renderCompanion(ctx) {
       app.appendChild(el(`<h3>Control scores</h3>`));
       const card = el(`<div class="card"></div>`);
       for (const m of army.models) {
-        const total = (m.control || 0) + (m.controlBonus || 0);
+        const e = eff(m);
+        const total = (parseInt(e.model.control) || 0) + (parseInt(m.controlBonus) || 0);
         card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
           <span>${esc(m.name)}${m.standardBearer ? ' <span class="chip tag">Standard Bearer</span>' : ""}</span>
-          <span class="stat" style="display:inline-block"><span class="v">${total}</span><span class="k">control</span></span>
+          <span class="stat" style="display:inline-block"><span class="v">${total}${e.changed.has("control") ? "✦" : ""}</span><span class="k">control</span></span>
         </div>`));
       }
       app.appendChild(card);
     }
   }
+
+  // ---------- Armour & ward saves van je eigen units ----------
+  function renderDefenceDisplay() {
+    app.appendChild(el(`<h3>Saves van je units</h3>`));
+    const card = el(`<div class="card"></div>`);
+    let anyNote = false;
+    for (const m of army.models) {
+      const e = eff(m);
+      const ward = e.model.ward && e.model.ward !== "-" ? e.model.ward : "";
+      anyNote = anyNote || e.changed.has("save") || e.changed.has("ward");
+      card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <span>${esc(m.name)}</span>
+        <span style="display:flex;gap:6px">
+          <span class="stat" style="display:inline-block"><span class="v">${esc(e.model.save)}${e.changed.has("save") ? "✦" : ""}</span><span class="k">save</span></span>
+          ${ward ? `<span class="stat" style="display:inline-block"><span class="v">${esc(ward)}${e.changed.has("ward") ? "✦" : ""}</span><span class="k">ward</span></span>` : ""}
+        </span>
+      </div>`));
+    }
+    if (anyNote) card.appendChild(el(`<div class="weapon-bonus">✦ = incl. enhancement</div>`));
+    app.appendChild(card);
+  }
+
+  const WEAPON_STATS = new Set(["toHit", "toWound", "rend", "attacks", "damage"]);
 
   function renderWeaponsDisplay(key, title, toHitTransform) {
     const withWeapons = army.models.filter((m) => m[key].length > 0);
@@ -307,11 +355,17 @@ export function renderCompanion(ctx) {
     }
     app.appendChild(el(`<h3>${title}</h3>`));
     for (const m of withWeapons) {
+      const e = eff(m);
       const card = el(`<div class="card inner">
         <div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div>
         <div data-weapons></div>
       </div>`);
-      card.querySelector("[data-weapons]").appendChild(weaponTable(m[key], toHitTransform));
+      const target = card.querySelector("[data-weapons]");
+      target.appendChild(weaponTable(e.model[key], toHitTransform));
+      // Wapen-gerelateerde enhancement-mods als voetnoot bij de tabel
+      for (const note of e.notes.filter((n) => WEAPON_STATS.has(n.stat))) {
+        target.appendChild(el(`<div class="weapon-bonus">✦ ${esc(note.source)}: ${esc(note.label)} (verwerkt in de tabel)</div>`));
+      }
       app.appendChild(card);
     }
   }
@@ -365,8 +419,9 @@ export function renderCompanion(ctx) {
   }
 
   function abilityCard(ab) {
+    const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : "";
     if (!ab.oncePerBattle) {
-      return el(`<div class="ability ${ab.type === "faction" ? "faction" : ""}">
+      return el(`<div class="ability ${typeClass}">
         <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
         <div class="adesc">${esc(ab.description)}</div>
       </div>`);
@@ -374,7 +429,7 @@ export function renderCompanion(ctx) {
     // Once per battle: knop om hem te gebruiken; daarna doorgestreept zichtbaar
     const key = `${ab.source}|${ab.name}`;
     const used = !!game.usedAbilities[key];
-    const card = el(`<div class="ability ${ab.type === "faction" ? "faction" : ""} ${used ? "used" : ""}">
+    const card = el(`<div class="ability ${typeClass} ${used ? "used" : ""}">
       <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       <div class="adesc">${esc(ab.description)}</div>
@@ -421,7 +476,7 @@ export function renderCompanion(ctx) {
         if (!withRanged.length) sub.appendChild(el(`<p class="empty">Geen models met ranged attacks.</p>`));
         for (const m of withRanged) {
           const mc = el(`<div class="card inner" style="margin-top:6px"><div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div></div>`);
-          mc.appendChild(weaponTable(m.rangedAttacks, minusOneToHit));
+          mc.appendChild(weaponTable(eff(m).model.rangedAttacks, minusOneToHit));
           sub.appendChild(mc);
         }
         extra.appendChild(sub);

@@ -3,6 +3,7 @@ import * as backend from "./backend.js";
 import { AOS_FACTIONS } from "./factions.js";
 import { renderSetup } from "./setup.js";
 import { renderCompanion } from "./companion.js";
+import { renderDatabase } from "./database.js";
 
 const app = document.getElementById("app");
 
@@ -78,6 +79,7 @@ function render() {
     case "admin": return renderAdmin();
     case "setup": return renderSetup({ state, app, navigate, saveData, el, esc });
     case "companion": return renderCompanion({ state, app, navigate, saveData, el, esc });
+    case "database": return renderDatabase({ state, app, navigate, saveData, el, esc });
   }
 }
 
@@ -145,12 +147,14 @@ function renderHome() {
   const header = el(`<div class="topbar">
     <span class="title">⚔️ AoS Companion</span>
     <div style="display:flex;gap:6px">
+      <button class="small" id="btn-db">📚 Database</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">Accounts</button>` : ""}
       <button class="small" id="btn-logout">Uitloggen (${esc(state.user.name)})</button>
     </div>
   </div>`);
   app.appendChild(header);
   header.querySelector("#btn-logout").addEventListener("click", logout);
+  header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 
   app.appendChild(el(`<h2>Mijn legers</h2>`));
@@ -194,6 +198,7 @@ function renderHome() {
       faction: Object.keys(AOS_FACTIONS)[0],
       subfaction: "",
       models: [],
+      enhancements: [],
       spellLore: null,
       manifestationLore: null,
       prayerLore: null,

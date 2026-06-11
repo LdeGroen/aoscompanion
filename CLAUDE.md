@@ -6,10 +6,14 @@ Context voor Claude Code bij het werken aan dit project. Lees dit eerst.
 ## Wat is dit
 Companion app voor Warhammer Age of Sigmar van Luc de Groen-Schram. Twee modussen:
 - **Set-up mode**: leger samenstellen — faction/subfaction, models met volledige profielen
-  (movement, health, control, save, wizard/priest level, champion/musician/standard bearer),
-  ranged/melee attacks met range en conditionele bonussen, abilities per phase,
+  (type, movement, health, control, save, ward save, wizard/priest level,
+  champion/musician/standard bearer), ranged/melee attacks met range en conditionele
+  bonussen, abilities per phase, enhancements (artifacts of power / heroic traits /
+  other enhancements met stat improvements en/of een ability),
   spell/manifestation/prayer lores (3 entries elk) en faction/subfaction rules.
-  Opgeslagen models worden herbruikbare "kaartjes" in een bibliotheek.
+  Opgeslagen models worden herbruikbare "kaartjes" in een bibliotheek; kaartjes,
+  enhancements en rules kunnen ook gedeeld worden in de **gedeelde faction-database**
+  (zichtbaar voor alle accounts).
 - **Companion mode**: een battle spelen — per battleround kies je wie eerst gaat en je
   command points; per phase zie je de juiste info, abilities en universal commands
   (afvinken trekt CP af). Once-per-battle abilities krijgen een gebruik-knop en blijven
@@ -21,7 +25,9 @@ laadt dezelfde URL.
 ## Stack & ontwerpkeuzes
 - **Pure statische webapp**: vanilla JS met ES modules, géén build-stap, géén dependencies.
 - Bestanden: `index.html` · `css/styles.css` · `js/app.js` (router, login, home, accountbeheer)
-  · `js/setup.js` (set-up mode) · `js/companion.js` (spelmodus) · `js/factions.js` (data + phases)
+  · `js/setup.js` (set-up mode) · `js/companion.js` (spelmodus) · `js/factions.js` (data + phases
+  + model types/wards/stat-mod-definities) · `js/enhancements.js` (mod-logica: effectiveModel e.d.)
+  · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
 - UI is mobile-first (gebruikt aan de speltafel), donker thema met goud-accenten.
 
@@ -34,6 +40,20 @@ laadt dezelfde URL.
   `usedAbilities` (once per battle) blijft de hele battle staan. "Einde spel" wist `army.game`.
 - Models in een army hebben een eigen `id`; de bibliotheek (`modelLibrary`) bevat kopieën
   met een eigen id, gededupliceerd op naam (case-insensitive).
+- **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Warmachine/Monster;
+  `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
+- **Enhancements** staan op het leger (`army.enhancements`, categorieën artifact /
+  heroicTrait / other met `forType`); een model verwijst ernaar via `m.enhancementIds`.
+  Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
+  werken de spelregels). Stat improvements (`statMods`) worden in companion mode live
+  verwerkt via `effectiveModel()` en gemarkeerd met ✦; bibliotheek-kaartjes en gedeelde
+  kaartjes krijgen altijd `enhancementIds: []` mee (enhancements zijn leger-gebonden).
+- **Gedeelde faction-database**: per faction één blob op de backend
+  (`getShared`/`setShared`, key `faction:<naam>`), voor alle accounts lees- én schrijfbaar.
+  Structuur: `{factionRules, subfactions: {<naam>: {rules}}, models, enhancements}` —
+  uitbreidbaar. Upsert op naam (case-insensitive); localStorage als offline-cache.
+  Oudere data wordt bij het openen van setup/companion in-place gemigreerd
+  (ontbrekende velden krijgen defaults).
 
 ## Accounts & backend
 - Backend = **AppSync** (repo `LdeGroen/appsync`), draait op de Raspberry Pi `energiepi`,

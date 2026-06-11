@@ -59,6 +59,20 @@ export function pushData(data) {
   }, 800);
 }
 
+// Gedeelde data (de faction-database): voor alle accounts toegankelijk.
+export async function getShared(key) {
+  const result = await call("getShared", { app: APP_KEY, key });
+  return result.data; // null als er nog niets staat
+}
+
+export async function setShared(key, data) {
+  await call("setShared", { app: APP_KEY, key, data });
+}
+
+export async function listShared() {
+  return (await call("listShared", { app: APP_KEY })).keys; // [{key, updatedAt}]
+}
+
 export async function listAccounts() {
   return (await call("listAccounts")).accounts;
 }

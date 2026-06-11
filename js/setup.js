@@ -1,14 +1,34 @@
-import { AOS_FACTIONS, PHASE_OPTIONS, SAVES, TO_HIT_WOUND, phaseLabel } from "./factions.js";
+import { AOS_FACTIONS, PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, ENHANCEMENT_CATEGORIES, STAT_MODS, enhancementCategoryLabel, phaseLabel } from "./factions.js";
+import { enhancementFits, modLabel } from "./enhancements.js";
+import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 
-// Set-up mode: leger samenstellen, models invoeren, lores en faction rules.
+// Set-up mode: leger samenstellen, models invoeren, enhancements, lores en faction rules.
 export function renderSetup(ctx) {
   const { state, app, navigate, saveData, el, esc } = ctx;
   const army = state.data.armies.find((a) => a.id === state.armyId);
   if (!army) return navigate("home");
 
+  // Migratie voor data van vóór deze features
+  army.enhancements = army.enhancements || [];
+  for (const m of army.models) {
+    m.type = m.type || "";
+    m.ward = m.ward || "";
+    m.enhancementIds = m.enhancementIds || [];
+  }
+
   // sub-state binnen set-up
   let editing = null; // null | model object dat bewerkt wordt
+
+  // Delen in de gedeelde faction-database (voor alle accounts zichtbaar)
+  async function shareToDb(fn, label) {
+    try {
+      await fn();
+      alert(`${label} gedeeld in de ${army.faction}-database.`);
+    } catch (e) {
+      alert("Delen in de database mislukt: " + e.message);
+    }
+  }
 
   function rerender() {
     app.innerHTML = "";
@@ -24,9 +44,13 @@ export function renderSetup(ctx) {
   function renderArmyOverview() {
     const header = el(`<div class="topbar">
       <span class="title">Set-up mode</span>
-      <button class="small" id="btn-back">← Mijn legers</button>
+      <div style="display:flex;gap:6px">
+        <button class="small" id="btn-db">📚 Database</button>
+        <button class="small" id="btn-back">← Mijn legers</button>
+      </div>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => { saveData(); navigate("home"); });
+    header.querySelector("#btn-db").addEventListener("click", () => { saveData(); navigate("database", { armyId: army.id, dbReturn: "setup" }); });
     app.appendChild(header);
 
     // --- Leger basis ---
@@ -75,6 +99,7 @@ export function renderSetup(ctx) {
     if (!army.models.length) list.appendChild(el(`<p class="empty">Nog geen models toegevoegd.</p>`));
     for (const m of army.models) {
       const tags = [];
+      if (m.type) tags.push(m.type);
       if (m.fly) tags.push("Fly");
       if (m.wizardLevel > 0) tags.push(`Wizard (${m.wizardLevel})`);
       if (m.priestLevel > 0) tags.push(`Priest (${m.priestLevel})`);
@@ -85,18 +110,21 @@ export function renderSetup(ctx) {
         <div class="card-header">
           <div>
             <h3>${esc(m.name) || "(naamloos)"}</h3>
-            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}</div>
+            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}${m.ward && m.ward !== "-" ? " · Ward " + esc(m.ward) : ""}</div>
             ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
-            <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities</div>
+            <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities${m.enhancementIds.length ? ` · ${m.enhancementIds.length} enhancement${m.enhancementIds.length === 1 ? "" : "s"}` : ""}</div>
           </div>
         </div>
         <div class="btnrow">
           <button class="small" data-act="edit">✎ Bewerken</button>
           <button class="small" data-act="copy">⧉ Dupliceren</button>
+          <button class="small" data-act="share">📚 Deel in database</button>
           <button class="danger small" data-act="del">Verwijderen</button>
         </div>
       </div>`);
       card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(); });
+      card.querySelector('[data-act="share"]').addEventListener("click", () =>
+        shareToDb(() => sharedb.shareModel(army.faction, m), `Kaartje "${m.name}"`));
       card.querySelector('[data-act="copy"]').addEventListener("click", () => {
         const copy = JSON.parse(JSON.stringify(m));
         copy.id = uid();
@@ -120,12 +148,15 @@ export function renderSetup(ctx) {
     });
     modelsCard.querySelector("#btn-from-lib").addEventListener("click", () => renderLibraryPicker());
 
+    // --- Enhancements ---
+    renderEnhancementsSection();
+
     // --- Lores ---
     renderLores();
 
     // --- Faction & subfaction rules ---
-    renderRulesSection("Faction rules", army.factionRules);
-    renderRulesSection("Subfaction rules", army.subfactionRules);
+    renderRulesSection("Faction rules", army.factionRules, false);
+    renderRulesSection("Subfaction rules", army.subfactionRules, true);
 
     const done = el(`<button class="primary bigbtn">✔ Klaar — terug naar mijn legers</button>`);
     done.addEventListener("click", () => { saveData(); navigate("home"); });
@@ -160,6 +191,9 @@ export function renderSetup(ctx) {
       card.querySelector('[data-act="add"]').addEventListener("click", () => {
         const copy = JSON.parse(JSON.stringify(m));
         copy.id = uid();
+        copy.type = copy.type || "";
+        copy.ward = copy.ward || "";
+        copy.enhancementIds = [];
         army.models.push(copy);
         saveData();
         rerender();
@@ -180,12 +214,15 @@ export function renderSetup(ctx) {
     return {
       id: uid(),
       name: "",
+      type: "",
       move: "",
       fly: false,
       health: 1,
       control: 1,
       controlBonus: 0,
       save: "4+",
+      ward: "",
+      enhancementIds: [],
       wizardLevel: 0,
       priestLevel: 0,
       champion: false,
@@ -209,6 +246,11 @@ export function renderSetup(ctx) {
     const form = el(`<div class="card">
       <label>Naam van het model / de unit</label>
       <input type="text" id="m-name" value="${esc(m.name)}" placeholder="bijv. Liberators met Grandhammers" />
+      <label>Type</label>
+      <select id="m-type">
+        <option value="">— kies type —</option>
+        ${MODEL_TYPES.map((t) => `<option ${t === m.type ? "selected" : ""}>${t}</option>`).join("")}
+      </select>
       <div class="row tight">
         <div>
           <label>Movement (")</label>
@@ -231,6 +273,10 @@ export function renderSetup(ctx) {
         <div>
           <label>Armour save</label>
           <select id="m-save">${SAVES.map((s) => `<option ${s === m.save ? "selected" : ""}>${s}</option>`).join("")}</select>
+        </div>
+        <div>
+          <label>Ward save</label>
+          <select id="m-ward">${WARDS.map((w) => `<option value="${w === "-" ? "" : w}" ${w === (m.ward || "-") ? "selected" : ""}>${w === "-" ? "— geen —" : w}</option>`).join("")}</select>
         </div>
         <div>
           <label>Wizard level</label>
@@ -295,10 +341,54 @@ export function renderSetup(ctx) {
       drawAbilities();
     });
 
+    // --- Enhancements toekennen ---
+    // Welke enhancements mogen, hangt af van het type dat nu in de editor gekozen is.
+    const enhPick = el(`<div class="card"><h2>Enhancements</h2><div data-body></div></div>`);
+    app.appendChild(enhPick);
+    const enhBody = enhPick.querySelector("[data-body]");
+    const drawEnhPicker = () => {
+      enhBody.innerHTML = "";
+      const type = form.querySelector("#m-type").value;
+      if (!army.enhancements.length) {
+        enhBody.appendChild(el(`<p class="empty">Nog geen enhancements aangemaakt — dat doe je in het leger-overzicht onder "Enhancements".</p>`));
+        return;
+      }
+      const fits = army.enhancements.filter((e) => enhancementFits(e, { type }));
+      // Niet-passende maar wel aangevinkte enhancements (bijv. na type-wissel) blijven zichtbaar
+      const stale = army.enhancements.filter((e) => !fits.includes(e) && m.enhancementIds.includes(e.id));
+      if (!fits.length && !stale.length) {
+        enhBody.appendChild(el(`<p class="empty">${type ? `Geen enhancements beschikbaar voor het type "${esc(type)}". Artifacts of Power en Heroic Traits zijn alleen voor Heroes.` : "Kies eerst een type voor dit model."}</p>`));
+        return;
+      }
+      for (const e of [...fits, ...stale]) {
+        const isStale = stale.includes(e);
+        const mods = (e.statMods || []).map(modLabel).join(", ");
+        const line = el(`<div class="checkline" style="align-items:flex-start">
+          <input type="checkbox" ${m.enhancementIds.includes(e.id) ? "checked" : ""} />
+          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}</span>
+        </div>`);
+        line.querySelector("input").addEventListener("change", (ev) => {
+          if (ev.target.checked) m.enhancementIds.push(e.id);
+          else m.enhancementIds = m.enhancementIds.filter((id) => id !== e.id);
+          drawEnhPicker();
+        });
+        enhBody.appendChild(line);
+      }
+    };
+    drawEnhPicker();
+    form.querySelector("#m-type").addEventListener("change", drawEnhPicker);
+
     // --- Opslaan ---
+    const shareLine = el(`<div class="card"><div class="checkline">
+      <input type="checkbox" id="m-share" />
+      <span>Deel dit kaartje ook in de ${esc(army.faction)}-database (zichtbaar voor alle accounts)</span>
+    </div></div>`);
+    app.appendChild(shareLine);
     const saveBtn = el(`<button class="primary bigbtn">✔ Model opslaan</button>`);
     saveBtn.addEventListener("click", () => {
       m.name = form.querySelector("#m-name").value.trim();
+      m.type = form.querySelector("#m-type").value;
+      m.ward = form.querySelector("#m-ward").value;
       m.move = form.querySelector("#m-move").value.trim();
       m.health = parseInt(form.querySelector("#m-health").value) || 1;
       m.control = parseInt(form.querySelector("#m-control").value) || 0;
@@ -312,12 +402,17 @@ export function renderSetup(ctx) {
       m.standardBearer = form.querySelector("#m-std").checked;
       if (!m.name) { alert("Geef het model een naam."); return; }
       if (isNew) army.models.push(m);
-      // Kaartje opslaan/verversen in de bibliotheek (op naam)
+      // Kaartje opslaan/verversen in de bibliotheek (op naam).
+      // Enhancements horen bij dit leger, dus die gaan niet mee het kaartje in.
       const card = JSON.parse(JSON.stringify(m));
       card.id = uid();
+      card.enhancementIds = [];
       state.data.modelLibrary = state.data.modelLibrary.filter((x) => x.name.toLowerCase() !== m.name.toLowerCase());
       state.data.modelLibrary.push(card);
       saveData();
+      if (shareLine.querySelector("#m-share").checked) {
+        shareToDb(() => sharedb.shareModel(army.faction, m), `Kaartje "${m.name}"`);
+      }
       editing = null;
       rerender();
     });
@@ -451,8 +546,143 @@ export function renderSetup(ctx) {
     draw();
   }
 
+  // ===================== Enhancements =====================
+  function blankEnhancement(category) {
+    return {
+      id: uid(),
+      name: "",
+      category,                 // artifact | heroicTrait | other
+      forType: "",              // alleen bij category "other"
+      description: "",
+      phases: [],               // leeg = puur een stat improvement
+      oncePerBattle: false,
+      statMods: [],             // [{stat, value}]
+    };
+  }
+
+  function renderEnhancementsSection() {
+    const wrap = el(`<div class="card"><h2>Enhancements</h2>
+      <p class="subtitle">Artifacts of Power en Heroic Traits kunnen alleen aan models met type "Hero" gegeven worden. Other Enhancements gelden voor één model-type naar keuze.</p>
+      <div data-cats></div>
+    </div>`);
+    app.appendChild(wrap);
+    const cats = wrap.querySelector("[data-cats]");
+
+    const singular = { artifact: "Artifact of Power", heroicTrait: "Heroic Trait", other: "Other Enhancement" };
+    for (const cat of ENHANCEMENT_CATEGORIES) {
+      const section = el(`<div class="card inner"><h3>${cat.label}</h3><div data-list></div>
+        <button class="small" data-add>+ ${singular[cat.key]} toevoegen</button>
+      </div>`);
+      cats.appendChild(section);
+      const list = section.querySelector("[data-list]");
+
+      const draw = () => {
+        list.innerHTML = "";
+        const items = army.enhancements.filter((e) => e.category === cat.key);
+        if (!items.length) list.appendChild(el(`<p class="empty">Nog geen ${cat.label.toLowerCase()}.</p>`));
+        for (const enh of items) {
+          list.appendChild(enhancementEditor(enh, draw));
+        }
+      };
+      draw();
+      section.querySelector("[data-add]").addEventListener("click", () => {
+        army.enhancements.push(blankEnhancement(cat.key));
+        saveData();
+        draw();
+      });
+    }
+  }
+
+  function enhancementEditor(enh, redrawList) {
+    const card = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
+      <label>Naam</label>
+      <input type="text" data-f="name" value="${esc(enh.name)}" />
+      ${enh.category === "other" ? `
+        <label>Voor model-type</label>
+        <select data-f="forType">
+          <option value="">— kies type —</option>
+          ${MODEL_TYPES.map((t) => `<option ${t === enh.forType ? "selected" : ""}>${t}</option>`).join("")}
+        </select>` : ""}
+      <label>Beschrijving</label>
+      <textarea data-f="description">${esc(enh.description)}</textarea>
+      <label>Stat improvements (optioneel)</label>
+      <div data-mods></div>
+      <button class="small" data-mod-add>+ Stat improvement</button>
+      <label>Phases waarin de ability getoond wordt (optioneel — laat leeg als de enhancement alleen stats verbetert)</label>
+      <div class="chips" data-chips></div>
+      <div class="checkline"><input type="checkbox" data-f="once" ${enh.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
+      <div class="btnrow">
+        <button class="small" data-share>📚 Deel in database</button>
+        <button class="danger small" data-del>Verwijder enhancement</button>
+      </div>
+    </div>`);
+    card.querySelector("[data-share]").addEventListener("click", () =>
+      shareToDb(() => sharedb.shareEnhancement(army.faction, enh), `Enhancement "${enh.name}"`));
+
+    card.querySelector('[data-f="name"]').addEventListener("input", (e) => { enh.name = e.target.value; saveData(); });
+    card.querySelector('[data-f="description"]').addEventListener("input", (e) => { enh.description = e.target.value; saveData(); });
+    card.querySelector('[data-f="once"]').addEventListener("change", (e) => { enh.oncePerBattle = e.target.checked; saveData(); });
+    const forTypeSel = card.querySelector('[data-f="forType"]');
+    if (forTypeSel) forTypeSel.addEventListener("change", () => { enh.forType = forTypeSel.value; saveData(); });
+
+    // Stat improvements
+    const modsWrap = card.querySelector("[data-mods]");
+    const drawMods = () => {
+      modsWrap.innerHTML = "";
+      (enh.statMods || []).forEach((mod, i) => {
+        const def = STAT_MODS.find((s) => s.key === mod.stat) || STAT_MODS[0];
+        const row = el(`<div style="display:flex;gap:6px;margin:4px 0;align-items:center">
+          <select data-stat style="flex:2">${STAT_MODS.map((s) => `<option value="${s.key}" ${s.key === mod.stat ? "selected" : ""}>${s.label}</option>`).join("")}</select>
+          ${def.kind === "ward"
+            ? `<select data-val style="flex:1">${WARDS.filter((w) => w !== "-").map((w) => `<option ${w === mod.value ? "selected" : ""}>${w}</option>`).join("")}</select>`
+            : `<span style="color:var(--text-dim)">+</span><input type="number" data-val min="1" value="${esc(mod.value)}" style="flex:1;min-width:55px" />`}
+          <button class="danger small">✕</button>
+        </div>`);
+        row.querySelector("[data-stat]").addEventListener("change", (e) => {
+          mod.stat = e.target.value;
+          const newDef = STAT_MODS.find((s) => s.key === mod.stat);
+          mod.value = newDef.kind === "ward" ? "6+" : 1;
+          saveData();
+          drawMods();
+        });
+        row.querySelector("[data-val]").addEventListener("change", (e) => { mod.value = e.target.value; saveData(); });
+        row.querySelector("button.danger").addEventListener("click", () => { enh.statMods.splice(i, 1); saveData(); drawMods(); });
+        modsWrap.appendChild(row);
+      });
+    };
+    drawMods();
+    card.querySelector("[data-mod-add]").addEventListener("click", () => {
+      enh.statMods = enh.statMods || [];
+      enh.statMods.push({ stat: "save", value: 1 });
+      saveData();
+      drawMods();
+    });
+
+    // Phases
+    const chips = card.querySelector("[data-chips]");
+    for (const opt of PHASE_OPTIONS) {
+      const chip = el(`<span class="chip ${enh.phases.includes(opt.key) ? "active" : ""}">${opt.label}</span>`);
+      chip.addEventListener("click", () => {
+        if (enh.phases.includes(opt.key)) enh.phases = enh.phases.filter((p) => p !== opt.key);
+        else enh.phases.push(opt.key);
+        chip.classList.toggle("active");
+        saveData();
+      });
+      chips.appendChild(chip);
+    }
+
+    card.querySelector("[data-del]").addEventListener("click", () => {
+      if (!confirm(`Enhancement "${enh.name || "(naamloos)"}" verwijderen?`)) return;
+      army.enhancements = army.enhancements.filter((e) => e.id !== enh.id);
+      for (const m of army.models) m.enhancementIds = (m.enhancementIds || []).filter((id) => id !== enh.id);
+      saveData();
+      redrawList();
+    });
+    return card;
+  }
+
   // ===================== Faction / subfaction rules =====================
-  function renderRulesSection(title, rules) {
+  function renderRulesSection(title, rules, isSubfaction) {
     const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>+ Rule toevoegen</button></div>`);
     app.appendChild(wrap);
     const list = wrap.querySelector("[data-list]");
@@ -469,8 +699,15 @@ export function renderSetup(ctx) {
           <label>Beschrijving</label>
           <textarea data-f="description">${esc(r.description)}</textarea>
           <div class="checkline"><input type="checkbox" data-f="once" ${r.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
-          <div class="btnrow"><button class="danger small">Verwijder rule</button></div>
+          <div class="btnrow">
+            <button class="small" data-share>📚 Deel in database</button>
+            <button class="danger small">Verwijder rule</button>
+          </div>
         </div>`);
+        card.querySelector("[data-share]").addEventListener("click", () => {
+          if (isSubfaction && !army.subfaction) { alert("Kies eerst een subfaction voor dit leger."); return; }
+          shareToDb(() => sharedb.shareRule(army.faction, isSubfaction ? army.subfaction : null, r), `Rule "${r.name}"`);
+        });
         card.querySelector('[data-f="name"]').addEventListener("input", (e) => { r.name = e.target.value; saveData(); });
         card.querySelector('[data-f="description"]').addEventListener("input", (e) => { r.description = e.target.value; saveData(); });
         card.querySelector('[data-f="once"]').addEventListener("change", (e) => { r.oncePerBattle = e.target.checked; saveData(); });
