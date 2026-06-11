@@ -35,14 +35,15 @@ laadt dezelfde URL.
 ## Datamodel — de dingen die niet voor de hand liggen
 - **Phases bestaan dubbel**: `own-<phase>` en `enemy-<phase>` (bijv. `own-hero` vs `enemy-hero`),
   want een ability kan in jouw beurt, de beurt van de tegenstander, of beide gelden.
-  Uitzondering: `deployment` is enkelvoudig — die phase is er alleen vóór battleround 1.
+  Uitzonderingen (enkelvoudig): `deployment` (alleen vóór battleround 1) en `startOfRound`
+  (Start of Battleround — getoond op het battleround-setup-scherm, vóór de eerste beurt).
 - **Spelstatus** staat op het leger zelf (`army.game`) en synct mee, zodat verversen of
   wisselen van apparaat midden in een potje kan. `usedCommands` reset per beurt;
   `usedAbilities` (once per battle) blijft de hele battle staan. "Einde spel" wist `army.game`.
 - Models in een army hebben een eigen `id`; de bibliotheek (`modelLibrary`) bevat kopieën
   met een eigen id, gededupliceerd op naam (case-insensitive).
-- **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Warmachine/Monster;
-  `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
+- **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
+  Warmachine/Faction terrain; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Enhancements** staan op het leger (`army.enhancements`, categorieën artifact /
   heroicTrait / other met `forType`); een model verwijst ernaar via `m.enhancementIds`.
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
@@ -51,8 +52,14 @@ laadt dezelfde URL.
   kaartjes krijgen altijd `enhancementIds: []` mee (enhancements zijn leger-gebonden).
 - **Gedeelde faction-database**: per faction één blob op de backend
   (`getShared`/`setShared`, key `faction:<naam>`), voor alle accounts lees- én schrijfbaar.
-  Structuur: `{factionRules, subfactions: {<naam>: {rules}}, models, enhancements}` —
-  uitbreidbaar. Upsert op naam (case-insensitive); localStorage als offline-cache.
+  Structuur: `{factionRules, subfactions: {<naam>: {rules}}, models, enhancements, lores}` —
+  uitbreidbaar. Upsert op naam (case-insensitive; lores op kind+naam); localStorage als
+  offline-cache.
+- **Lores**: `LORE_KINDS` in factions.js koppelt kind (spell/manifestation/prayer) aan het
+  army-veld. Gedeelde lores krijgen een `kind`-veld. **Universal manifestation lores**
+  (`lore.universal`) staan in een aparte gedeelde blob (key `universal`) en zijn in de
+  database bij iedere faction zichtbaar/kiesbaar; spell, prayer en faction manifestation
+  lores horen bij de faction-blob.
 - **Eigenaarschap in de database**: iedere gedeelde entry heeft `addedBy` (gebruikersnaam).
   Bewerken/verwijderen/overschrijven mag alleen door die persoon of de superadmin —
   frontend-handhaving (canEditEntry in sharedb.js), passend bij het lichte

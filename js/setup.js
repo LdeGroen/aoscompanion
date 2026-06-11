@@ -1,5 +1,5 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES } from "./factions.js";
-import { buildModelEditor, buildEnhancementEditor, buildRuleEditor } from "./editors.js";
+import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, loreKind } from "./factions.js";
+import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 
@@ -404,58 +404,64 @@ export function renderSetup(ctx) {
       return;
     }
     if (hasWizard) {
-      renderLoreEditor(content, "spellLore", "Spell lore", "Casting value", "spell");
-      renderLoreEditor(content, "manifestationLore", "Manifestation lore", "Casting value", "manifestation");
+      renderLoreEditor(content, "spell");
+      renderLoreEditor(content, "manifestation");
     }
     if (hasPriest) {
-      renderLoreEditor(content, "prayerLore", "Prayer lore", "Chanting value", "prayer");
+      renderLoreEditor(content, "prayer");
     }
   }
 
-  function renderLoreEditor(parent, key, title, valueLabel, itemNoun) {
-    const wrap = el(`<div class="card inner"><h3>${title}</h3><div data-body></div></div>`);
+  function renderLoreEditor(parent, kindKey) {
+    const def = loreKind(kindKey);
+    const wrap = el(`<div class="card inner"><h3>${def.label}</h3><div data-body></div></div>`);
     parent.appendChild(wrap);
     const body = wrap.querySelector("[data-body]");
 
     const draw = () => {
       body.innerHTML = "";
-      const lore = army[key];
+      const lore = army[def.armyField];
       if (!lore) {
-        const btn = el(`<button class="small">+ ${title} kiezen</button>`);
+        const btn = el(`<button class="small">+ ${def.label} kiezen</button>`);
         btn.addEventListener("click", () => {
-          army[key] = {
+          army[def.armyField] = {
             name: "",
             entries: [1, 2, 3].map(() => ({ name: "", value: "", description: "" })),
           };
           saveData();
           draw();
         });
-        body.appendChild(el(`<p class="empty">Nog geen ${title.toLowerCase()} gekozen (optioneel).</p>`));
+        body.appendChild(el(`<p class="empty">Nog geen ${def.label.toLowerCase()} gekozen (optioneel). Je kunt er ook een importeren via 📚 Database.</p>`));
         body.appendChild(btn);
         return;
       }
-      const nameInput = el(`<div><label>Naam van de lore</label><input type="text" value="${esc(lore.name)}" /></div>`);
-      nameInput.querySelector("input").addEventListener("input", (e) => { lore.name = e.target.value; saveData(); });
-      body.appendChild(nameInput);
-      lore.entries.forEach((entry, i) => {
-        const eCard = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
-          <div class="row">
-            <div style="flex:2"><label>${title.split(" ")[0] === "Prayer" ? "Prayer" : itemNoun.charAt(0).toUpperCase() + itemNoun.slice(1)} ${i + 1} — naam</label><input type="text" data-f="name" value="${esc(entry.name)}" /></div>
-            <div><label>${valueLabel}</label><input type="text" data-f="value" value="${esc(entry.value)}" placeholder="bijv. 7" /></div>
-          </div>
-          <label>Beschrijving</label>
-          <textarea data-f="description">${esc(entry.description)}</textarea>
-        </div>`);
-        for (const f of ["name", "value", "description"]) {
-          eCard.querySelector(`[data-f="${f}"]`).addEventListener("input", (e) => { entry[f] = e.target.value; saveData(); });
-        }
-        body.appendChild(eCard);
-      });
-      const delBtn = el(`<div class="btnrow"><button class="danger small">✕ ${title} verwijderen</button></div>`);
-      delBtn.querySelector("button").addEventListener("click", () => {
-        if (confirm(`${title} verwijderen?`)) { army[key] = null; saveData(); draw(); }
-      });
-      body.appendChild(delBtn);
+      body.appendChild(buildLoreEditor({
+        lore, kind: kindKey, el, esc,
+        onChange: saveData,
+        universalChoice: true,
+        actions: [
+          {
+            label: "📚 Deel in database",
+            onClick: async () => {
+              if (!lore.name.trim()) { alert("Geef de lore eerst een naam."); return; }
+              const target = kindKey === "manifestation" && lore.universal ? "universal database" : `${army.faction}-database`;
+              try {
+                await sharedb.shareLore(army.faction, kindKey, lore, state.user);
+                alert(`${def.label} "${lore.name}" gedeeld in de ${target}.`);
+              } catch (e) {
+                alert("Delen in de database mislukt: " + e.message);
+              }
+            },
+          },
+          {
+            label: `✕ ${def.label} verwijderen`,
+            danger: true,
+            onClick: () => {
+              if (confirm(`${def.label} verwijderen?`)) { army[def.armyField] = null; saveData(); draw(); }
+            },
+          },
+        ],
+      }));
     };
     draw();
   }

@@ -159,6 +159,14 @@ export function renderCompanion(ctx) {
   // ===================== Battleround set-up =====================
   function renderRoundSetup() {
     topbar(`Battleround ${game.round}`);
+
+    // Start of Battleround: vóór de eerste beurt, niet per speler/tegenstander
+    const abs = collectAbilities("startOfRound");
+    if (abs.length) {
+      app.appendChild(el(`<h3>Start of Battleround</h3>`));
+      for (const ab of abs) app.appendChild(abilityCard(ab));
+    }
+
     const card = el(`<div class="card">
       <h2>Battleround ${game.round}</h2>
       <label>Wie heeft deze battleround de eerste beurt?</label>

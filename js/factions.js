@@ -46,9 +46,11 @@ export const PHASES = [
 ];
 
 export const PHASE_OPTIONS = [
-  // Deployment is er alleen vóór battleround 1 en valt buiten de beurten,
-  // dus die bestaat niet dubbel
+  // Deployment (alleen vóór battleround 1) en Start of Battleround (vóór de
+  // eerste beurt van iedere battleround) vallen buiten de beurten,
+  // dus die bestaan niet dubbel
   { key: "deployment", label: "Deployment" },
+  { key: "startOfRound", label: "Start of Battleround" },
   ...PHASES.flatMap((p) => [
     { key: `own-${p.key}`,   label: `Eigen ${p.label}` },
     { key: `enemy-${p.key}`, label: `Enemy ${p.label}` },
@@ -64,7 +66,7 @@ export const SAVES = ["2+", "3+", "4+", "5+", "6+", "-"];
 export const TO_HIT_WOUND = ["2+", "3+", "4+", "5+", "6+"];
 
 // Ieder uniek model heeft een type; "-" = geen ward save
-export const MODEL_TYPES = ["Hero", "Named hero", "Infantry", "Cavalry", "Warmachine", "Monster"];
+export const MODEL_TYPES = ["Hero", "Named hero", "Infantry", "Cavalry", "Beast", "Monster", "Warmachine", "Faction terrain"];
 export const WARDS = ["-", "2+", "3+", "4+", "5+", "6+"];
 
 // Enhancements: artifacts/heroic traits alleen voor models met type "Hero"
@@ -79,6 +81,19 @@ export const ENHANCEMENT_CATEGORIES = [
 export function enhancementCategoryLabel(key) {
   const cat = ENHANCEMENT_CATEGORIES.find((c) => c.key === key);
   return cat ? cat.label : key;
+}
+
+// Lore-soorten: de army-velden spellLore/manifestationLore/prayerLore en de
+// gedeelde database gebruiken dezelfde kinds. Manifestation lores kunnen
+// "universal" zijn — die zijn voor iedere faction kiesbaar.
+export const LORE_KINDS = [
+  { key: "spell",         label: "Spell lore",         armyField: "spellLore",         valueLabel: "Casting value",  noun: "spell" },
+  { key: "manifestation", label: "Manifestation lore", armyField: "manifestationLore", valueLabel: "Casting value",  noun: "manifestation" },
+  { key: "prayer",        label: "Prayer lore",        armyField: "prayerLore",        valueLabel: "Chanting value", noun: "prayer" },
+];
+
+export function loreKind(key) {
+  return LORE_KINDS.find((k) => k.key === key);
 }
 
 // Stat improvements die een enhancement kan geven.

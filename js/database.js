@@ -1,6 +1,6 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, phaseLabel } from "./factions.js";
+import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, LORE_KINDS, phaseLabel } from "./factions.js";
 import { modLabel } from "./enhancements.js";
-import { buildModelEditor, buildEnhancementEditor, buildRuleEditor } from "./editors.js";
+import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 
@@ -16,10 +16,11 @@ export function renderDatabase(ctx) {
 
   let faction = state.dbFaction || (army ? army.faction : Object.keys(AOS_FACTIONS)[0]);
   let db = null;
+  let uni = null; // universal manifestation lores (aparte gedeelde blob)
   let offline = false;
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
-  let editing = null; // null | { kind: "model"|"enhancement"|"rule", target, copy, list }
+  let editing = null; // null | { kind: "model"|"enhancement"|"rule"|"lore", target, copy, list, isUniversal }
 
   async function load() {
     db = null;
@@ -33,6 +34,11 @@ export function renderDatabase(ctx) {
     } catch (e) {
       loadError = e.message;
     }
+    try {
+      uni = (await sharedb.loadUniversalDb()).db;
+    } catch {
+      uni = { lores: [] };
+    }
     draw();
   }
 
@@ -45,19 +51,30 @@ export function renderDatabase(ctx) {
     draw();
   }
 
+  async function persistUniversal() {
+    try {
+      await sharedb.saveUniversalDb(uni);
+    } catch (e) {
+      alert("Opslaan in de database mislukt: " + e.message);
+    }
+    draw();
+  }
+
   const ownerLabel = (item) => item.addedBy ? `gedeeld door ${esc(item.addedBy)}` : "gedeeld vóór de eigenaars-feature";
   const canEdit = (item) => sharedb.canEditEntry(item, user);
 
-  function startEdit(kind, target, list) {
-    editing = { kind, target, list, copy: JSON.parse(JSON.stringify(target)) };
+  function startEdit(kind, target, list, isUniversal = false) {
+    editing = { kind, target, list, isUniversal, copy: JSON.parse(JSON.stringify(target)) };
     draw();
   }
 
   function finishEdit() {
     const i = editing.list.indexOf(editing.target);
     if (i >= 0) editing.list[i] = editing.copy;
+    const wasUniversal = editing.isUniversal;
     editing = null;
-    persist();
+    if (wasUniversal) persistUniversal();
+    else persist();
   }
 
   function draw() {
@@ -102,6 +119,7 @@ export function renderDatabase(ctx) {
 
     drawModels();
     drawEnhancements();
+    drawLores();
     drawRules("Faction rules", db.factionRules);
     for (const [sub, data] of Object.entries(db.subfactions)) {
       if (data.rules?.length) drawRules(`Subfaction rules — ${sub}`, data.rules);
@@ -240,6 +258,73 @@ export function renderDatabase(ctx) {
           if (!confirm(`"${enh.name}" uit de gedeelde database verwijderen? Dit geldt voor alle accounts.`)) return;
           db.enhancements = db.enhancements.filter((x) => x !== enh);
           await persist();
+        });
+        list.appendChild(item);
+      }
+    }
+  }
+
+  // ---------- Lores ----------
+  function drawLores() {
+    const card = el(`<div class="card"><h2>Lores</h2><div data-list></div></div>`);
+    app.appendChild(card);
+    const list = card.querySelector("[data-list]");
+
+    // Faction lores + universal manifestation lores (voor iedere faction kiesbaar)
+    const items = [
+      ...db.lores.map((l) => ({ lore: l, list: db.lores, isUniversal: false })),
+      ...(uni?.lores || []).map((l) => ({ lore: l, list: uni.lores, isUniversal: true })),
+    ];
+    if (!items.length) {
+      list.appendChild(el(`<p class="empty">Nog geen lores in deze database. Deel een lore via set-up (knop "Deel in database" bij de lore).</p>`));
+      return;
+    }
+    for (const kindDef of LORE_KINDS) {
+      for (const { lore, list: srcList, isUniversal } of items.filter((x) => x.lore.kind === kindDef.key)) {
+        if (editing?.target === lore) {
+          const wrap = el(`<div class="card inner"></div>`);
+          wrap.appendChild(buildLoreEditor({
+            lore: editing.copy, kind: kindDef.key, el, esc,
+            actions: editActions(),
+          }));
+          list.appendChild(wrap);
+          continue;
+        }
+        const entryNames = (lore.entries || []).map((e) => e.name).filter(Boolean).join(" · ");
+        const item = el(`<div class="card inner">
+          <div class="card-header"><h3>${esc(lore.name)}</h3>
+            <span class="chip tag">${esc(kindDef.label)}${isUniversal ? " · Universal" : ""}</span>
+          </div>
+          ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
+          <div class="subtitle">${ownerLabel(lore)}</div>
+          <div class="btnrow">
+            ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
+            ${canEdit(lore) ? `<button class="small" data-act="edit">✎ Bewerken</button>
+            <button class="danger small" data-act="del">Verwijderen</button>` : ""}
+          </div>
+        </div>`);
+        const armyBtn = item.querySelector('[data-act="army"]');
+        if (armyBtn) armyBtn.addEventListener("click", () => {
+          const field = kindDef.armyField;
+          if (army[field] && !confirm(`Je leger heeft al een ${kindDef.label.toLowerCase()} ("${army[field].name || "naamloos"}"). Vervangen door "${lore.name}"?`)) return;
+          const copy = JSON.parse(JSON.stringify(lore));
+          delete copy.addedBy;
+          delete copy.id;
+          delete copy.kind;
+          if (isUniversal) copy.universal = true;
+          army[field] = copy;
+          saveData();
+          alert(`"${lore.name}" is nu de ${kindDef.label.toLowerCase()} van je leger.`);
+        });
+        const editBtn = item.querySelector('[data-act="edit"]');
+        if (editBtn) editBtn.addEventListener("click", () => startEdit("lore", lore, srcList, isUniversal));
+        const delBtn = item.querySelector('[data-act="del"]');
+        if (delBtn) delBtn.addEventListener("click", async () => {
+          if (!confirm(`"${lore.name}" uit de gedeelde database verwijderen? Dit geldt voor alle accounts.`)) return;
+          const idx = srcList.indexOf(lore);
+          if (idx >= 0) srcList.splice(idx, 1);
+          if (isUniversal) await persistUniversal();
+          else await persist();
         });
         list.appendChild(item);
       }

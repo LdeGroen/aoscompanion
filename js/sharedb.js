@@ -16,6 +16,7 @@ export function emptyFactionDb() {
     subfactions: {},      // "<naam>": { rules: [] }
     models: [],
     enhancements: [],     // alle categorieën samen; category-veld onderscheidt ze
+    lores: [],            // {id, name, kind: spell|manifestation|prayer, entries, addedBy}
   };
 }
 
@@ -25,6 +26,7 @@ function normalize(dbObj) {
   db.subfactions = db.subfactions || {};
   db.models = db.models || [];
   db.enhancements = db.enhancements || [];
+  db.lores = db.lores || [];
   return db;
 }
 
@@ -64,6 +66,42 @@ export async function saveFactionDb(faction, db) {
   saveLocal(faction, db);
   if (backend.hasBackend() && backend.getToken()) {
     await backend.setShared(factionKey(faction), db);
+  }
+}
+
+// ---------- Universal lores ----------
+// Universal manifestation lores zijn door iedere faction te kiezen en staan
+// daarom in een eigen gedeelde blob (key "universal") in plaats van per faction.
+const UNIVERSAL_KEY = "universal";
+
+function normalizeUniversal(obj) {
+  const db = obj || {};
+  db.lores = db.lores || []; // alleen manifestation lores
+  return db;
+}
+
+export async function loadUniversalDb() {
+  if (backend.hasBackend() && backend.getToken()) {
+    try {
+      const remote = await backend.getShared(UNIVERSAL_KEY);
+      const db = normalizeUniversal(remote);
+      localStorage.setItem(LOCAL_PREFIX + UNIVERSAL_KEY, JSON.stringify(db));
+      return { db, offline: false };
+    } catch (e) {
+      const cached = localStorage.getItem(LOCAL_PREFIX + UNIVERSAL_KEY);
+      if (cached) return { db: normalizeUniversal(JSON.parse(cached)), offline: true };
+      throw e;
+    }
+  }
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(LOCAL_PREFIX + UNIVERSAL_KEY)); } catch {}
+  return { db: normalizeUniversal(cached), offline: false };
+}
+
+export async function saveUniversalDb(db) {
+  localStorage.setItem(LOCAL_PREFIX + UNIVERSAL_KEY, JSON.stringify(db));
+  if (backend.hasBackend() && backend.getToken()) {
+    await backend.setShared(UNIVERSAL_KEY, db);
   }
 }
 
@@ -110,6 +148,38 @@ export async function shareEnhancement(faction, enh, user) {
   const { db } = await loadFactionDb(faction);
   upsertByName(db.enhancements, cleanCopy(enh), user);
   await saveFactionDb(faction, db);
+}
+
+// Lores worden ge-upsert op (kind, naam). Een universal manifestation lore
+// gaat naar de universal-blob, alle andere lores naar de faction-database.
+function upsertLore(list, item, user) {
+  const i = list.findIndex((x) => x.kind === item.kind && sameName(x.name, item.name));
+  if (i >= 0) {
+    if (!canEditEntry(list[i], user)) {
+      throw new Error(`"${item.name}" staat al in de database (gedeeld door ${list[i].addedBy || "iemand anders"}). Alleen diegene of de superadmin kan hem aanpassen.`);
+    }
+    item.addedBy = list[i].addedBy || user.name;
+    list[i] = item;
+  } else {
+    item.addedBy = user.name;
+    list.push(item);
+  }
+}
+
+export async function shareLore(faction, kind, lore, user) {
+  const item = cleanCopy(lore);
+  item.kind = kind;
+  if (kind === "manifestation" && lore.universal) {
+    item.universal = true;
+    const { db } = await loadUniversalDb();
+    upsertLore(db.lores, item, user);
+    await saveUniversalDb(db);
+  } else {
+    delete item.universal;
+    const { db } = await loadFactionDb(faction);
+    upsertLore(db.lores, item, user);
+    await saveFactionDb(faction, db);
+  }
 }
 
 export async function shareRule(faction, subfaction, rule, user) {

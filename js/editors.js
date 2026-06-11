@@ -1,4 +1,4 @@
-import { PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, STAT_MODS, enhancementCategoryLabel } from "./factions.js";
+import { PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, STAT_MODS, enhancementCategoryLabel, loreKind } from "./factions.js";
 import { enhancementFits, modLabel } from "./enhancements.js";
 
 // Herbruikbare editors voor models, enhancements en rules.
@@ -300,6 +300,48 @@ export function buildRuleEditor({ rule, el, esc, onChange = () => {}, actions = 
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { rule.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { rule.oncePerBattle = e.target.checked; onChange(); });
   buildPhaseChips(card.querySelector("[data-chips]"), rule, el, onChange);
+  buildActions(card.querySelector("[data-actions]"), actions, el);
+  return card;
+}
+
+// ---------- Lore (spell / manifestation / prayer) ----------
+// universalChoice: toon de keuze faction/universal (alleen zinvol bij
+// manifestation lores in set-up; in de database ligt dat al vast).
+export function buildLoreEditor({ lore, kind, el, esc, onChange = () => {}, actions = [], universalChoice = false }) {
+  const def = loreKind(kind);
+  const noun = def.noun.charAt(0).toUpperCase() + def.noun.slice(1);
+  const card = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
+    <label>Naam van de lore</label>
+    <input type="text" data-f="lore-name" value="${esc(lore.name)}" />
+    ${universalChoice && kind === "manifestation" ? `
+      <label>Soort lore</label>
+      <select data-f="universal">
+        <option value="" ${!lore.universal ? "selected" : ""}>Faction lore (hoort bij deze army)</option>
+        <option value="1" ${lore.universal ? "selected" : ""}>Universal lore (door iedere faction te kiezen)</option>
+      </select>` : ""}
+    <div data-entries></div>
+    <div class="btnrow" data-actions></div>
+  </div>`);
+  card.querySelector('[data-f="lore-name"]').addEventListener("input", (e) => { lore.name = e.target.value; onChange(); });
+  const uniSel = card.querySelector('[data-f="universal"]');
+  if (uniSel) uniSel.addEventListener("change", () => { lore.universal = !!uniSel.value; onChange(); });
+
+  const entriesWrap = card.querySelector("[data-entries]");
+  lore.entries.forEach((entry, i) => {
+    const eCard = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
+      <div class="row">
+        <div style="flex:2"><label>${noun} ${i + 1} — naam</label><input type="text" data-f="name" value="${esc(entry.name)}" /></div>
+        <div><label>${def.valueLabel}</label><input type="text" data-f="value" value="${esc(entry.value)}" placeholder="bijv. 7" /></div>
+      </div>
+      <label>Beschrijving</label>
+      <textarea data-f="description">${esc(entry.description)}</textarea>
+    </div>`);
+    for (const f of ["name", "value", "description"]) {
+      eCard.querySelector(`[data-f="${f}"]`).addEventListener("input", (e) => { entry[f] = e.target.value; onChange(); });
+    }
+    entriesWrap.appendChild(eCard);
+  });
+
   buildActions(card.querySelector("[data-actions]"), actions, el);
   return card;
 }
