@@ -30,7 +30,11 @@ laadt dezelfde URL.
   · `js/editors.js` (herbruikbare model/enhancement/rule-editors, gebruikt door setup én database)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
-- UI is mobile-first (gebruikt aan de speltafel), donker thema met goud-accenten.
+- UI is mobile-first (gebruikt aan de speltafel). **Thema's**: donker (default), licht of
+  systeem — knop op het home-scherm, apparaat-instelling in localStorage (`aoscomp_theme`,
+  synct bewust niet). Licht thema = CSS-variabele-overrides onder `body.theme-light`;
+  gebruik dus nooit hardgecodeerde kleuren in styles.css, alleen de variabelen
+  (incl. `--bg-input` en `--bg-reminder`).
 
 ## Datamodel — de dingen die niet voor de hand liggen
 - **Phases bestaan dubbel**: `own-<phase>` en `enemy-<phase>` (bijv. `own-hero` vs `enemy-hero`),

@@ -58,6 +58,34 @@ function logout() {
   navigate("login");
 }
 
+// ---------- Thema ----------
+// Apparaat-instelling (localStorage, synct bewust niet mee): donker, licht of
+// meekijken met het systeem.
+const THEME_KEY = "aoscomp_theme"; // "dark" | "light" | "system"
+const lightMedia = window.matchMedia("(prefers-color-scheme: light)");
+
+const getTheme = () => localStorage.getItem(THEME_KEY) || "dark";
+const themeLabel = () => ({ dark: "🌙 Donker", light: "☀️ Licht", system: "🖥️ Systeem" }[getTheme()]);
+
+function applyTheme() {
+  const mode = getTheme();
+  const light = mode === "light" || (mode === "system" && lightMedia.matches);
+  document.body.classList.toggle("theme-light", light);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = light ? "#f2efe8" : "#15161c";
+}
+
+function cycleTheme() {
+  const order = ["dark", "light", "system"];
+  localStorage.setItem(THEME_KEY, order[(order.indexOf(getTheme()) + 1) % order.length]);
+  applyTheme();
+}
+
+lightMedia.addEventListener("change", () => {
+  if (getTheme() === "system") applyTheme();
+});
+applyTheme();
+
 // ---------- Helpers ----------
 export function el(html) {
   const t = document.createElement("template");
@@ -146,7 +174,8 @@ function renderLogin() {
 function renderHome() {
   const header = el(`<div class="topbar">
     <span class="title">⚔️ AoS Companion</span>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="small" id="btn-theme" title="Wissel tussen donker, licht en systeem">${themeLabel()}</button>
       <button class="small" id="btn-db">📚 Database</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">Accounts</button>` : ""}
       <button class="small" id="btn-logout">Uitloggen (${esc(state.user.name)})</button>
@@ -154,6 +183,10 @@ function renderHome() {
   </div>`);
   app.appendChild(header);
   header.querySelector("#btn-logout").addEventListener("click", logout);
+  header.querySelector("#btn-theme").addEventListener("click", (e) => {
+    cycleTheme();
+    e.target.textContent = themeLabel();
+  });
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 
