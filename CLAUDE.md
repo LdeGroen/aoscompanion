@@ -27,6 +27,7 @@ laadt dezelfde URL.
 - Bestanden: `index.html` · `css/styles.css` · `js/app.js` (router, login, home, accountbeheer)
   · `js/setup.js` (set-up mode) · `js/companion.js` (spelmodus) · `js/factions.js` (data + phases
   + model types/wards/stat-mod-definities) · `js/enhancements.js` (mod-logica: effectiveModel e.d.)
+  · `js/editors.js` (herbruikbare model/enhancement/rule-editors, gebruikt door setup én database)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
 - UI is mobile-first (gebruikt aan de speltafel), donker thema met goud-accenten.
@@ -52,6 +53,15 @@ laadt dezelfde URL.
   (`getShared`/`setShared`, key `faction:<naam>`), voor alle accounts lees- én schrijfbaar.
   Structuur: `{factionRules, subfactions: {<naam>: {rules}}, models, enhancements}` —
   uitbreidbaar. Upsert op naam (case-insensitive); localStorage als offline-cache.
+- **Eigenaarschap in de database**: iedere gedeelde entry heeft `addedBy` (gebruikersnaam).
+  Bewerken/verwijderen/overschrijven mag alleen door die persoon of de superadmin —
+  frontend-handhaving (canEditEntry in sharedb.js), passend bij het lichte
+  beveiligingsmodel. Entries zonder `addedBy` (van vóór deze feature): alleen admin.
+- **Auto-import bij (sub)faction-keuze**: kies je in set-up een faction, dan worden de
+  faction rules en álle enhancements van die faction uit de gedeelde database in het
+  leger gekopieerd (vervangt wat er stond; `m.enhancementIds` worden geleegd). Idem voor
+  subfaction rules bij subfaction-keuze. Verse legers laden de defaults bij de eerste
+  keer openen (flag `army.dbDefaultsLoaded`). Daarna lokaal aanpasbaar.
   Oudere data wordt bij het openen van setup/companion in-place gemigreerd
   (ontbrekende velden krijgen defaults).
 

@@ -67,13 +67,31 @@ export async function saveFactionDb(faction, db) {
   }
 }
 
+// ---------- Eigenaarschap ----------
+// Iedere gedeelde entry onthoudt wie hem deelde (addedBy). Bewerken en
+// verwijderen mag alleen door die persoon of door de superadmin. Entries van
+// vóór deze feature hebben geen addedBy — die kan alleen de admin aanpassen.
+export function canEditEntry(item, user) {
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  return !!item.addedBy && item.addedBy.toLowerCase() === user.name.toLowerCase();
+}
+
 // ---------- Delen vanuit set-up: read-modify-write met upsert op naam ----------
 const sameName = (a, b) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
 
-function upsertByName(list, item) {
+function upsertByName(list, item, user) {
   const i = list.findIndex((x) => sameName(x.name, item.name));
-  if (i >= 0) list[i] = item;
-  else list.push(item);
+  if (i >= 0) {
+    if (!canEditEntry(list[i], user)) {
+      throw new Error(`"${item.name}" staat al in de database (gedeeld door ${list[i].addedBy || "iemand anders"}). Alleen diegene of de superadmin kan hem aanpassen.`);
+    }
+    item.addedBy = list[i].addedBy || user.name;
+    list[i] = item;
+  } else {
+    item.addedBy = user.name;
+    list.push(item);
+  }
 }
 
 function cleanCopy(item, extra = {}) {
@@ -82,25 +100,25 @@ function cleanCopy(item, extra = {}) {
   return Object.assign(copy, extra);
 }
 
-export async function shareModel(faction, model) {
+export async function shareModel(faction, model, user) {
   const { db } = await loadFactionDb(faction);
-  upsertByName(db.models, cleanCopy(model, { enhancementIds: [] }));
+  upsertByName(db.models, cleanCopy(model, { enhancementIds: [] }), user);
   await saveFactionDb(faction, db);
 }
 
-export async function shareEnhancement(faction, enh) {
+export async function shareEnhancement(faction, enh, user) {
   const { db } = await loadFactionDb(faction);
-  upsertByName(db.enhancements, cleanCopy(enh));
+  upsertByName(db.enhancements, cleanCopy(enh), user);
   await saveFactionDb(faction, db);
 }
 
-export async function shareRule(faction, subfaction, rule) {
+export async function shareRule(faction, subfaction, rule, user) {
   const { db } = await loadFactionDb(faction);
   if (subfaction) {
     db.subfactions[subfaction] = db.subfactions[subfaction] || { rules: [] };
-    upsertByName(db.subfactions[subfaction].rules, cleanCopy(rule));
+    upsertByName(db.subfactions[subfaction].rules, cleanCopy(rule), user);
   } else {
-    upsertByName(db.factionRules, cleanCopy(rule));
+    upsertByName(db.factionRules, cleanCopy(rule), user);
   }
   await saveFactionDb(faction, db);
 }
