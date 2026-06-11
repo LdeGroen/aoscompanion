@@ -325,6 +325,13 @@ function renderAdmin() {
 }
 
 // ---------- Init ----------
+// Service worker: laat de app offline opstarten (zie sw.js)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch((e) =>
+    console.warn("Service worker registreren mislukt:", e.message)
+  );
+}
+
 const session = store.getSession();
 if (session) {
   login(session.name, session.isAdmin);

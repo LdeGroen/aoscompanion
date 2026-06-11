@@ -52,8 +52,22 @@ html, body {
 #app {
   max-width: 760px;
   margin: 0 auto;
-  padding: 12px 12px 80px;
+  padding: 12px 12px 110px; /* ruimte voor de vaste onderbalk in companion mode */
 }
+
+/* Vaste onderbalk (companion mode): de volgende-stap-knop altijd in beeld */
+.bottombar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 100%;
+  max-width: 760px;
+  padding: 14px 12px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 75%, transparent);
+  z-index: 20;
+}
+.bottombar .bigbtn { margin-top: 0; box-shadow: var(--shadow); }
 
 h1, h2, h3, h4 {
   font-family: Georgia, "Times New Roman", serif;

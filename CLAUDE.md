@@ -155,6 +155,14 @@ voor "toevoegen aan startscherm". Wijzig je het ontwerp, werk dan al deze varian
 - Het beveiligingsmodel is bewust licht (hobby-app): wie een gebruikersnaam kent, kan bij
   de data van die gebruiker. Geen gevoelige data in legers opslaan dus.
 
+## PWA / offline
+`sw.js` (root) cachet de app-shell: **network-first met cache-fallback** voor same-origin
+GET — online dus altijd vers (push = deploy blijft direct zichtbaar), offline start de
+app uit de cache op. Backend-calls (ander origin) worden niet onderschept.
+⚠️ Nieuw bestand toegevoegd aan de app? Ook opnemen in de `SHELL`-lijst in sw.js.
+In companion mode staat de volgende-stap-knop in een vaste onderbalk (`.bottombar`,
+fixed; #app heeft daarvoor extra padding-bottom).
+
 ## Ideeën voor later
-PWA maken (service worker) zodat de app offline opstart aan de speltafel; release-signing
-voor de Android-app; conflictdetectie bij gelijktijdig bewerken op twee apparaten.
+Release-signing voor de Android-app; conflictdetectie bij gelijktijdig bewerken op
+twee apparaten.

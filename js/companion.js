@@ -136,6 +136,13 @@ export function renderCompanion(ctx) {
     else renderTurn();
   }
 
+  // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld
+  function bottomBar(btn) {
+    const bar = el(`<div class="bottombar"></div>`);
+    bar.appendChild(btn);
+    app.appendChild(bar);
+  }
+
   function topbar(subtitle) {
     const bar = el(`<div class="topbar">
       <div>
@@ -175,7 +182,7 @@ export function renderCompanion(ctx) {
       saveData();
       rerender();
     });
-    app.appendChild(nextBtn);
+    bottomBar(nextBtn);
   }
 
   // ===================== Battleround set-up =====================
@@ -198,13 +205,15 @@ export function renderCompanion(ctx) {
       </div>
       <label>Met hoeveel command points begin je deze battleround?</label>
       <input type="number" id="cp-input" min="0" value="${game.round === 1 ? 4 : game.cp || 4}" />
-      <button class="primary bigbtn" id="btn-start">${icon("play")} Start battleround ${game.round}</button>
     </div>`);
     app.appendChild(card);
 
+    const startBtn = el(`<button class="primary bigbtn" id="btn-start">${icon("play")} Start battleround ${game.round}</button>`);
+    bottomBar(startBtn);
+
     card.querySelector("#first-player").addEventListener("click", () => { game.firstTurn = "player"; saveData(); rerender(); });
     card.querySelector("#first-enemy").addEventListener("click", () => { game.firstTurn = "enemy"; saveData(); rerender(); });
-    card.querySelector("#btn-start").addEventListener("click", () => {
+    startBtn.addEventListener("click", () => {
       game.cp = parseInt(card.querySelector("#cp-input").value) || 0;
       game.stage = "turn";
       game.turnIndex = 0;
@@ -286,7 +295,7 @@ export function renderCompanion(ctx) {
       saveData();
       rerender();
     });
-    app.appendChild(nextBtn);
+    bottomBar(nextBtn);
   }
 
   // ---------- Phase-specifieke inhoud ----------
