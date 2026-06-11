@@ -160,7 +160,7 @@ export function renderSetup(ctx) {
     const modelsCard = el(`<div class="card"><h2>Models</h2><div id="models-list"></div>
       <div class="btnrow">
         <button class="primary" id="btn-new-model">+ Nieuw model</button>
-        <button id="btn-from-lib">📇 Uit opgeslagen kaartjes</button>
+        <button id="btn-from-lib">📚 Kaartje uit de database</button>
       </div>
     </div>`);
     app.appendChild(modelsCard);
@@ -233,50 +233,69 @@ export function renderSetup(ctx) {
     app.appendChild(done);
   }
 
-  // ===================== Kaartjes-bibliotheek =====================
+  // ===================== Kaartjes-picker (uit de gedeelde database) =====================
+  // Haalt de kaartjes uit de gedeelde faction-database (+ universal
+  // manifestations) — niet uit lokale opslag; daar is de database voor.
   function renderLibraryPicker() {
     app.innerHTML = "";
     const header = el(`<div class="topbar">
-      <span class="title">Opgeslagen kaartjes</span>
+      <span class="title">Kaartjes uit de database</span>
       <button class="small" id="btn-back">← Terug</button>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", rerender);
     app.appendChild(header);
 
-    const lib = state.data.modelLibrary;
-    if (!lib.length) app.appendChild(el(`<p class="empty">Nog geen opgeslagen kaartjes. Kaartjes worden automatisch opgeslagen als je een model bewaart.</p>`));
-    for (const m of lib) {
-      const card = el(`<div class="card">
-        <div class="card-header">
-          <div>
-            <h3>${esc(m.name)}</h3>
-            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Save ${esc(m.save)} · ${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee</div>
+    const body = el(`<div></div>`);
+    app.appendChild(body);
+    body.appendChild(el(`<p class="empty">Database laden…</p>`));
+
+    (async () => {
+      let models = [];
+      try {
+        const { db } = await sharedb.loadFactionDb(army.faction);
+        const { db: uni } = await sharedb.loadUniversalDb();
+        models = [
+          ...db.models.map((m) => ({ m, isUniversal: false })),
+          ...uni.models.map((m) => ({ m, isUniversal: true })),
+        ];
+      } catch (e) {
+        body.innerHTML = "";
+        body.appendChild(el(`<p class="empty" style="color:var(--red)">Database laden mislukt: ${esc(e.message)}</p>`));
+        return;
+      }
+      body.innerHTML = "";
+      if (!models.length) {
+        body.appendChild(el(`<p class="empty">Nog geen kaartjes in de ${esc(army.faction)}-database. Deel een kaartje bij het opslaan van een model, of via de knop "Deel in database".</p>`));
+        return;
+      }
+      for (const { m, isUniversal } of models) {
+        const tags = [m.type, isUniversal ? "Universal" : ""].filter(Boolean);
+        const card = el(`<div class="card">
+          <div class="card-header">
+            <div>
+              <h3>${esc(m.name)}</h3>
+              <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""} · ${(m.rangedAttacks || []).length} ranged · ${(m.meleeAttacks || []).length} melee</div>
+              ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+            </div>
           </div>
-        </div>
-        <div class="btnrow">
-          <button class="primary small" data-act="add">+ Toevoegen aan leger</button>
-          <button class="danger small" data-act="del">Kaartje verwijderen</button>
-        </div>
-      </div>`);
-      card.querySelector('[data-act="add"]').addEventListener("click", () => {
-        const copy = JSON.parse(JSON.stringify(m));
-        copy.id = uid();
-        copy.type = copy.type || "";
-        copy.ward = copy.ward || "";
-        copy.enhancementIds = [];
-        army.models.push(copy);
-        saveData();
-        rerender();
-      });
-      card.querySelector('[data-act="del"]').addEventListener("click", () => {
-        if (confirm(`Kaartje "${m.name}" verwijderen uit de bibliotheek?`)) {
-          state.data.modelLibrary = state.data.modelLibrary.filter((x) => x.id !== m.id);
+          <div class="btnrow">
+            <button class="primary small" data-act="add">+ Toevoegen aan leger</button>
+          </div>
+        </div>`);
+        card.querySelector('[data-act="add"]').addEventListener("click", () => {
+          const copy = JSON.parse(JSON.stringify(m));
+          copy.id = uid();
+          copy.type = copy.type || "";
+          copy.ward = copy.ward || "";
+          copy.enhancementIds = [];
+          delete copy.addedBy;
+          army.models.push(copy);
           saveData();
-          renderLibraryPicker();
-        }
-      });
-      app.appendChild(card);
-    }
+          rerender();
+        });
+        body.appendChild(card);
+      }
+    })();
   }
 
   // ===================== Model editor =====================
@@ -327,13 +346,6 @@ export function renderSetup(ctx) {
     saveBtn.addEventListener("click", () => {
       if (!editor.commit()) { alert("Geef het model een naam."); return; }
       if (isNew) army.models.push(m);
-      // Kaartje opslaan/verversen in de bibliotheek (op naam).
-      // Enhancements horen bij dit leger, dus die gaan niet mee het kaartje in.
-      const card = JSON.parse(JSON.stringify(m));
-      card.id = uid();
-      card.enhancementIds = [];
-      state.data.modelLibrary = state.data.modelLibrary.filter((x) => x.name.toLowerCase() !== m.name.toLowerCase());
-      state.data.modelLibrary.push(card);
       saveData();
       if (shareLine.querySelector("#m-share").checked) {
         shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m));

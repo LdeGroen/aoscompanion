@@ -11,9 +11,9 @@ Companion app voor Warhammer Age of Sigmar van Luc de Groen-Schram. Twee modusse
   bonussen, abilities per phase, enhancements (artifacts of power / heroic traits /
   other enhancements met stat improvements en/of een ability),
   spell/manifestation/prayer lores (3 entries elk) en faction/subfaction rules.
-  Opgeslagen models worden herbruikbare "kaartjes" in een bibliotheek; kaartjes,
-  enhancements en rules kunnen ook gedeeld worden in de **gedeelde faction-database**
-  (zichtbaar voor alle accounts).
+  Models, enhancements, rules en lores kunnen gedeeld worden in de **gedeelde
+  faction-database** (zichtbaar voor alle accounts); herbruikbare kaartjes haal je
+  daar ook weer vandaan.
 - **Companion mode**: een battle spelen — per battleround kies je wie eerst gaat en je
   command points; per phase zie je de juiste info, abilities en universal commands
   (afvinken trekt CP af). Once-per-battle abilities krijgen een gebruik-knop en blijven
@@ -40,8 +40,10 @@ laadt dezelfde URL.
 - **Spelstatus** staat op het leger zelf (`army.game`) en synct mee, zodat verversen of
   wisselen van apparaat midden in een potje kan. `usedCommands` reset per beurt;
   `usedAbilities` (once per battle) blijft de hele battle staan. "Einde spel" wist `army.game`.
-- Models in een army hebben een eigen `id`; de bibliotheek (`modelLibrary`) bevat kopieën
-  met een eigen id, gededupliceerd op naam (case-insensitive).
+- Models in een army hebben een eigen `id`. Herbruikbare kaartjes komen uit de
+  **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
+  universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet
+  meer gevuld of gelezen, alleen nog genormaliseerd in storage.js voor oude data.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestations** zijn pas "in het spel" na summonen: `game.summoned[modelId]` wordt

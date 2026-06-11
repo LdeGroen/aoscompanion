@@ -96,7 +96,7 @@ export function renderDatabase(ctx) {
     const facCard = el(`<div class="card">
       <label>Faction</label>
       <select id="db-faction">${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === faction ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>
-      ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren. Kaartjes kun je hier altijd naar je bibliotheek kopiëren.</p>`}
+      ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren.</p>`}
     </div>`);
     facCard.querySelector("#db-faction").addEventListener("change", (e) => {
       faction = e.target.value;
@@ -153,19 +153,11 @@ export function renderDatabase(ctx) {
           </div>
         </div>
         <div class="btnrow">
-          <button class="small" data-act="lib">📇 Naar mijn bibliotheek</button>
           ${army ? `<button class="primary small" data-act="army">+ Naar dit leger</button>` : ""}
           ${canEdit(m) ? `<button class="small" data-act="edit">✎ Bewerken</button>
           <button class="danger small" data-act="del">Verwijderen</button>` : ""}
         </div>
       </div>`);
-      item.querySelector('[data-act="lib"]').addEventListener("click", () => {
-        const copy = importCopy(m);
-        state.data.modelLibrary = state.data.modelLibrary.filter((x) => x.name.toLowerCase() !== m.name.toLowerCase());
-        state.data.modelLibrary.push(copy);
-        saveData();
-        alert(`"${m.name}" staat nu in je bibliotheek.`);
-      });
       const armyBtn = item.querySelector('[data-act="army"]');
       if (armyBtn) armyBtn.addEventListener("click", () => {
         army.models.push(importCopy(m));
