@@ -1,4 +1,4 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, loreKind } from "./factions.js";
+import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, groupByType, loreKind } from "./factions.js";
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
@@ -55,6 +55,7 @@ export function renderSetup(ctx) {
 
   // sub-state binnen set-up
   let editing = null; // null | model object dat bewerkt wordt
+  const collapsedTypes = new Set(); // ingeklapte type-groepen (blijft staan tijdens rerenders)
 
   // Delen in de gedeelde faction-database (voor alle accounts zichtbaar)
   async function shareToDb(fn, label, target = `${army.faction}-database`) {
@@ -166,7 +167,19 @@ export function renderSetup(ctx) {
     app.appendChild(modelsCard);
     const list = modelsCard.querySelector("#models-list");
     if (!army.models.length) list.appendChild(el(`<p class="empty">Nog geen models toegevoegd.</p>`));
-    for (const m of army.models) {
+    // Gegroepeerd per type, per groep uit- en inklapbaar
+    for (const [typeLabel, models] of groupByType(army.models)) {
+      const group = el(`<details class="type-group" ${collapsedTypes.has(typeLabel) ? "" : "open"}>
+        <summary>${esc(typeLabel)} <span class="count">(${models.length})</span></summary>
+        <div data-items></div>
+      </details>`);
+      group.addEventListener("toggle", () => {
+        if (group.open) collapsedTypes.delete(typeLabel);
+        else collapsedTypes.add(typeLabel);
+      });
+      const itemsWrap = group.querySelector("[data-items]");
+      list.appendChild(group);
+      for (const m of models) {
       const tags = [];
       if (m.type) tags.push(m.type);
       if (m.type === "Manifestation" && m.universal) tags.push("Universal");
@@ -210,7 +223,8 @@ export function renderSetup(ctx) {
           rerender();
         }
       });
-      list.appendChild(card);
+      itemsWrap.appendChild(card);
+      }
     }
     modelsCard.querySelector("#btn-new-model").addEventListener("click", () => {
       editing = blankModel();

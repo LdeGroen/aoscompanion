@@ -85,6 +85,22 @@ export function enhancementCategoryLabel(key) {
   return cat ? cat.label : key;
 }
 
+// Groepeert items (models of wrappers daarvan) per model-type, in de volgorde
+// van MODEL_TYPES; alles zonder (bekend) type komt achteraan onder "Zonder type".
+export function groupByType(items, getType = (x) => x.type) {
+  const groups = [];
+  const rest = [...items];
+  for (const t of MODEL_TYPES) {
+    const matched = rest.filter((x) => getType(x) === t);
+    if (matched.length) {
+      groups.push([t, matched]);
+      for (const x of matched) rest.splice(rest.indexOf(x), 1);
+    }
+  }
+  if (rest.length) groups.push(["Zonder type", rest]);
+  return groups;
+}
+
 // Lore-soorten: de army-velden spellLore/manifestationLore/prayerLore en de
 // gedeelde database gebruiken dezelfde kinds. Manifestation lores kunnen
 // "universal" zijn — die zijn voor iedere faction kiesbaar.

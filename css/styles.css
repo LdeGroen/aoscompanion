@@ -232,3 +232,17 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
 .muted-list { color: var(--text-dim); font-size: 0.85rem; }
+
+/* --- Uitklapbare type-groepen (models per type) --- */
+details.type-group { margin-bottom: 6px; }
+details.type-group > summary {
+  cursor: pointer;
+  user-select: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: bold;
+  color: var(--gold);
+  padding: 7px 4px;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 8px;
+}
+details.type-group > summary .count { color: var(--text-dim); font-weight: normal; font-size: 0.85rem; font-family: "Segoe UI", system-ui, sans-serif; }

@@ -1,4 +1,4 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, LORE_KINDS, phaseLabel } from "./factions.js";
+import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, LORE_KINDS, groupByType, phaseLabel } from "./factions.js";
 import { modLabel } from "./enhancements.js";
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
@@ -21,6 +21,7 @@ export function renderDatabase(ctx) {
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
   let editing = null; // null | { kind: "model"|"enhancement"|"rule"|"lore", target, copy, list, isUniversal }
+  const collapsedTypes = new Set(); // ingeklapte type-groepen (blijft staan tijdens redraws)
 
   async function load() {
     db = null;
@@ -141,7 +142,19 @@ export function renderDatabase(ctx) {
       list.appendChild(el(`<p class="empty">Nog geen kaartjes in de ${esc(faction)}-database. Deel een kaartje via set-up (knop "Deel in database").</p>`));
       return;
     }
-    for (const { m, list: srcList, isUniversal } of items) {
+    // Gegroepeerd per type, per groep uit- en inklapbaar
+    for (const [typeLabel, groupItems] of groupByType(items, (x) => x.m.type)) {
+      const group = el(`<details class="type-group" ${collapsedTypes.has(typeLabel) ? "" : "open"}>
+        <summary>${esc(typeLabel)} <span class="count">(${groupItems.length})</span></summary>
+        <div data-items></div>
+      </details>`);
+      group.addEventListener("toggle", () => {
+        if (group.open) collapsedTypes.delete(typeLabel);
+        else collapsedTypes.add(typeLabel);
+      });
+      const itemsWrap = group.querySelector("[data-items]");
+      list.appendChild(group);
+      for (const { m, list: srcList, isUniversal } of groupItems) {
       const tags = [m.type, isUniversal ? "Universal" : "", m.fly ? "Fly" : "", m.wizardLevel > 0 ? `Wizard (${m.wizardLevel})` : "", m.priestLevel > 0 ? `Priest (${m.priestLevel})` : ""].filter(Boolean);
       const item = el(`<div class="card inner">
         <div class="card-header">
@@ -174,7 +187,8 @@ export function renderDatabase(ctx) {
         if (isUniversal) await persistUniversal();
         else await persist();
       });
-      list.appendChild(item);
+      itemsWrap.appendChild(item);
+      }
     }
   }
 
