@@ -56,7 +56,9 @@ laadt dezelfde URL.
   gezet via de Manifestations-sectie in beide hero phases. Niet-gesummende manifestations
   zijn onzichtbaar in alle stats- en ability-weergaven (helper `isActive`/`activeModels`
   in companion.js); gesummende krijgen overal een 💥 Destroyed-knop die ze weer uit het
-  spel haalt tot de volgende summon. Extra velden (alleen bij dit type): `m.banishment`
+  spel haalt tot de volgende summon. Daarnaast kan íéder model via het **units-menu**
+  (topbar in companion) uit/aan de battle gezet worden (`game.disabled[modelId]`);
+  `isActive` combineert beide. Extra velden (alleen bij dit type): `m.banishment`
   (score, getoond in beide hero phases) en `m.universal` — universal manifestations
   worden bij delen ge-upsert in de **universal-blob** (`models`-lijst, naast de universal
   lores) en zijn in de database bij iedere faction zichtbaar. Bij een universal
@@ -164,7 +166,9 @@ GET — online dus altijd vers (push = deploy blijft direct zichtbaar), offline 
 app uit de cache op. Backend-calls (ander origin) worden niet onderschept.
 ⚠️ Nieuw bestand toegevoegd aan de app? Ook opnemen in de `SHELL`-lijst in sw.js.
 In companion mode staat de volgende-stap-knop in een vaste onderbalk (`.bottombar`,
-fixed; #app heeft daarvoor extra padding-bottom).
+fixed; #app heeft daarvoor extra padding-bottom). Vrijwel alle rijen/kaarten met een
+model zijn klikbaar (`makeClickable`) en openen de model-popup (`showModelPopup`,
+modal in document.body — overleeft rerenders van #app).
 
 ## Ideeën voor later
 Release-signing voor de Android-app; conflictdetectie bij gelijktijdig bewerken op

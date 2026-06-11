@@ -327,6 +327,35 @@ details.type-group > summary::before {
 details[open].type-group > summary::before { transform: rotate(90deg); }
 details.type-group > summary .count { color: var(--text-dim); font-weight: normal; font-size: 0.85rem; font-family: "Segoe UI", system-ui, sans-serif; }
 
+/* --- Modal (model-popup en units-menu in companion mode) --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  padding: 16px;
+}
+.modal h2:first-child, .modal [data-content] > * > h2:first-child { margin-top: 0; }
+.modal-close { position: absolute; top: 10px; right: 10px; }
+
+/* Klikbare rijen/kaarten openen de model-popup */
+.clickable { cursor: pointer; }
+.clickable:hover { border-color: var(--gold-dark); }
+
 /* --- Scrollbar in appstijl --- */
 ::-webkit-scrollbar { width: 10px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

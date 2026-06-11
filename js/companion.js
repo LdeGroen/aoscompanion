@@ -1,5 +1,5 @@
-import { PHASES, phaseLabel } from "./factions.js";
-import { effectiveModel, enhancementSource } from "./enhancements.js";
+import { PHASES, phaseLabel, enhancementCategoryLabel } from "./factions.js";
+import { effectiveModel, enhancementSource, modLabel } from "./enhancements.js";
 import { icon } from "./icons.js";
 
 // Companion mode: het spelen van een battle met je leger.
@@ -37,14 +37,18 @@ export function renderCompanion(ctx) {
       usedCommands: {},    // commandId -> true (per beurt)
       usedAbilities: {},   // abilityKey -> true (once per battle, hele spel)
       summoned: {},        // modelId -> true (manifestations die in het spel zijn)
+      disabled: {},        // modelId -> true (via het units-menu uit de battle gezet)
     };
   }
   game.usedAbilities = game.usedAbilities || {}; // voor spellen gestart vóór deze feature
   game.summoned = game.summoned || {};
+  game.disabled = game.disabled || {};
 
   // Manifestations tellen pas mee (stats, abilities) nadat ze gesummend zijn;
-  // "Destroyed" haalt ze weer uit het spel tot de volgende summon.
-  const isActive = (m) => m.type !== "Manifestation" || !!game.summoned[m.id];
+  // "Destroyed" haalt ze weer uit het spel tot de volgende summon. Daarnaast
+  // kan ieder model via het units-menu uit de battle gezet worden.
+  const isActive = (m) =>
+    (m.type !== "Manifestation" || !!game.summoned[m.id]) && !game.disabled[m.id];
   const activeModels = () => army.models.filter(isActive);
 
   // Destroyed-knop op de vakjes van een gesummende manifestation
@@ -105,11 +109,11 @@ export function renderCompanion(ctx) {
     for (const m of army.models) {
       if (!isActive(m)) continue; // niet-gesummende manifestations doen niet mee
       for (const ab of m.abilities) {
-        if (ab.phases.includes(fullKey)) result.push({ ...ab, source: m.name, type: "model" });
+        if (ab.phases.includes(fullKey)) result.push({ ...ab, source: m.name, type: "model", model: m });
       }
       for (const enh of eff(m).enhancements) {
         if ((enh.phases || []).includes(fullKey)) {
-          result.push({ ...enh, source: enhancementSource(enh, m.name), type: "enhancement" });
+          result.push({ ...enh, source: enhancementSource(enh, m.name), type: "enhancement", model: m });
         }
       }
     }
@@ -136,6 +140,144 @@ export function renderCompanion(ctx) {
     else renderTurn();
   }
 
+  // ---------- Modal (model-popup en units-menu) ----------
+  function openModal(contentEl) {
+    const overlay = el(`<div class="modal-overlay"><div class="modal">
+      <button class="small modal-close">✕</button>
+      <div data-content></div>
+    </div></div>`);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector(".modal-close").addEventListener("click", () => overlay.remove());
+    overlay.querySelector("[data-content]").appendChild(contentEl);
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  // Maakt een rij/kaart klikbaar om de model-popup te openen
+  // (klikken op een knop erin blijft gewoon de knop bedienen).
+  function makeClickable(node, m) {
+    node.classList.add("clickable");
+    node.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      showModelPopup(m);
+    });
+    return node;
+  }
+
+  // Popup met alle informatie van één model, met enhancements verwerkt (✦)
+  function showModelPopup(m) {
+    const e = eff(m);
+    const M = e.model;
+    const tags = [];
+    if (m.type) tags.push(m.type);
+    if (m.type === "Manifestation" && m.universal) tags.push("Universal");
+    if (m.fly) tags.push("Fly");
+    if (m.wizardLevel > 0) tags.push(`Wizard (${m.wizardLevel})`);
+    if (m.priestLevel > 0) tags.push(`Priest (${m.priestLevel})`);
+    if (m.champion) tags.push("Champion");
+    if (m.musician) tags.push("Musician");
+    if (m.standardBearer) tags.push("Standard Bearer");
+    if (!isActive(m)) tags.push(m.type === "Manifestation" ? "Niet gesummend" : "Uit de battle");
+
+    const stat = (label, value, mark) =>
+      `<span class="stat"><span class="v">${esc(value)}${mark ? "✦" : ""}</span><span class="k">${label}</span></span>`;
+    const ward = M.ward && M.ward !== "-" ? M.ward : "";
+
+    const wrap = el(`<div>
+      <h2>${esc(m.name)}</h2>
+      ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+      <div class="stats">
+        ${stat("move", M.move + '"', e.changed.has("move"))}
+        ${stat("health", M.health, e.changed.has("health"))}
+        ${stat("control", (parseInt(M.control) || 0) + (parseInt(m.controlBonus) || 0), e.changed.has("control"))}
+        ${stat("save", M.save, e.changed.has("save"))}
+        ${ward ? stat("ward", ward, e.changed.has("ward")) : ""}
+        ${m.banishment ? stat("banish", m.banishment, false) : ""}
+      </div>
+      <div data-body></div>
+    </div>`);
+    const body = wrap.querySelector("[data-body]");
+
+    if (M.rangedAttacks.length) {
+      body.appendChild(el(`<h3>Ranged attacks</h3>`));
+      body.appendChild(weaponTable(M.rangedAttacks));
+    }
+    if (M.meleeAttacks.length) {
+      body.appendChild(el(`<h3>Melee attacks</h3>`));
+      body.appendChild(weaponTable(M.meleeAttacks));
+    }
+    if (m.abilities.length) {
+      body.appendChild(el(`<h3>Abilities</h3>`));
+      for (const ab of m.abilities) {
+        body.appendChild(el(`<div class="ability">
+          <span class="aname">${esc(ab.name)}</span>
+          ${ab.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}
+          <div class="subtitle">${(ab.phases || []).map((p) => esc(phaseLabel(p))).join(" · ")}</div>
+          <div class="adesc">${esc(ab.description)}</div>
+        </div>`));
+      }
+    }
+    if (e.enhancements.length) {
+      body.appendChild(el(`<h3>Enhancements</h3>`));
+      for (const enh of e.enhancements) {
+        const mods = (enh.statMods || []).map(modLabel).join(", ");
+        body.appendChild(el(`<div class="ability enhancement">
+          <span class="aname">${esc(enh.name)}</span> <span class="asrc">— ${esc(enhancementCategoryLabel(enh.category))}</span>
+          ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
+          <div class="adesc">${esc(enh.description)}</div>
+        </div>`));
+      }
+    }
+    if (e.notes.length) {
+      body.appendChild(el(`<div class="weapon-bonus">✦ = incl. enhancement (verwerkt in de getoonde stats)</div>`));
+    }
+    openModal(wrap);
+  }
+
+  // Units-menu: alle models in één lijst — klik voor de popup, of zet een
+  // unit uit/aan zodat hij uit de battle verdwijnt of weer meedoet.
+  function showUnitsMenu() {
+    const wrap = el(`<div>
+      <h2>Units</h2>
+      <p class="subtitle">Klik op een unit voor alle informatie. Zet een unit uit (bijv. gesneuveld) om hem uit alle overzichten te halen; aanzetten brengt hem terug.</p>
+      <div data-list></div>
+    </div>`);
+    const list = wrap.querySelector("[data-list]");
+
+    const draw = () => {
+      list.innerHTML = "";
+      if (!army.models.length) list.appendChild(el(`<p class="empty">Geen models in dit leger.</p>`));
+      for (const m of army.models) {
+        const isManif = m.type === "Manifestation";
+        const active = isActive(m);
+        const row = el(`<div class="card-header" style="padding:8px 0;border-bottom:1px dashed var(--border);${active ? "" : "opacity:0.55"}">
+          <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
+          <button class="small ${active ? "" : "danger"}"></button>
+        </div>`);
+        const btn = row.querySelector("button");
+        btn.innerHTML = isManif
+          ? (active ? `${icon("skull")} Destroyed` : `${icon("zap")} Summon`)
+          : (active ? `${icon("check")} In battle` : `${icon("undo")} Zet terug`);
+        btn.addEventListener("click", () => {
+          if (isManif) {
+            if (game.summoned[m.id]) delete game.summoned[m.id];
+            else { game.summoned[m.id] = true; delete game.disabled[m.id]; }
+          } else {
+            if (game.disabled[m.id]) delete game.disabled[m.id];
+            else game.disabled[m.id] = true;
+          }
+          saveData();
+          draw();
+          rerender();
+        });
+        makeClickable(row, m);
+        list.appendChild(row);
+      }
+    };
+    draw();
+    openModal(wrap);
+  }
+
   // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld
   function bottomBar(btn) {
     const bar = el(`<div class="bottombar"></div>`);
@@ -149,11 +291,13 @@ export function renderCompanion(ctx) {
         <span class="title">${esc(army.name)}</span>
         <div class="subtitle">${esc(subtitle)}</div>
       </div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
       </div>
     </div>`);
+    bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
       if (confirm("Spel beëindigen? De spelstatus wordt gewist.")) {
@@ -314,7 +458,9 @@ export function renderCompanion(ctx) {
           const roles = [];
           if (m.wizardLevel > 0) roles.push(`Wizard (${m.wizardLevel})`);
           if (m.priestLevel > 0) roles.push(`Priest (${m.priestLevel})`);
-          app.appendChild(el(`<div class="card inner"><div class="card-header"><strong>${esc(m.name)}</strong><span class="chip tag">${roles.join(" · ")}</span></div></div>`));
+          const card = el(`<div class="card inner"><div class="card-header"><strong>${esc(m.name)}</strong><span class="chip tag">${roles.join(" · ")}</span></div></div>`);
+          makeClickable(card, m);
+          app.appendChild(card);
         }
         renderLoresDisplay();
       } else {
@@ -331,6 +477,7 @@ export function renderCompanion(ctx) {
           <span>${esc(m.name)}</span>
           <span><span class="stat" style="display:inline-block"><span class="v">${esc(e.model.move)}"${e.changed.has("move") ? "✦" : ""}</span></span>${m.fly ? ' <span class="chip tag">Fly</span>' : ""}</span>
         </div>`);
+        makeClickable(row, m);
         card.appendChild(attachDestroyed(row, m));
       }
       app.appendChild(card);
@@ -361,6 +508,7 @@ export function renderCompanion(ctx) {
           <span>${esc(m.name)}${m.standardBearer ? ' <span class="chip tag">Standard Bearer</span>' : ""}</span>
           <span class="stat" style="display:inline-block"><span class="v">${total}${e.changed.has("control") ? "✦" : ""}</span><span class="k">control</span></span>
         </div>`);
+        makeClickable(row, m);
         card.appendChild(attachDestroyed(row, m));
       }
       app.appendChild(card);
@@ -388,6 +536,7 @@ export function renderCompanion(ctx) {
         saveData();
         rerender();
       });
+      makeClickable(row, m);
       card.appendChild(row);
     }
     app.appendChild(card);
@@ -405,10 +554,12 @@ export function renderCompanion(ctx) {
       const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
         <span>${esc(m.name)}</span>
         <span style="display:flex;gap:6px">
+          <span class="stat" style="display:inline-block"><span class="v">${esc(e.model.health)}${e.changed.has("health") ? "✦" : ""}</span><span class="k">health</span></span>
           <span class="stat" style="display:inline-block"><span class="v">${esc(e.model.save)}${e.changed.has("save") ? "✦" : ""}</span><span class="k">save</span></span>
           ${ward ? `<span class="stat" style="display:inline-block"><span class="v">${esc(ward)}${e.changed.has("ward") ? "✦" : ""}</span><span class="k">ward</span></span>` : ""}
         </span>
       </div>`);
+      makeClickable(row, m);
       card.appendChild(attachDestroyed(row, m));
     }
     if (anyNote) card.appendChild(el(`<div class="weapon-bonus">✦ = incl. enhancement</div>`));
@@ -430,6 +581,7 @@ export function renderCompanion(ctx) {
         <div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div>
         <div data-weapons></div>
       </div>`);
+      makeClickable(card, m);
       attachDestroyed(card.querySelector(".card-header"), m);
       const target = card.querySelector("[data-weapons]");
       target.appendChild(weaponTable(e.model[key], toHitTransform));
@@ -492,10 +644,12 @@ export function renderCompanion(ctx) {
   function abilityCard(ab) {
     const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : "";
     if (!ab.oncePerBattle) {
-      return el(`<div class="ability ${typeClass}">
+      const card = el(`<div class="ability ${typeClass}">
         <span class="aname">${esc(ab.name)}</span> <span class="asrc">— ${esc(ab.source)}</span>
         <div class="adesc">${esc(ab.description)}</div>
       </div>`);
+      if (ab.model) makeClickable(card, ab.model);
+      return card;
     }
     // Once per battle: knop om hem te gebruiken; daarna doorgestreept zichtbaar
     const key = `${ab.source}|${ab.name}`;
@@ -514,6 +668,7 @@ export function renderCompanion(ctx) {
       saveData();
       rerender();
     });
+    if (ab.model) makeClickable(card, ab.model);
     return card;
   }
 
