@@ -43,7 +43,14 @@ laadt dezelfde URL.
 - Models in een army hebben een eigen `id`; de bibliotheek (`modelLibrary`) bevat kopieën
   met een eigen id, gededupliceerd op naam (case-insensitive).
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
-  Warmachine/Faction terrain; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
+  Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
+- **Manifestations** zijn pas "in het spel" na summonen: `game.summoned[modelId]` wordt
+  gezet via de Manifestations-sectie in beide hero phases. Niet-gesummende manifestations
+  zijn onzichtbaar in alle stats- en ability-weergaven (helper `isActive`/`activeModels`
+  in companion.js); gesummende krijgen overal een 💥 Destroyed-knop die ze weer uit het
+  spel haalt tot de volgende summon.
+- Beschrijvingen (abilities, rules, commands) respecteren regeleinden via
+  `white-space: pre-line` in de CSS — geen <br>-injectie nodig.
 - **Enhancements** staan op het leger (`army.enhancements`, categorieën artifact /
   heroicTrait / other met `forType`); een model verwijst ernaar via `m.enhancementIds`.
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo

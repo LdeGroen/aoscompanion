@@ -211,6 +211,8 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 .ability .aname { font-weight: 600; }
 .ability .asrc { font-size: 0.75rem; color: var(--text-dim); }
 .ability .adesc { font-size: 0.9rem; margin-top: 2px; }
+/* Regeleinden in ingevoerde beschrijvingen ook tonen */
+.ability .adesc, .command .cdesc, .muted-list, .lore-entry .subtitle { white-space: pre-line; }
 .ability.faction { border-left-color: var(--gold); }
 .ability.enhancement { border-left-color: var(--green); }
 .ability.used { opacity: 0.6; border-left-color: var(--text-dim); }

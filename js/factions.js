@@ -66,7 +66,9 @@ export const SAVES = ["2+", "3+", "4+", "5+", "6+", "-"];
 export const TO_HIT_WOUND = ["2+", "3+", "4+", "5+", "6+"];
 
 // Ieder uniek model heeft een type; "-" = geen ward save
-export const MODEL_TYPES = ["Hero", "Named hero", "Infantry", "Cavalry", "Beast", "Monster", "Warmachine", "Faction terrain"];
+// "Manifestation" werkt anders: die is pas in het spel nadat hij in de hero
+// phase gesummend is (zie companion.js, game.summoned).
+export const MODEL_TYPES = ["Hero", "Named hero", "Infantry", "Cavalry", "Beast", "Monster", "Warmachine", "Faction terrain", "Manifestation"];
 export const WARDS = ["-", "2+", "3+", "4+", "5+", "6+"];
 
 // Enhancements: artifacts/heroic traits alleen voor models met type "Hero"

@@ -35,9 +35,29 @@ export function renderCompanion(ctx) {
       cp: 0,
       usedCommands: {},    // commandId -> true (per beurt)
       usedAbilities: {},   // abilityKey -> true (once per battle, hele spel)
+      summoned: {},        // modelId -> true (manifestations die in het spel zijn)
     };
   }
   game.usedAbilities = game.usedAbilities || {}; // voor spellen gestart vóór deze feature
+  game.summoned = game.summoned || {};
+
+  // Manifestations tellen pas mee (stats, abilities) nadat ze gesummend zijn;
+  // "Destroyed" haalt ze weer uit het spel tot de volgende summon.
+  const isActive = (m) => m.type !== "Manifestation" || !!game.summoned[m.id];
+  const activeModels = () => army.models.filter(isActive);
+
+  // Destroyed-knop op de vakjes van een gesummende manifestation
+  function attachDestroyed(row, m) {
+    if (m.type !== "Manifestation") return row;
+    const btn = el(`<button class="danger small">💥 Destroyed</button>`);
+    btn.addEventListener("click", () => {
+      delete game.summoned[m.id];
+      saveData();
+      rerender();
+    });
+    row.appendChild(btn);
+    return row;
+  }
 
   const currentTurnOwner = () =>
     game.turnIndex === 0 ? game.firstTurn : game.firstTurn === "player" ? "enemy" : "player";
@@ -82,6 +102,7 @@ export function renderCompanion(ctx) {
   function collectAbilities(fullKey) {
     const result = [];
     for (const m of army.models) {
+      if (!isActive(m)) continue; // niet-gesummende manifestations doen niet mee
       for (const ab of m.abilities) {
         if (ab.phases.includes(fullKey)) result.push({ ...ab, source: m.name, type: "model" });
       }
@@ -273,8 +294,10 @@ export function renderCompanion(ctx) {
       app.appendChild(el(`<div class="reminder">⚑ Reminder: Place of Power gebruiken?</div>`));
     }
 
+    if (phaseKey === "hero") renderManifestations();
+
     if (phaseKey === "hero" && owner === "player") {
-      const casters = army.models.filter((m) => m.wizardLevel > 0 || m.priestLevel > 0);
+      const casters = activeModels().filter((m) => m.wizardLevel > 0 || m.priestLevel > 0);
       if (casters.length) {
         app.appendChild(el(`<h3>Wizards & priests</h3>`));
         for (const m of casters) {
@@ -292,12 +315,13 @@ export function renderCompanion(ctx) {
     if (phaseKey === "movement" && owner === "player") {
       app.appendChild(el(`<h3>Movement van je units</h3>`));
       const card = el(`<div class="card"></div>`);
-      for (const m of army.models) {
+      for (const m of activeModels()) {
         const e = eff(m);
-        card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
           <span>${esc(m.name)}</span>
           <span><span class="stat" style="display:inline-block"><span class="v">${esc(e.model.move)}"${e.changed.has("move") ? "✦" : ""}</span></span>${m.fly ? ' <span class="chip tag">Fly</span>' : ""}</span>
-        </div>`));
+        </div>`);
+        card.appendChild(attachDestroyed(row, m));
       }
       app.appendChild(card);
     }
@@ -320,16 +344,40 @@ export function renderCompanion(ctx) {
     if (phaseKey === "end") {
       app.appendChild(el(`<h3>Control scores</h3>`));
       const card = el(`<div class="card"></div>`);
-      for (const m of army.models) {
+      for (const m of activeModels()) {
         const e = eff(m);
         const total = (parseInt(e.model.control) || 0) + (parseInt(m.controlBonus) || 0);
-        card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
           <span>${esc(m.name)}${m.standardBearer ? ' <span class="chip tag">Standard Bearer</span>' : ""}</span>
           <span class="stat" style="display:inline-block"><span class="v">${total}${e.changed.has("control") ? "✦" : ""}</span><span class="k">control</span></span>
-        </div>`));
+        </div>`);
+        card.appendChild(attachDestroyed(row, m));
       }
       app.appendChild(card);
     }
+  }
+
+  // ---------- Manifestations: summonen in de hero phase ----------
+  function renderManifestations() {
+    const manifs = army.models.filter((m) => m.type === "Manifestation");
+    if (!manifs.length) return;
+    app.appendChild(el(`<h3>Manifestations</h3>`));
+    const card = el(`<div class="card"></div>`);
+    for (const m of manifs) {
+      const summoned = !!game.summoned[m.id];
+      const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <span>${esc(m.name)}${summoned ? ' <span class="chip tag">In het spel</span>' : ""}</span>
+        <button class="small ${summoned ? "danger" : "primary"}">${summoned ? "💥 Destroyed" : "⚡ Summoned"}</button>
+      </div>`);
+      row.querySelector("button").addEventListener("click", () => {
+        if (game.summoned[m.id]) delete game.summoned[m.id];
+        else game.summoned[m.id] = true;
+        saveData();
+        rerender();
+      });
+      card.appendChild(row);
+    }
+    app.appendChild(card);
   }
 
   // ---------- Armour & ward saves van je eigen units ----------
@@ -337,17 +385,18 @@ export function renderCompanion(ctx) {
     app.appendChild(el(`<h3>Saves van je units</h3>`));
     const card = el(`<div class="card"></div>`);
     let anyNote = false;
-    for (const m of army.models) {
+    for (const m of activeModels()) {
       const e = eff(m);
       const ward = e.model.ward && e.model.ward !== "-" ? e.model.ward : "";
       anyNote = anyNote || e.changed.has("save") || e.changed.has("ward");
-      card.appendChild(el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+      const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
         <span>${esc(m.name)}</span>
         <span style="display:flex;gap:6px">
           <span class="stat" style="display:inline-block"><span class="v">${esc(e.model.save)}${e.changed.has("save") ? "✦" : ""}</span><span class="k">save</span></span>
           ${ward ? `<span class="stat" style="display:inline-block"><span class="v">${esc(ward)}${e.changed.has("ward") ? "✦" : ""}</span><span class="k">ward</span></span>` : ""}
         </span>
-      </div>`));
+      </div>`);
+      card.appendChild(attachDestroyed(row, m));
     }
     if (anyNote) card.appendChild(el(`<div class="weapon-bonus">✦ = incl. enhancement</div>`));
     app.appendChild(card);
@@ -356,7 +405,7 @@ export function renderCompanion(ctx) {
   const WEAPON_STATS = new Set(["toHit", "toWound", "rend", "attacks", "damage"]);
 
   function renderWeaponsDisplay(key, title, toHitTransform) {
-    const withWeapons = army.models.filter((m) => m[key].length > 0);
+    const withWeapons = activeModels().filter((m) => m[key].length > 0);
     if (!withWeapons.length) {
       app.appendChild(el(`<p class="empty">Geen models met ${title.toLowerCase()}.</p>`));
       return;
@@ -368,6 +417,7 @@ export function renderCompanion(ctx) {
         <div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div>
         <div data-weapons></div>
       </div>`);
+      attachDestroyed(card.querySelector(".card-header"), m);
       const target = card.querySelector("[data-weapons]");
       target.appendChild(weaponTable(e.model[key], toHitTransform));
       // Wapen-gerelateerde enhancement-mods als voetnoot bij de tabel
@@ -480,7 +530,7 @@ export function renderCompanion(ctx) {
       if (cmd.extra === "ranged-minus1") {
         // Covering Fire: ranged attacks met -1 to hit
         const sub = el(`<div style="margin-top:8px"><div class="subtitle">Ranged attacks met -1 to hit toegepast:</div></div>`);
-        const withRanged = army.models.filter((m) => m.rangedAttacks.length > 0);
+        const withRanged = activeModels().filter((m) => m.rangedAttacks.length > 0);
         if (!withRanged.length) sub.appendChild(el(`<p class="empty">Geen models met ranged attacks.</p>`));
         for (const m of withRanged) {
           const mc = el(`<div class="card inner" style="margin-top:6px"><div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div></div>`);
