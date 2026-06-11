@@ -120,13 +120,17 @@ draai appsync lokaal (`node server.mjs` in die repo, poort 3100) en zet API_URL 
 - Bouwen op de Windows-pc van Luc:
   ```
   cd android
-  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio3\jbr"
+  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio2\jbr"
   .\gradlew.bat assembleDebug
   ```
   APK verschijnt in `android/app/build/outputs/apk/debug/`.
-- ⚠️ De JBR van de installatie "Android Studio" (zonder nummer) is **kapot** (jvm.cfg
-  ontbreekt); gebruik die van Android Studio3 (of Studio1). AGP 8.9.0 + gradle 8.11.1,
+- ⚠️ De Android Studio-installaties op Lucs pc wisselen nogal eens; per 2026-06 heeft
+  alleen **"Android Studio2"** een werkende JBR (de andere missen jvm.cfg). Check bij
+  een kapotte build welke installatie `jbr\lib\jvm.cfg` heeft. AGP 8.9.0 + gradle 8.11.1,
   compileSdk 35, minSdk 26.
+- targetSdk 35 dwingt edge-to-edge af; MainActivity zet daarom de systeembalk-insets
+  als padding op een FrameLayout-wrapper rond de WebView (anders valt de app onder de
+  statusbalk van Android).
 - Nog **debug-signed**: prima om te sideloaden, niet voor de Play Store. Release-keystore
   bestaat nog niet voor deze app.
 - `local.properties` (sdk.dir) staat bewust niet in git; maak hem aan op een nieuwe machine.

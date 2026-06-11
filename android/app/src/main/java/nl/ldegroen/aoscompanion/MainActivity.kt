@@ -4,8 +4,11 @@ import android.annotation.SuppressLint
 import android.os.Bundle
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,7 +23,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         webView = WebView(this)
-        setContentView(webView)
+
+        // Android 15 (targetSdk 35) dwingt edge-to-edge af, waardoor de WebView
+        // onder de status- en navigatiebalk schuift. We zetten de systeembalk-
+        // insets als padding op een wrapper, zodat de app er net onder begint.
+        val root = FrameLayout(this)
+        root.setBackgroundColor(getColor(R.color.app_background))
+        root.addView(webView)
+        setContentView(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
 
         webView.setBackgroundColor(getColor(R.color.app_background))
         with(webView.settings) {
