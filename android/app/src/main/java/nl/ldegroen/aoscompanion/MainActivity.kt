@@ -9,6 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        const val APP_URL = "https://ldegroen.github.io/aoscompanion/"
+    }
+
     private lateinit var webView: WebView
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -18,15 +22,34 @@ class MainActivity : AppCompatActivity() {
         webView = WebView(this)
         setContentView(webView)
 
+        webView.setBackgroundColor(getColor(R.color.app_background))
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true // nodig voor localStorage (alle app-data)
             cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
         }
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView,
+                request: android.webkit.WebResourceRequest,
+                error: android.webkit.WebResourceError
+            ) {
+                if (!request.isForMainFrame) return
+                view.loadDataWithBaseURL(
+                    null,
+                    """<html><body style="background:#15161c;color:#e8e6df;font-family:sans-serif;
+                       display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+                       <div style="text-align:center"><h2 style="color:#c9a227">⚔️ Geen verbinding</h2>
+                       <p>De app kon niet laden. Controleer je internet en probeer opnieuw.</p>
+                       <a href="$APP_URL" style="color:#c9a227;font-size:1.2em">↻ Opnieuw proberen</a>
+                       </div></body></html>""",
+                    "text/html", "utf-8", null
+                )
+            }
+        }
 
         if (savedInstanceState == null) {
-            webView.loadUrl("https://ldegroen.github.io/aoscompanion/")
+            webView.loadUrl(APP_URL)
         } else {
             webView.restoreState(savedInstanceState)
         }

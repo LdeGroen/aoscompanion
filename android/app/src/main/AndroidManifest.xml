@@ -5,8 +5,8 @@
 
     <application
         android:label="AoS Companion"
-        android:icon="@android:drawable/sym_def_app_icon"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.AoSCompanion"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
