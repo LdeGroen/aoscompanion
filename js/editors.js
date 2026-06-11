@@ -59,8 +59,27 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
     <div class="checkline"><input type="checkbox" id="m-champ" ${m.champion ? "checked" : ""} /><span>In unit met Champion</span></div>
     <div class="checkline"><input type="checkbox" id="m-mus" ${m.musician ? "checked" : ""} /><span>In unit met Musician</span></div>
     <div class="checkline"><input type="checkbox" id="m-std" ${m.standardBearer ? "checked" : ""} /><span>In unit met Standard Bearer</span></div>
+    <div data-manif></div>
   </div>`);
   container.appendChild(form);
+
+  // Extra velden voor manifestations: banishment score en universal/faction.
+  // Live in het model geschreven zodat ze een type-wissel overleven.
+  const manifBlock = form.querySelector("[data-manif]");
+  const drawManif = () => {
+    manifBlock.innerHTML = "";
+    if (form.querySelector("#m-type").value !== "Manifestation") return;
+    const block = el(`<div>
+      <label>Banishment score</label>
+      <input type="text" id="m-banish" value="${esc(m.banishment ?? "")}" placeholder="bijv. 7" />
+      <div class="checkline"><input type="checkbox" id="m-universal" ${m.universal ? "checked" : ""} /><span>Universal manifestation (niet faction-gebonden — delen gaat naar de universal database)</span></div>
+    </div>`);
+    block.querySelector("#m-banish").addEventListener("input", (e) => { m.banishment = e.target.value; onChange(); });
+    block.querySelector("#m-universal").addEventListener("change", (e) => { m.universal = e.target.checked; onChange(); });
+    manifBlock.appendChild(block);
+  };
+  drawManif();
+  form.querySelector("#m-type").addEventListener("change", drawManif);
 
   // --- Weapons ---
   buildWeaponSection({ container, m, key: "rangedAttacks", title: "Ranged attacks", el, esc, onChange });
@@ -154,6 +173,13 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
     m.champion = form.querySelector("#m-champ").checked;
     m.musician = form.querySelector("#m-mus").checked;
     m.standardBearer = form.querySelector("#m-std").checked;
+    if (m.type === "Manifestation") {
+      m.banishment = (form.querySelector("#m-banish")?.value || "").trim();
+      m.universal = !!form.querySelector("#m-universal")?.checked;
+    } else {
+      m.banishment = "";
+      m.universal = false;
+    }
     return true;
   }
 
@@ -174,7 +200,7 @@ function buildWeaponSection({ container, m, key, title, el, esc, onChange }) {
         <input type="text" data-f="name" value="${esc(w.name)}" placeholder="bijv. Warhammer" />
         <div class="row tight">
           ${key === "rangedAttacks" ? `<div><label>Range (")</label><input type="text" data-f="range" value="${esc(w.range ?? "")}" placeholder='bijv. 12' /></div>` : ""}
-          <div><label>Attacks</label><input type="number" data-f="attacks" min="0" value="${esc(w.attacks)}" /></div>
+          <div><label>Attacks</label><input type="text" data-f="attacks" value="${esc(w.attacks)}" placeholder="bijv. 2, D3, D6+1" /></div>
           <div><label>To hit</label><select data-f="toHit">${TO_HIT_WOUND.map((s) => `<option ${s === w.toHit ? "selected" : ""}>${s}</option>`).join("")}</select></div>
           <div><label>To wound</label><select data-f="toWound">${TO_HIT_WOUND.map((s) => `<option ${s === w.toWound ? "selected" : ""}>${s}</option>`).join("")}</select></div>
           <div><label>Rend</label><input type="number" data-f="rend" min="0" value="${esc(w.rend)}" /></div>
@@ -307,9 +333,15 @@ export function buildRuleEditor({ rule, el, esc, onChange = () => {}, actions = 
 // ---------- Lore (spell / manifestation / prayer) ----------
 // universalChoice: toon de keuze faction/universal (alleen zinvol bij
 // manifestation lores in set-up; in de database ligt dat al vast).
-export function buildLoreEditor({ lore, kind, el, esc, onChange = () => {}, actions = [], universalChoice = false }) {
+// manifestationOptions: namen van universal manifestation-models — bij een
+// universal manifestation lore kies je de spells daaruit (+ casting value).
+// onRedraw: aangeroepen na het wisselen faction/universal, zodat de caller
+// de editor opnieuw kan opbouwen met/zonder picker.
+export function buildLoreEditor({ lore, kind, el, esc, onChange = () => {}, actions = [], universalChoice = false, manifestationOptions = null, onRedraw = null }) {
   const def = loreKind(kind);
   const noun = def.noun.charAt(0).toUpperCase() + def.noun.slice(1);
+  const usePicker = kind === "manifestation" && !!lore.universal
+    && Array.isArray(manifestationOptions) && manifestationOptions.length > 0;
   const card = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
     <label>Naam van de lore</label>
     <input type="text" data-f="lore-name" value="${esc(lore.name)}" />
@@ -324,20 +356,37 @@ export function buildLoreEditor({ lore, kind, el, esc, onChange = () => {}, acti
   </div>`);
   card.querySelector('[data-f="lore-name"]').addEventListener("input", (e) => { lore.name = e.target.value; onChange(); });
   const uniSel = card.querySelector('[data-f="universal"]');
-  if (uniSel) uniSel.addEventListener("change", () => { lore.universal = !!uniSel.value; onChange(); });
+  if (uniSel) uniSel.addEventListener("change", () => {
+    lore.universal = !!uniSel.value;
+    onChange();
+    if (onRedraw) onRedraw();
+  });
 
   const entriesWrap = card.querySelector("[data-entries]");
   lore.entries.forEach((entry, i) => {
+    // Bij een universal manifestation lore kies je per spell een van de
+    // universal manifestation-models; anders is de naam vrije tekst.
+    const opts = usePicker
+      ? [...new Set([...(entry.name ? [entry.name] : []), ...manifestationOptions])]
+      : null;
+    const nameField = usePicker
+      ? `<select data-f="name">
+          <option value="">— kies manifestation —</option>
+          ${opts.map((n) => `<option ${n === entry.name ? "selected" : ""}>${esc(n)}</option>`).join("")}
+        </select>`
+      : `<input type="text" data-f="name" value="${esc(entry.name)}" />`;
     const eCard = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
       <div class="row">
-        <div style="flex:2"><label>${noun} ${i + 1} — naam</label><input type="text" data-f="name" value="${esc(entry.name)}" /></div>
+        <div style="flex:2"><label>${noun} ${i + 1} — ${usePicker ? "manifestation" : "naam"}</label>${nameField}</div>
         <div><label>${def.valueLabel}</label><input type="text" data-f="value" value="${esc(entry.value)}" placeholder="bijv. 7" /></div>
       </div>
       <label>Beschrijving</label>
       <textarea data-f="description">${esc(entry.description)}</textarea>
     </div>`);
     for (const f of ["name", "value", "description"]) {
-      eCard.querySelector(`[data-f="${f}"]`).addEventListener("input", (e) => { entry[f] = e.target.value; onChange(); });
+      const field = eCard.querySelector(`[data-f="${f}"]`);
+      field.addEventListener("input", (e) => { entry[f] = e.target.value; onChange(); });
+      field.addEventListener("change", (e) => { entry[f] = e.target.value; onChange(); });
     }
     entriesWrap.appendChild(eCard);
   });

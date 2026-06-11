@@ -76,7 +76,8 @@ const UNIVERSAL_KEY = "universal";
 
 function normalizeUniversal(obj) {
   const db = obj || {};
-  db.lores = db.lores || []; // alleen manifestation lores
+  db.lores = db.lores || [];   // alleen manifestation lores
+  db.models = db.models || []; // alleen universal manifestation-models
   return db;
 }
 
@@ -139,9 +140,19 @@ function cleanCopy(item, extra = {}) {
 }
 
 export async function shareModel(faction, model, user) {
-  const { db } = await loadFactionDb(faction);
-  upsertByName(db.models, cleanCopy(model, { enhancementIds: [] }), user);
-  await saveFactionDb(faction, db);
+  const item = cleanCopy(model, { enhancementIds: [] });
+  // Universal manifestations zijn niet faction-gebonden en gaan naar de
+  // universal-blob, zodat ze bij iedere faction beschikbaar zijn.
+  if (model.type === "Manifestation" && model.universal) {
+    const { db } = await loadUniversalDb();
+    upsertByName(db.models, item, user);
+    await saveUniversalDb(db);
+  } else {
+    delete item.universal;
+    const { db } = await loadFactionDb(faction);
+    upsertByName(db.models, item, user);
+    await saveFactionDb(faction, db);
+  }
 }
 
 export async function shareEnhancement(faction, enh, user) {

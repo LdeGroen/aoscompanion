@@ -57,13 +57,31 @@ export function renderSetup(ctx) {
   let editing = null; // null | model object dat bewerkt wordt
 
   // Delen in de gedeelde faction-database (voor alle accounts zichtbaar)
-  async function shareToDb(fn, label) {
+  async function shareToDb(fn, label, target = `${army.faction}-database`) {
     try {
       await fn();
-      alert(`${label} gedeeld in de ${army.faction}-database.`);
+      universalManifestNames = null; // cache verversen: er kan een universal manifestation bij zijn
+      alert(`${label} gedeeld in de ${target}.`);
     } catch (e) {
       alert("Delen in de database mislukt: " + e.message);
     }
+  }
+
+  const modelShareTarget = (m) =>
+    m.type === "Manifestation" && m.universal ? "universal database" : `${army.faction}-database`;
+
+  // Namen van universal manifestation-models, voor de spell-picker in een
+  // universal manifestation lore.
+  let universalManifestNames = null;
+  async function getUniversalManifestNames() {
+    if (universalManifestNames) return universalManifestNames;
+    try {
+      const { db } = await sharedb.loadUniversalDb();
+      universalManifestNames = db.models.filter((m) => m.type === "Manifestation").map((m) => m.name);
+    } catch {
+      universalManifestNames = [];
+    }
+    return universalManifestNames;
   }
 
   function rerender() {
@@ -151,6 +169,7 @@ export function renderSetup(ctx) {
     for (const m of army.models) {
       const tags = [];
       if (m.type) tags.push(m.type);
+      if (m.type === "Manifestation" && m.universal) tags.push("Universal");
       if (m.fly) tags.push("Fly");
       if (m.wizardLevel > 0) tags.push(`Wizard (${m.wizardLevel})`);
       if (m.priestLevel > 0) tags.push(`Priest (${m.priestLevel})`);
@@ -161,7 +180,7 @@ export function renderSetup(ctx) {
         <div class="card-header">
           <div>
             <h3>${esc(m.name) || "(naamloos)"}</h3>
-            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}${m.ward && m.ward !== "-" ? " · Ward " + esc(m.ward) : ""}</div>
+            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}${m.ward && m.ward !== "-" ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
             ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
             <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities${m.enhancementIds.length ? ` · ${m.enhancementIds.length} enhancement${m.enhancementIds.length === 1 ? "" : "s"}` : ""}</div>
           </div>
@@ -175,7 +194,7 @@ export function renderSetup(ctx) {
       </div>`);
       card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(); });
       card.querySelector('[data-act="share"]').addEventListener("click", () =>
-        shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`));
+        shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m)));
       card.querySelector('[data-act="copy"]').addEventListener("click", () => {
         const copy = JSON.parse(JSON.stringify(m));
         copy.id = uid();
@@ -273,6 +292,8 @@ export function renderSetup(ctx) {
       controlBonus: 0,
       save: "4+",
       ward: "",
+      banishment: "",
+      universal: false,
       enhancementIds: [],
       wizardLevel: 0,
       priestLevel: 0,
@@ -299,7 +320,7 @@ export function renderSetup(ctx) {
     // --- Opslaan ---
     const shareLine = el(`<div class="card"><div class="checkline">
       <input type="checkbox" id="m-share" />
-      <span>Deel dit kaartje ook in de ${esc(army.faction)}-database (zichtbaar voor alle accounts)</span>
+      <span>Deel dit kaartje ook in de gedeelde database (zichtbaar voor alle accounts; universal manifestations gaan naar de universal database, de rest naar de ${esc(army.faction)}-database)</span>
     </div></div>`);
     app.appendChild(shareLine);
     const saveBtn = el(`<button class="primary bigbtn">✔ Model opslaan</button>`);
@@ -315,7 +336,7 @@ export function renderSetup(ctx) {
       state.data.modelLibrary.push(card);
       saveData();
       if (shareLine.querySelector("#m-share").checked) {
-        shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`);
+        shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m));
       }
       editing = null;
       rerender();
@@ -435,10 +456,12 @@ export function renderSetup(ctx) {
         body.appendChild(btn);
         return;
       }
-      body.appendChild(buildLoreEditor({
+      const build = (names) => body.appendChild(buildLoreEditor({
         lore, kind: kindKey, el, esc,
         onChange: saveData,
         universalChoice: true,
+        manifestationOptions: names,
+        onRedraw: draw,
         actions: [
           {
             label: "📚 Deel in database",
@@ -462,6 +485,10 @@ export function renderSetup(ctx) {
           },
         ],
       }));
+      // De spell-picker van een universal manifestation lore heeft de namen
+      // van de universal manifestation-models nodig (async uit de database).
+      if (kindKey === "manifestation") getUniversalManifestNames().then(build);
+      else build(null);
     };
     draw();
   }

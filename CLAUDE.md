@@ -48,7 +48,14 @@ laadt dezelfde URL.
   gezet via de Manifestations-sectie in beide hero phases. Niet-gesummende manifestations
   zijn onzichtbaar in alle stats- en ability-weergaven (helper `isActive`/`activeModels`
   in companion.js); gesummende krijgen overal een 💥 Destroyed-knop die ze weer uit het
-  spel haalt tot de volgende summon.
+  spel haalt tot de volgende summon. Extra velden (alleen bij dit type): `m.banishment`
+  (score, getoond in beide hero phases) en `m.universal` — universal manifestations
+  worden bij delen ge-upsert in de **universal-blob** (`models`-lijst, naast de universal
+  lores) en zijn in de database bij iedere faction zichtbaar. Bij een universal
+  manifestation lore kies je de spells uit die universal manifestation-models
+  (picker in buildLoreEditor via `manifestationOptions`).
+- Wapen-`attacks` is vrije tekst, net als damage/move: "2", "D3", "D6+1" enz.
+  (`addToValue` in enhancements.js telt er netjes bij op).
 - Beschrijvingen (abilities, rules, commands) respecteren regeleinden via
   `white-space: pre-line` in de CSS — geen <br>-injectie nodig.
 - **Enhancements** staan op het leger (`army.enhancements`, categorieën artifact /

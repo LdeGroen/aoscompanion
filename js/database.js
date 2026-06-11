@@ -131,17 +131,23 @@ export function renderDatabase(ctx) {
     const card = el(`<div class="card"><h2>Models</h2><div data-list></div></div>`);
     app.appendChild(card);
     const list = card.querySelector("[data-list]");
-    if (!db.models.length) {
+
+    // Faction-kaartjes + universal manifestations (bij iedere faction zichtbaar)
+    const items = [
+      ...db.models.map((m) => ({ m, list: db.models, isUniversal: false })),
+      ...(uni?.models || []).map((m) => ({ m, list: uni.models, isUniversal: true })),
+    ];
+    if (!items.length) {
       list.appendChild(el(`<p class="empty">Nog geen kaartjes in de ${esc(faction)}-database. Deel een kaartje via set-up (knop "Deel in database").</p>`));
       return;
     }
-    for (const m of db.models) {
-      const tags = [m.type, m.fly ? "Fly" : "", m.wizardLevel > 0 ? `Wizard (${m.wizardLevel})` : "", m.priestLevel > 0 ? `Priest (${m.priestLevel})` : ""].filter(Boolean);
+    for (const { m, list: srcList, isUniversal } of items) {
+      const tags = [m.type, isUniversal ? "Universal" : "", m.fly ? "Fly" : "", m.wizardLevel > 0 ? `Wizard (${m.wizardLevel})` : "", m.priestLevel > 0 ? `Priest (${m.priestLevel})` : ""].filter(Boolean);
       const item = el(`<div class="card inner">
         <div class="card-header">
           <div>
             <h3>${esc(m.name)}</h3>
-            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)} · Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}</div>
+            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)} · Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
             ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
             <div class="muted-list">${(m.rangedAttacks || []).length} ranged · ${(m.meleeAttacks || []).length} melee · ${(m.abilities || []).length} abilities · ${ownerLabel(m)}</div>
           </div>
@@ -167,12 +173,14 @@ export function renderDatabase(ctx) {
         alert(`"${m.name}" is toegevoegd aan je leger.`);
       });
       const editBtn = item.querySelector('[data-act="edit"]');
-      if (editBtn) editBtn.addEventListener("click", () => startEdit("model", m, db.models));
+      if (editBtn) editBtn.addEventListener("click", () => startEdit("model", m, srcList, isUniversal));
       const delBtn = item.querySelector('[data-act="del"]');
       if (delBtn) delBtn.addEventListener("click", async () => {
         if (!confirm(`"${m.name}" uit de gedeelde database verwijderen? Dit geldt voor alle accounts.`)) return;
-        db.models = db.models.filter((x) => x !== m);
-        await persist();
+        const idx = srcList.indexOf(m);
+        if (idx >= 0) srcList.splice(idx, 1);
+        if (isUniversal) await persistUniversal();
+        else await persist();
       });
       list.appendChild(item);
     }
@@ -285,6 +293,7 @@ export function renderDatabase(ctx) {
           const wrap = el(`<div class="card inner"></div>`);
           wrap.appendChild(buildLoreEditor({
             lore: editing.copy, kind: kindDef.key, el, esc,
+            manifestationOptions: (uni?.models || []).filter((x) => x.type === "Manifestation").map((x) => x.name),
             actions: editActions(),
           }));
           list.appendChild(wrap);

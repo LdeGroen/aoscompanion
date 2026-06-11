@@ -367,7 +367,10 @@ export function renderCompanion(ctx) {
       const summoned = !!game.summoned[m.id];
       const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
         <span>${esc(m.name)}${summoned ? ' <span class="chip tag">In het spel</span>' : ""}</span>
-        <button class="small ${summoned ? "danger" : "primary"}">${summoned ? "💥 Destroyed" : "⚡ Summoned"}</button>
+        <span style="display:flex;gap:6px;align-items:center">
+          ${m.banishment ? `<span class="stat" style="display:inline-block"><span class="v">${esc(m.banishment)}</span><span class="k">banish</span></span>` : ""}
+          <button class="small ${summoned ? "danger" : "primary"}">${summoned ? "💥 Destroyed" : "⚡ Summoned"}</button>
+        </span>
       </div>`);
       row.querySelector("button").addEventListener("click", () => {
         if (game.summoned[m.id]) delete game.summoned[m.id];
