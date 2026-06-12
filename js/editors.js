@@ -107,11 +107,7 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
           <label>Casting value</label>
           <input type="text" data-f="castval" value="${esc(ab.castingValue || "")}" placeholder="bijv. 7" />
         </div>
-        <div class="checkline"><input type="checkbox" data-f="cp" ${ab.cpCost > 0 ? "checked" : ""} /><span>Kost command points</span></div>
-        <div data-cpcost style="display:${ab.cpCost > 0 ? "block" : "none"}">
-          <label>Aantal command points</label>
-          <input type="number" data-f="cpcost" min="1" value="${esc(ab.cpCost || 1)}" />
-        </div>
+        ${cpCostHtml(ab, esc)}
         <div class="btnrow"><button class="danger small">${icon("trash")} Verwijder ability</button></div>
       </div>`);
       card.querySelector('[data-f="name"]').addEventListener("input", (e) => { ab.name = e.target.value; onChange(); });
@@ -123,12 +119,7 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
         onChange();
       });
       card.querySelector('[data-f="castval"]').addEventListener("input", (e) => { ab.castingValue = e.target.value; onChange(); });
-      card.querySelector('[data-f="cp"]').addEventListener("change", (e) => {
-        ab.cpCost = e.target.checked ? (parseInt(card.querySelector('[data-f="cpcost"]').value) || 1) : 0;
-        card.querySelector("[data-cpcost]").style.display = e.target.checked ? "block" : "none";
-        onChange();
-      });
-      card.querySelector('[data-f="cpcost"]').addEventListener("input", (e) => { ab.cpCost = parseInt(e.target.value) || 1; onChange(); });
+      wireCpCost(card, ab, onChange);
       buildPhaseChips(card.querySelector("[data-chips]"), ab, el, onChange);
       card.querySelector("button.danger").addEventListener("click", () => { m.abilities.splice(i, 1); onChange(); drawAbilities(); });
       abList.appendChild(card);
@@ -287,12 +278,14 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
     <label>Phases waarin de ability getoond wordt (optioneel — laat leeg als de enhancement alleen stats verbetert)</label>
     <div class="chips" data-chips></div>
     <div class="checkline"><input type="checkbox" data-f="once" ${enh.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
+    ${cpCostHtml(enh, esc)}
     <div class="btnrow" data-actions></div>
   </div>`);
 
   card.querySelector('[data-f="name"]').addEventListener("input", (e) => { enh.name = e.target.value; onChange(); });
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { enh.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { enh.oncePerBattle = e.target.checked; onChange(); });
+  wireCpCost(card, enh, onChange);
   const forTypeSel = card.querySelector('[data-f="forType"]');
   if (forTypeSel) forTypeSel.addEventListener("change", () => { enh.forType = forTypeSel.value; onChange(); });
 
@@ -343,11 +336,13 @@ export function buildRuleEditor({ rule, el, esc, onChange = () => {}, actions = 
     <label>Beschrijving</label>
     <textarea data-f="description">${esc(rule.description)}</textarea>
     <div class="checkline"><input type="checkbox" data-f="once" ${rule.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
+    ${cpCostHtml(rule, esc)}
     <div class="btnrow" data-actions></div>
   </div>`);
   card.querySelector('[data-f="name"]').addEventListener("input", (e) => { rule.name = e.target.value; onChange(); });
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { rule.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { rule.oncePerBattle = e.target.checked; onChange(); });
+  wireCpCost(card, rule, onChange);
   buildPhaseChips(card.querySelector("[data-chips]"), rule, el, onChange);
   buildActions(card.querySelector("[data-actions]"), actions, el);
   return card;
@@ -366,6 +361,7 @@ export function buildBattleplanAbilityEditor({ ab, el, esc, onChange = () => {},
     <textarea data-f="description">${esc(ab.description)}</textarea>
     <div class="checkline"><input type="checkbox" data-f="once" ${ab.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
     <div class="checkline"><input type="checkbox" data-f="underdog" ${ab.underdogOnly ? "checked" : ""} /><span>Alleen als jij de underdog bent</span></div>
+    ${cpCostHtml(ab, esc)}
     <label>Actief in battlerounds (geen aangevinkt = alle battlerounds)</label>
     <div class="chips" data-rounds></div>
     <div class="btnrow" data-actions></div>
@@ -374,6 +370,7 @@ export function buildBattleplanAbilityEditor({ ab, el, esc, onChange = () => {},
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { ab.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { ab.oncePerBattle = e.target.checked; onChange(); });
   card.querySelector('[data-f="underdog"]').addEventListener("change", (e) => { ab.underdogOnly = e.target.checked; onChange(); });
+  wireCpCost(card, ab, onChange);
   buildPhaseChips(card.querySelector("[data-chips]"), ab, el, onChange);
 
   const roundsWrap = card.querySelector("[data-rounds]");
@@ -487,6 +484,24 @@ export function buildLoreEditor({ lore, kind, el, esc, onChange = () => {}, acti
 }
 
 // ---------- Gedeelde bouwstenen ----------
+// CP-kosten: iedere ability (model, rule, enhancement, battleplan) kan
+// command points kosten. HTML + listeners als herbruikbaar blok.
+function cpCostHtml(obj, esc) {
+  return `<div class="checkline"><input type="checkbox" data-f="cp" ${obj.cpCost > 0 ? "checked" : ""} /><span>Kost command points</span></div>
+    <div data-cpcost style="display:${obj.cpCost > 0 ? "block" : "none"}">
+      <label>Aantal command points</label>
+      <input type="number" data-f="cpcost" min="1" value="${esc(obj.cpCost || 1)}" />
+    </div>`;
+}
+
+function wireCpCost(card, obj, onChange) {
+  card.querySelector('[data-f="cp"]').addEventListener("change", (e) => {
+    obj.cpCost = e.target.checked ? (parseInt(card.querySelector('[data-f="cpcost"]').value) || 1) : 0;
+    card.querySelector("[data-cpcost]").style.display = e.target.checked ? "block" : "none";
+    onChange();
+  });
+  card.querySelector('[data-f="cpcost"]').addEventListener("input", (e) => { obj.cpCost = parseInt(e.target.value) || 1; onChange(); });
+}
 function buildPhaseChips(target, obj, el, onChange) {
   for (const opt of PHASE_OPTIONS) {
     const chip = el(`<span class="chip ${obj.phases.includes(opt.key) ? "active" : ""}">${opt.label}</span>`);
