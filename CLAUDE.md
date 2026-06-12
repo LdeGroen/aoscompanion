@@ -47,6 +47,8 @@ laadt dezelfde URL.
 - **Spelstatus** staat op het leger zelf (`army.game`) en synct mee, zodat verversen of
   wisselen van apparaat midden in een potje kan. `usedCommands` reset per beurt;
   `usedAbilities` (once per battle) blijft de hele battle staan. "Einde spel" wist `army.game`.
+  Een game duurt **altijd 5 battlerounds** (`LAST_ROUND` in companion.js); na battleround 5
+  volgt het game-over-scherm (stage `"gameOver"`).
 - Models in een army hebben een eigen `id`. Herbruikbare kaartjes komen uit de
   **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
   universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet

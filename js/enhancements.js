@@ -66,6 +66,8 @@ export function effectiveModel(army, model) {
         case "ward":    eff.ward = bestWard(mod.value, eff.ward); break;
         case "health":  eff.health = (parseInt(eff.health) || 0) + n; break;
         case "control": eff.control = (parseInt(eff.control) || 0) + n; break;
+        case "wizard":  eff.wizardLevel = (parseInt(eff.wizardLevel) || 0) + n; break;
+        case "priest":  eff.priestLevel = (parseInt(eff.priestLevel) || 0) + n; break;
         case "move":    eff.move = addToValue(eff.move, n); break;
         case "toHit":
         case "toWound":

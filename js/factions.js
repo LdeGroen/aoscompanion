@@ -128,4 +128,6 @@ export const STAT_MODS = [
   { key: "health",  label: "Health",          kind: "amount" },
   { key: "move",    label: "Movement (\")",   kind: "amount" },
   { key: "control", label: "Control",         kind: "amount" },
+  { key: "wizard",  label: "Wizard level",    kind: "amount" },
+  { key: "priest",  label: "Priest level",    kind: "amount" },
 ];

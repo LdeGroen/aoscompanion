@@ -2,6 +2,7 @@ import { PHASES } from "./factions.js";
 import { effectiveModel, enhancementSource } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
+import * as sharedb from "./sharedb.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -51,6 +52,18 @@ export function renderCompanion(ctx) {
   const isActive = (m) =>
     (m.type !== "Manifestation" || !!game.summoned[m.id]) && !game.disabled[m.id];
   const activeModels = () => army.models.filter(isActive);
+
+  // Universal manifestation-models uit de gedeelde database: nodig om bij een
+  // universal manifestation lore de spell-namen klikbaar te maken (popup van
+  // het bijbehorende kaartje). Async geladen; bij binnenkomst opnieuw renderen.
+  let universalManifests = null;
+  if (army.manifestationLore?.universal) {
+    sharedb.loadUniversalDb()
+      .then(({ db }) => { universalManifests = db.models.filter((m) => m.type === "Manifestation"); rerender(); })
+      .catch(() => { universalManifests = []; });
+  }
+  const findUniversalManifest = (name) =>
+    (universalManifests || []).find((m) => m.name.toLowerCase() === String(name || "").toLowerCase());
 
   // Destroyed-knop op de vakjes van een gesummende manifestation
   function attachDestroyed(row, m) {
@@ -133,11 +146,14 @@ export function renderCompanion(ctx) {
   }
 
   // ---------- Render ----------
+  const LAST_ROUND = 5; // een game duurt altijd 5 battlerounds
+
   function rerender() {
     app.innerHTML = "";
     window.scrollTo(0, 0);
     if (game.stage === "deployment") renderDeployment();
     else if (game.stage === "roundSetup") renderRoundSetup();
+    else if (game.stage === "gameOver") renderGameOver();
     else renderTurn();
   }
 
@@ -267,7 +283,7 @@ export function renderCompanion(ctx) {
     }
 
     const card = el(`<div class="card">
-      <h2>Battleround ${game.round}</h2>
+      <h2>Battleround ${game.round} van ${LAST_ROUND}</h2>
       <label>Wie heeft deze battleround de eerste beurt?</label>
       <div class="btnrow">
         <button id="first-player" class="${game.firstTurn === "player" ? "primary" : ""}">Ik (de speler)</button>
@@ -299,7 +315,7 @@ export function renderCompanion(ctx) {
     const owner = currentTurnOwner();
     const phase = PHASES[game.phaseIndex];
     const ownerLabel = owner === "player" ? "Jouw beurt" : "Beurt van de tegenstander";
-    topbar(`Battleround ${game.round} · beurt ${game.turnIndex + 1} van 2`);
+    topbar(`Battleround ${game.round}/${LAST_ROUND} · beurt ${game.turnIndex + 1} van 2`);
 
     // Sticky balk met beurt-info en command points
     const turnbar = el(`<div class="turnbar">
@@ -345,9 +361,11 @@ export function renderCompanion(ctx) {
 
     // Volgende phase / beurt
     const isLastPhase = game.phaseIndex === PHASES.length - 1;
+    const isLastRound = game.round >= LAST_ROUND;
     let nextLabel;
     if (!isLastPhase) nextLabel = `Volgende: ${PHASES[game.phaseIndex + 1].label} →`;
     else if (game.turnIndex === 0) nextLabel = `Einde beurt — start beurt van ${owner === "player" ? "de tegenstander" : "jou"} →`;
+    else if (isLastRound) nextLabel = `${icon("flag")} Einde battleround ${game.round} — einde van de game`;
     else nextLabel = `Einde battleround ${game.round} — naar battleround ${game.round + 1} →`;
 
     const nextBtn = el(`<button class="primary bigbtn">${nextLabel}</button>`);
@@ -358,6 +376,8 @@ export function renderCompanion(ctx) {
         game.turnIndex = 1;
         game.phaseIndex = 0;
         game.usedCommands = {};
+      } else if (isLastRound) {
+        game.stage = "gameOver";
       } else {
         game.round++;
         game.stage = "roundSetup";
@@ -368,6 +388,32 @@ export function renderCompanion(ctx) {
     bottomBar(nextBtn);
   }
 
+  // ===================== Game over (na battleround 5) =====================
+  function renderGameOver() {
+    topbar(`Game afgelopen`);
+    app.appendChild(el(`<div class="card" style="text-align:center">
+      <h2>${icon("flag", 20)} Game afgelopen</h2>
+      <p class="subtitle">Alle ${LAST_ROUND} battlerounds zijn gespeeld. Goed gespeeld!</p>
+    </div>`));
+
+    const newGameBtn = el(`<button class="primary bigbtn">${icon("play")} Nieuw potje met dit leger</button>`);
+    newGameBtn.addEventListener("click", () => {
+      // renderCompanion maakt een verse game aan als army.game ontbreekt
+      delete army.game;
+      saveData();
+      navigate("companion", { armyId: army.id });
+    });
+    app.appendChild(newGameBtn);
+
+    const homeBtn = el(`<button class="bigbtn">${icon("back")} Terug naar mijn legers</button>`);
+    homeBtn.addEventListener("click", () => {
+      delete army.game;
+      saveData();
+      navigate("home");
+    });
+    app.appendChild(homeBtn);
+  }
+
   // ---------- Phase-specifieke inhoud ----------
   function renderPhaseContent(owner, phaseKey) {
     if (phaseKey === "start") {
@@ -375,6 +421,14 @@ export function renderCompanion(ctx) {
     }
 
     if (phaseKey === "hero") renderManifestations();
+
+    // In de tegenstander-hero-phase ook de manifestation lore tonen (met
+    // klikbare spell-namen) — in jouw hero phase staat hij al bij de wizards.
+    if (phaseKey === "hero" && owner === "enemy" && army.manifestationLore
+        && army.models.some((m) => m.wizardLevel > 0)) {
+      app.appendChild(el(`<h3>Manifestation lore</h3>`));
+      app.appendChild(loreCard("Manifestation lore", army.manifestationLore, "Cast", army.manifestationLore.universal));
+    }
 
     if (phaseKey === "hero" && owner === "player") {
       const casters = activeModels().filter((m) => m.wizardLevel > 0 || m.priestLevel > 0);
@@ -525,19 +579,27 @@ export function renderCompanion(ctx) {
     const hasWizard = army.models.some((m) => m.wizardLevel > 0);
     const hasPriest = army.models.some((m) => m.priestLevel > 0);
     if (hasWizard && army.spellLore) target.appendChild(loreCard("Spell lore", army.spellLore, "Cast"));
-    if (hasWizard && army.manifestationLore) target.appendChild(loreCard("Manifestation lore", army.manifestationLore, "Cast"));
+    // Bij een universal manifestation lore zijn de spells universal manifestation-models:
+    // de namen worden klikbaar en openen het kaartje als popup.
+    if (hasWizard && army.manifestationLore) target.appendChild(loreCard("Manifestation lore", army.manifestationLore, "Cast", army.manifestationLore.universal));
     if (hasPriest && army.prayerLore) target.appendChild(loreCard("Prayer lore", army.prayerLore, "Chant"));
   }
 
-  function loreCard(title, lore, valuePrefix) {
+  function loreCard(title, lore, valuePrefix, linkManifests = false) {
     const card = el(`<div class="card inner"><h3>${title}: ${esc(lore.name)}</h3><div data-entries></div></div>`);
     const entries = card.querySelector("[data-entries]");
     for (const entry of lore.entries) {
       if (!entry.name && !entry.description) continue;
-      entries.appendChild(el(`<div class="lore-entry">
-        <strong>${esc(entry.name)}</strong> <span class="lval">${valuePrefix} ${esc(entry.value)}</span>
+      const manif = linkManifests ? findUniversalManifest(entry.name) : null;
+      const row = el(`<div class="lore-entry">
+        <strong class="${manif ? "lore-link" : ""}">${esc(entry.name)}</strong> <span class="lval">${valuePrefix} ${esc(entry.value)}</span>
         <div class="subtitle">${esc(entry.description)}</div>
-      </div>`));
+      </div>`);
+      if (manif) {
+        const name = row.querySelector("strong");
+        name.addEventListener("click", () => openModal(buildModelPopupContent(manif, { el, esc }), el));
+      }
+      entries.appendChild(row);
     }
     return card;
   }
