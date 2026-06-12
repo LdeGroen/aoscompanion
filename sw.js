@@ -25,6 +25,7 @@ const SHELL = [
   "js/enhancements.js",
   "js/factions.js",
   "js/icons.js",
+  "js/modelview.js",
   "js/setup.js",
   "js/sharedb.js",
   "js/storage.js",

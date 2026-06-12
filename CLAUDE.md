@@ -30,6 +30,7 @@ laadt dezelfde URL.
   · `js/editors.js` (herbruikbare model/enhancement/rule/lore-editors, gebruikt door setup én database)
   · `js/icons.js` (inline SVG-iconen, lucide-stijl — gebruik `${icon("naam")}` in templates,
   geen emoji's in knoppen: die renderen per toestel anders)
+  · `js/modelview.js` (gedeelde model-popup + weaponTable, gebruikt door companion én database)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
 - UI is mobile-first (gebruikt aan de speltafel). **Thema's**: donker (default), licht of
@@ -167,8 +168,11 @@ app uit de cache op. Backend-calls (ander origin) worden niet onderschept.
 ⚠️ Nieuw bestand toegevoegd aan de app? Ook opnemen in de `SHELL`-lijst in sw.js.
 In companion mode staat de volgende-stap-knop in een vaste onderbalk (`.bottombar`,
 fixed; #app heeft daarvoor extra padding-bottom). Vrijwel alle rijen/kaarten met een
-model zijn klikbaar (`makeClickable`) en openen de model-popup (`showModelPopup`,
-modal in document.body — overleeft rerenders van #app).
+model zijn klikbaar (`makeClickable`) en openen de model-popup. Die popup zit in de
+gedeelde module **`js/modelview.js`** (`buildModelPopupContent` + `openModal` +
+`weaponTable`) en wordt zowel door companion als door het database-scherm gebruikt —
+in companion met `army` mee zodat enhancements verwerkt worden (✦), in de database
+zonder (ruwe kaartjes-stats). Modal hangt in document.body, dus overleeft rerenders.
 
 ## Ideeën voor later
 Release-signing voor de Android-app; conflictdetectie bij gelijktijdig bewerken op

@@ -4,6 +4,7 @@ import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEdi
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
+import { openModal, buildModelPopupContent } from "./modelview.js";
 
 // De gedeelde database: per faction alle gedeelde kaartjes, enhancements en
 // rules, toegankelijk voor alle accounts. Open je hem vanuit set-up, dan kun
@@ -172,6 +173,12 @@ export function renderDatabase(ctx) {
           <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
         </div>
       </div>`);
+      // Klik op het kaartje (maar niet op een knop) opent de volledige popup
+      item.classList.add("clickable");
+      item.addEventListener("click", (e) => {
+        if (e.target.closest("button")) return;
+        openModal(buildModelPopupContent(m, { el, esc }), el);
+      });
       const armyBtn = item.querySelector('[data-act="army"]');
       if (armyBtn) armyBtn.addEventListener("click", () => {
         army.models.push(importCopy(m));
