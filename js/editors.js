@@ -102,11 +102,33 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
         <label>Wat doet de ability?</label>
         <textarea data-f="description">${esc(ab.description)}</textarea>
         <div class="checkline"><input type="checkbox" data-f="once" ${ab.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
+        <div class="checkline"><input type="checkbox" data-f="spell" ${ab.isSpell ? "checked" : ""} /><span>Dit is een spell (verschijnt bij de spells in de hero phase)</span></div>
+        <div data-spellval style="display:${ab.isSpell ? "block" : "none"}">
+          <label>Casting value</label>
+          <input type="text" data-f="castval" value="${esc(ab.castingValue || "")}" placeholder="bijv. 7" />
+        </div>
+        <div class="checkline"><input type="checkbox" data-f="cp" ${ab.cpCost > 0 ? "checked" : ""} /><span>Kost command points</span></div>
+        <div data-cpcost style="display:${ab.cpCost > 0 ? "block" : "none"}">
+          <label>Aantal command points</label>
+          <input type="number" data-f="cpcost" min="1" value="${esc(ab.cpCost || 1)}" />
+        </div>
         <div class="btnrow"><button class="danger small">${icon("trash")} Verwijder ability</button></div>
       </div>`);
       card.querySelector('[data-f="name"]').addEventListener("input", (e) => { ab.name = e.target.value; onChange(); });
       card.querySelector('[data-f="description"]').addEventListener("input", (e) => { ab.description = e.target.value; onChange(); });
       card.querySelector('[data-f="once"]').addEventListener("change", (e) => { ab.oncePerBattle = e.target.checked; onChange(); });
+      card.querySelector('[data-f="spell"]').addEventListener("change", (e) => {
+        ab.isSpell = e.target.checked;
+        card.querySelector("[data-spellval]").style.display = ab.isSpell ? "block" : "none";
+        onChange();
+      });
+      card.querySelector('[data-f="castval"]').addEventListener("input", (e) => { ab.castingValue = e.target.value; onChange(); });
+      card.querySelector('[data-f="cp"]').addEventListener("change", (e) => {
+        ab.cpCost = e.target.checked ? (parseInt(card.querySelector('[data-f="cpcost"]').value) || 1) : 0;
+        card.querySelector("[data-cpcost]").style.display = e.target.checked ? "block" : "none";
+        onChange();
+      });
+      card.querySelector('[data-f="cpcost"]').addEventListener("input", (e) => { ab.cpCost = parseInt(e.target.value) || 1; onChange(); });
       buildPhaseChips(card.querySelector("[data-chips]"), ab, el, onChange);
       card.querySelector("button.danger").addEventListener("click", () => { m.abilities.splice(i, 1); onChange(); drawAbilities(); });
       abList.appendChild(card);

@@ -280,8 +280,10 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 }
 .ability .aname { font-weight: 600; }
 .ability .asrc { font-size: 0.75rem; color: var(--text-dim); }
+.ability .ccost { color: var(--gold); font-size: 0.8rem; }
 /* Van wie is de ability? De modelnaam prominent boven de ability */
-.ability .owner {
+.ability .owner,
+.lore-entry .owner {
   font-family: Georgia, "Times New Roman", serif;
   font-weight: bold;
   font-size: 1.02rem;

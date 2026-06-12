@@ -61,7 +61,13 @@ laadt dezelfde URL.
   snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),
   battleplan, **2 eigen tactics + de 2 van de tegenstander** — als
   **snapshot** in `game` (`tactics`/`enemyTactics`), zodat db-wijzigingen lopende potjes
-  niet raken). Vanaf ronde 2 kies je per ronde de underdog (`game.underdog[round]`).
+  niet raken). Vanaf ronde 2 kies je per ronde de underdog (`game.underdog[round]`);
+  de CP-default per ronde is 4, of 5 als jij de underdog bent. Met de terugknop in de
+  onderbalk kun je terug door phases, beurten en battlerounds (vanaf game-over terug
+  verwijdert het auto-gearchiveerde record weer). Model-abilities kunnen een **spell**
+  zijn (`isSpell` + `castingValue` — verschijnen bij de spells in de hero phase) en/of
+  **CP kosten** (`cpCost` — afvinken in companion trekt het van de teller af; bij
+  once-per-battle verrekent de gebruik-knop de CP).
   Scoren gebeurt in de End of Turn-phase per beurt-eigenaar
   (`game.scores[side][round][optKey]`); tactics van de actieve speler aan het einde van
   diens eigen beurt, max 1 stap per tactic per beurt (5 punten/stap, `scoredRounds`).

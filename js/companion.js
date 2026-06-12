@@ -1,4 +1,4 @@
-import { PHASES, AOS_FACTIONS } from "./factions.js";
+import { PHASES, AOS_FACTIONS, groupByType } from "./factions.js";
 import { effectiveModel, enhancementSource } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
@@ -420,6 +420,36 @@ export function renderCompanion(ctx) {
       row.addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
       list.appendChild(row);
     }
+
+    // Faction- en subfaction rules van de tegenstander (uit de gedeelde database)
+    if (o.faction) {
+      const rulesWrap = el(`<div><p class="empty">Rules laden…</p></div>`);
+      wrap.appendChild(rulesWrap);
+      sharedb.loadFactionDb(o.faction)
+        .then(({ db }) => {
+          rulesWrap.innerHTML = "";
+          const addRules = (title, rules) => {
+            if (!rules?.length) return;
+            rulesWrap.appendChild(el(`<h3>${esc(title)}</h3>`));
+            for (const r of rules) {
+              rulesWrap.appendChild(el(`<div class="ability faction">
+                <span class="aname">${esc(r.name)}</span>
+                ${r.oncePerBattle ? ' <span class="chip tag">Once per battle</span>' : ""}
+                <div class="adesc">${esc(r.description)}</div>
+              </div>`));
+            }
+          };
+          addRules("Faction rules", db.factionRules);
+          if (o.subfaction) addRules(`Subfaction rules — ${o.subfaction}`, db.subfactions?.[o.subfaction]?.rules);
+          if (!rulesWrap.children.length) {
+            rulesWrap.appendChild(el(`<p class="empty">Geen rules in de ${esc(o.faction)}-database.</p>`));
+          }
+        })
+        .catch(() => {
+          rulesWrap.innerHTML = "";
+          rulesWrap.appendChild(el(`<p class="empty">Rules konden niet geladen worden (offline?).</p>`));
+        });
+    }
     openModal(wrap, el);
   }
 
@@ -438,44 +468,69 @@ export function renderCompanion(ctx) {
       return;
     }
     const wrap = el(`<div><h2>Kaartjes — ${esc(opp.faction)}</h2>
-      <p class="subtitle">Klik op een naam voor het kaartje; voeg toe wat je tegenstander meeneemt.</p>
+      <p class="subtitle">Klik op een naam voor het kaartje; voeg toe (of haal weg) wat je tegenstander meeneemt.</p>
       <div data-list></div></div>`);
     const list = wrap.querySelector("[data-list]");
     if (!models.length) list.appendChild(el(`<p class="empty">Geen kaartjes in de ${esc(opp.faction)}-database.</p>`));
-    for (const m of models) {
-      const isAdded = () => opp.models.some((x) => x.name.toLowerCase() === m.name.toLowerCase());
-      const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-        <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
-        <button class="small ${isAdded() ? "" : "primary"}"></button>
-      </div>`);
-      const btn = row.querySelector("button");
-      const refresh = () => {
-        btn.innerHTML = isAdded() ? `${icon("check")} Toegevoegd` : `${icon("plus")} Toevoegen`;
-        btn.disabled = isAdded();
-      };
-      refresh();
-      btn.addEventListener("click", () => {
-        const copy = JSON.parse(JSON.stringify(m));
-        delete copy.addedBy;
-        copy.enhancementIds = [];
-        opp.models.push(copy);
-        saveData();
+    // Gegroepeerd per type; Manifestation begint ingeklapt
+    for (const [typeLabel, groupModels] of groupByType(models)) {
+      const group = el(`<details class="type-group" ${typeLabel === "Manifestation" ? "" : "open"}>
+        <summary>${esc(typeLabel)} <span class="count">(${groupModels.length})</span></summary>
+        <div data-items></div>
+      </details>`);
+      const items = group.querySelector("[data-items]");
+      for (const m of groupModels) {
+        const isAdded = () => opp.models.some((x) => x.name.toLowerCase() === m.name.toLowerCase());
+        const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+          <span><strong>${esc(m.name)}</strong></span>
+          <button class="small"></button>
+        </div>`);
+        const btn = row.querySelector("button");
+        const refresh = () => {
+          btn.innerHTML = isAdded() ? `${icon("trash")} Verwijderen` : `${icon("plus")} Toevoegen`;
+          btn.className = isAdded() ? "danger small" : "primary small";
+        };
         refresh();
-        rerender(); // lijst in de battle set-up bijwerken (scrollpositie blijft staan)
-      });
-      row.addEventListener("click", (e) => {
-        if (e.target.closest("button")) return;
-        openModal(buildModelPopupContent(m, { el, esc }), el);
-      });
-      list.appendChild(row);
+        btn.addEventListener("click", () => {
+          if (isAdded()) {
+            opp.models = opp.models.filter((x) => x.name.toLowerCase() !== m.name.toLowerCase());
+          } else {
+            const copy = JSON.parse(JSON.stringify(m));
+            delete copy.addedBy;
+            copy.enhancementIds = [];
+            opp.models.push(copy);
+          }
+          saveData();
+          refresh();
+          rerender(); // lijst in de battle set-up bijwerken (scrollpositie blijft staan)
+        });
+        row.addEventListener("click", (e) => {
+          if (e.target.closest("button")) return;
+          openModal(buildModelPopupContent(m, { el, esc }), el);
+        });
+        items.appendChild(row);
+      }
+      list.appendChild(group);
     }
     openModal(wrap, el);
   }
 
-  // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld
-  function bottomBar(btn) {
+  // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld,
+  // optioneel met een terugknop ernaast (terug in phases/beurten/battlerounds).
+  function bottomBar(btn, prevBtn = null) {
     const bar = el(`<div class="bottombar"></div>`);
-    bar.appendChild(btn);
+    if (prevBtn) {
+      const row = el(`<div style="display:flex;gap:8px"></div>`);
+      prevBtn.classList.add("bigbtn");
+      prevBtn.style.cssText = "flex:0 0 auto;width:auto;margin-top:0";
+      btn.style.flex = "1";
+      btn.style.marginTop = "0";
+      row.appendChild(prevBtn);
+      row.appendChild(btn);
+      bar.appendChild(row);
+    } else {
+      bar.appendChild(btn);
+    }
     app.appendChild(bar);
   }
 
@@ -522,7 +577,9 @@ export function renderCompanion(ctx) {
       saveData();
       rerender(true);
     });
-    bottomBar(nextBtn);
+    const prevBtn = el(`<button title="Terug naar battle set-up">${icon("back")}</button>`);
+    prevBtn.addEventListener("click", () => { game.stage = "battleSetup"; saveData(); rerender(true); });
+    bottomBar(nextBtn, prevBtn);
   }
 
   // ===================== Battleround set-up =====================
@@ -543,8 +600,8 @@ export function renderCompanion(ctx) {
         <button id="first-player" class="${game.firstTurn === "player" ? "primary" : ""}">Ik (de speler)</button>
         <button id="first-enemy" class="${game.firstTurn === "enemy" ? "primary" : ""}">De tegenstander</button>
       </div>
-      <label>Met hoeveel command points begin je deze battleround?</label>
-      <input type="number" id="cp-input" min="0" value="${game.round === 1 ? 4 : game.cp || 4}" />
+      <label>Met hoeveel command points begin je deze battleround? (standaard 4, als underdog 5)</label>
+      <input type="number" id="cp-input" min="0" value="${game.underdog[game.round] === "player" ? 5 : 4}" />
       <div data-underdog></div>
     </div>`);
     app.appendChild(card);
@@ -564,7 +621,21 @@ export function renderCompanion(ctx) {
     }
 
     const startBtn = el(`<button class="primary bigbtn" id="btn-start">${icon("play")} Start battleround ${game.round}</button>`);
-    bottomBar(startBtn);
+    const backBtn = el(`<button title="Terug">${icon("back")}</button>`);
+    backBtn.addEventListener("click", () => {
+      if (game.round === 1) {
+        game.stage = "deployment";
+      } else {
+        // terug naar de laatste beurt van de vorige battleround
+        game.round--;
+        game.stage = "turn";
+        game.turnIndex = 1;
+        game.phaseIndex = PHASES.length - 1;
+      }
+      saveData();
+      rerender(true);
+    });
+    bottomBar(startBtn, backBtn);
 
     card.querySelector("#first-player").addEventListener("click", () => { game.firstTurn = "player"; saveData(); rerender(); });
     card.querySelector("#first-enemy").addEventListener("click", () => { game.firstTurn = "enemy"; saveData(); rerender(); });
@@ -665,7 +736,21 @@ export function renderCompanion(ctx) {
       saveData();
       rerender(true);
     });
-    bottomBar(nextBtn);
+    // Terug: vorige phase, of de vorige beurt / het rondescherm
+    const prevBtn = el(`<button title="Vorige phase / beurt">${icon("back")}</button>`);
+    prevBtn.addEventListener("click", () => {
+      if (game.phaseIndex > 0) {
+        game.phaseIndex--;
+      } else if (game.turnIndex === 1) {
+        game.turnIndex = 0;
+        game.phaseIndex = PHASES.length - 1;
+      } else {
+        game.stage = "roundSetup";
+      }
+      saveData();
+      rerender(true);
+    });
+    bottomBar(nextBtn, prevBtn);
   }
 
   // ===================== Game over (na battleround 5) =====================
@@ -708,6 +793,22 @@ export function renderCompanion(ctx) {
       navigate("home");
     });
     app.appendChild(homeBtn);
+
+    const backBtn = el(`<button class="bigbtn">${icon("undo")} Toch terug naar battleround ${LAST_ROUND}</button>`);
+    backBtn.addEventListener("click", () => {
+      // het automatisch gearchiveerde record weghalen — bij opnieuw afronden
+      // wordt een vers record gemaakt
+      if (game.archivedId) {
+        state.data.gameArchive = (state.data.gameArchive || []).filter((x) => x.id !== game.archivedId);
+        delete game.archivedId;
+      }
+      game.stage = "turn";
+      game.turnIndex = 1;
+      game.phaseIndex = PHASES.length - 1;
+      saveData();
+      rerender(true);
+    });
+    app.appendChild(backBtn);
   }
 
   // ---------- Phase-specifieke inhoud ----------
@@ -969,6 +1070,24 @@ export function renderCompanion(ctx) {
     const hasWizard = army.models.some((m) => wizLevel(m) > 0);
     const hasPriest = army.models.some((m) => prsLevel(m) > 0);
     if (hasWizard && army.spellLore) target.appendChild(loreCard("Spell lore", army.spellLore, "Cast"));
+    // Spells van je eigen models (abilities die als spell gemarkeerd zijn)
+    const spellModels = activeModels().filter((m) => (m.abilities || []).some((a) => a.isSpell));
+    if (spellModels.length) {
+      const card = el(`<div class="card inner"><h3>Spells van je models</h3><div data-entries></div></div>`);
+      const entries = card.querySelector("[data-entries]");
+      for (const m of spellModels) {
+        for (const ab of m.abilities.filter((a) => a.isSpell)) {
+          const row = el(`<div class="lore-entry">
+            <div class="owner">${esc(m.name)}</div>
+            <strong>${esc(ab.name)}</strong> <span class="lval">Cast ${esc(ab.castingValue || "?")}</span>
+            <div class="subtitle">${esc(ab.description)}</div>
+          </div>`);
+          makeClickable(row, m);
+          entries.appendChild(row);
+        }
+      }
+      target.appendChild(card);
+    }
     // Bij een universal manifestation lore zijn de spells universal manifestation-models:
     // de namen worden klikbaar en openen het kaartje als popup.
     if (hasWizard && army.manifestationLore) target.appendChild(loreCard("Manifestation lore", army.manifestationLore, "Cast", army.manifestationLore.universal));
@@ -996,12 +1115,38 @@ export function renderCompanion(ctx) {
 
   function abilityCard(ab) {
     const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : ab.type === "battleplan" ? "battleplan" : "";
+    const cost = parseInt(ab.cpCost) || 0;
+    const costTag = cost > 0 ? ` <span class="ccost">(${cost} CP)</span>` : "";
     if (!ab.oncePerBattle) {
       const card = el(`<div class="ability ${typeClass}">
         <div class="owner">${esc(ab.source)}</div>
-        <span class="aname">${esc(ab.name)}</span>
+        <span class="aname">${esc(ab.name)}</span>${costTag}
         <div class="adesc">${esc(ab.description)}</div>
+        <div data-cp></div>
       </div>`);
+      // Kost CP: afvinken bij gebruik trekt de kosten van de teller af (per beurt)
+      if (cost > 0) {
+        const cpKey = `abcp|${ab.source}|${ab.name}`;
+        const cpUsed = !!game.usedCommands[cpKey];
+        const affordable = cpUsed || game.cp >= cost;
+        const line = el(`<div class="checkline" style="margin-top:6px">
+          <input type="checkbox" ${cpUsed ? "checked" : ""} ${affordable ? "" : "disabled"} />
+          <span>Gebruikt deze beurt (−${cost} CP)</span>
+        </div>`);
+        line.querySelector("input").addEventListener("change", (e) => {
+          if (e.target.checked) {
+            if (game.cp < cost) { e.target.checked = false; return; }
+            game.cp -= cost;
+            game.usedCommands[cpKey] = true;
+          } else {
+            game.cp += cost;
+            delete game.usedCommands[cpKey];
+          }
+          saveData();
+          rerender();
+        });
+        card.querySelector("[data-cp]").appendChild(line);
+      }
       if (ab.model) makeClickable(card, ab.model);
       return card;
     }
@@ -1010,7 +1155,7 @@ export function renderCompanion(ctx) {
     const used = !!game.usedAbilities[key];
     const card = el(`<div class="ability ${typeClass} ${used ? "used" : ""}">
       <div class="owner">${esc(ab.source)}</div>
-      <span class="aname">${esc(ab.name)}</span>
+      <span class="aname">${esc(ab.name)}</span>${costTag}
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       <div class="adesc">${esc(ab.description)}</div>
       <div class="btnrow">
@@ -1018,8 +1163,14 @@ export function renderCompanion(ctx) {
       </div>
     </div>`);
     card.querySelector("button").addEventListener("click", () => {
-      if (game.usedAbilities[key]) delete game.usedAbilities[key];
-      else game.usedAbilities[key] = true;
+      if (game.usedAbilities[key]) {
+        delete game.usedAbilities[key];
+        if (cost > 0) game.cp += cost;
+      } else {
+        if (cost > 0 && game.cp < cost) { alert(`Niet genoeg command points (kost ${cost} CP).`); return; }
+        if (cost > 0) game.cp -= cost;
+        game.usedAbilities[key] = true;
+      }
       saveData();
       rerender();
     });
