@@ -5,6 +5,8 @@ import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
 import { openModal, buildModelPopupContent } from "./modelview.js";
+import { buildBattleplanAbilityEditor, buildTacticEditor } from "./editors.js";
+import { loadGamedata, saveGamedata, scoringOptionsFor } from "./battleplans.js";
 
 // De gedeelde database: per faction alle gedeelde kaartjes, enhancements en
 // rules, toegankelijk voor alle accounts. Open je hem vanuit set-up, dan kun
@@ -19,6 +21,7 @@ export function renderDatabase(ctx) {
   let faction = state.dbFaction || (army ? army.faction : Object.keys(AOS_FACTIONS)[0]);
   let db = null;
   let uni = null; // universal manifestation lores (aparte gedeelde blob)
+  let gd = null;  // gamedata: battleplans + battle tactics (aparte gedeelde blob)
   let offline = false;
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
@@ -40,7 +43,21 @@ export function renderDatabase(ctx) {
     try {
       uni = (await sharedb.loadUniversalDb()).db;
     } catch {
-      uni = { lores: [] };
+      uni = { lores: [], models: [] };
+    }
+    try {
+      gd = (await loadGamedata()).db;
+    } catch {
+      gd = null;
+    }
+    draw();
+  }
+
+  async function persistGamedata() {
+    try {
+      await saveGamedata(gd);
+    } catch (e) {
+      alert("Opslaan in de database mislukt: " + e.message);
     }
     draw();
   }
@@ -66,17 +83,18 @@ export function renderDatabase(ctx) {
   const ownerLabel = (item) => item.addedBy ? `gedeeld door ${esc(item.addedBy)}` : "gedeeld vóór de eigenaars-feature";
   const canEdit = (item) => sharedb.canEditEntry(item, user);
 
-  function startEdit(kind, target, list, isUniversal = false) {
-    editing = { kind, target, list, isUniversal, copy: JSON.parse(JSON.stringify(target)) };
+  function startEdit(kind, target, list, isUniversal = false, saver = null) {
+    editing = { kind, target, list, isUniversal, saver, copy: JSON.parse(JSON.stringify(target)) };
     draw();
   }
 
   function finishEdit() {
     const i = editing.list.indexOf(editing.target);
     if (i >= 0) editing.list[i] = editing.copy;
-    const wasUniversal = editing.isUniversal;
+    const { isUniversal: wasUniversal, saver } = editing;
     editing = null;
-    if (wasUniversal) persistUniversal();
+    if (saver) saver();
+    else if (wasUniversal) persistUniversal();
     else persist();
   }
 
@@ -126,6 +144,109 @@ export function renderDatabase(ctx) {
     drawRules("Faction rules", db.factionRules);
     for (const [sub, data] of Object.entries(db.subfactions)) {
       if (data.rules?.length) drawRules(`Subfaction rules — ${sub}`, data.rules);
+    }
+    drawBattleplans();
+    drawTactics();
+  }
+
+  // ---------- Battleplans (game-breed, niet faction-gebonden) ----------
+  function drawBattleplans() {
+    const card = el(`<div class="card"><h2>Battleplans</h2>
+      <p class="subtitle">Gelden voor alle factions. Voeg per battleplan de abilities toe die in companion mode moeten verschijnen; het score-schema zit er al in.</p>
+      <div data-list></div></div>`);
+    app.appendChild(card);
+    const list = card.querySelector("[data-list]");
+    if (!gd) {
+      list.appendChild(el(`<p class="empty">Battleplans niet beschikbaar (offline zonder cache?).</p>`));
+      return;
+    }
+    for (const b of gd.battleplans) {
+      if (editing?.target === b) {
+        list.appendChild(buildBattleplanEditor(editing.copy));
+        continue;
+      }
+      const opts = scoringOptionsFor(b, 1).length ? scoringOptionsFor(b, 1) : scoringOptionsFor(b, 2);
+      const item = el(`<div class="card inner">
+        <div class="card-header"><h3>${esc(b.name)}</h3>
+          ${b.scoring?.endBonus ? '<span class="chip tag">Eindbonus</span>' : ""}
+          ${b.scoring?.liferoot ? '<span class="chip tag">Liferoot points</span>' : ""}
+        </div>
+        <div class="subtitle">Score per beurt: ${opts.map((o) => `${esc(o.label)} (${o.points})`).join(" · ")}</div>
+        <div class="muted-list">${b.abilities.length ? b.abilities.map((a) => esc(a.name || "(naamloos)")).join(" · ") : "Nog geen abilities"}</div>
+        <div class="btnrow">
+          ${sharedb.canEditEntry(b, user) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
+        </div>
+      </div>`);
+      const editBtn = item.querySelector('[data-act="edit"]');
+      if (editBtn) editBtn.addEventListener("click", () => startEdit("battleplan", b, gd.battleplans, false, persistGamedata));
+      list.appendChild(item);
+    }
+  }
+
+  function buildBattleplanEditor(bp) {
+    const wrap = el(`<div class="card inner">
+      <label>Naam battleplan</label>
+      <input type="text" data-f="name" value="${esc(bp.name)}" />
+      <label>Abilities (verschijnen in companion mode als dit battleplan gekozen is)</label>
+      <div data-abs></div>
+      <button class="small" data-add>${icon("plus")} Ability toevoegen</button>
+      <div class="btnrow" data-actions></div>
+    </div>`);
+    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { bp.name = e.target.value; });
+    const absWrap = wrap.querySelector("[data-abs]");
+    const drawAbs = () => {
+      absWrap.innerHTML = "";
+      if (!bp.abilities.length) absWrap.appendChild(el(`<p class="empty">Nog geen abilities.</p>`));
+      bp.abilities.forEach((ab, i) => {
+        absWrap.appendChild(buildBattleplanAbilityEditor({
+          ab, el, esc,
+          actions: [{ label: `${icon("trash")} Verwijder ability`, danger: true, onClick: () => { bp.abilities.splice(i, 1); drawAbs(); } }],
+        }));
+      });
+    };
+    drawAbs();
+    wrap.querySelector("[data-add]").addEventListener("click", () => {
+      bp.abilities.push({ name: "", description: "", phases: [], oncePerBattle: false, underdogOnly: false, rounds: [] });
+      drawAbs();
+    });
+    const actions = wrap.querySelector("[data-actions]");
+    const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
+    saveBtn.addEventListener("click", () => finishEdit());
+    const cancelBtn = el(`<button class="small">Annuleren</button>`);
+    cancelBtn.addEventListener("click", () => { editing = null; draw(); });
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    return wrap;
+  }
+
+  // ---------- Battle tactics (game-breed) ----------
+  function drawTactics() {
+    const card = el(`<div class="card"><h2>Battle tactics</h2>
+      <p class="subtitle">Je kiest er 3 per game; iedere tactic heeft 3 opvolgende stappen (5 punten per gescoorde stap, max 1 stap per eigen beurt).</p>
+      <div data-list></div></div>`);
+    app.appendChild(card);
+    const list = card.querySelector("[data-list]");
+    if (!gd) {
+      list.appendChild(el(`<p class="empty">Battle tactics niet beschikbaar (offline zonder cache?).</p>`));
+      return;
+    }
+    for (const t of gd.tactics) {
+      if (editing?.target === t) {
+        const wrap = el(`<div class="card inner"></div>`);
+        wrap.appendChild(buildTacticEditor({ tactic: editing.copy, el, esc, actions: editActions() }));
+        list.appendChild(wrap);
+        continue;
+      }
+      const item = el(`<div class="card inner">
+        <div class="card-header"><h3>${esc(t.name)}</h3></div>
+        <div class="muted-list">${(t.steps || []).map((s, i) => `${i + 1}. ${esc(s.name || "(naamloos)")}${s.description ? " — " + esc(s.description) : ""}`).join("\n")}</div>
+        <div class="btnrow">
+          ${sharedb.canEditEntry(t, user) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
+        </div>
+      </div>`);
+      const editBtn = item.querySelector('[data-act="edit"]');
+      if (editBtn) editBtn.addEventListener("click", () => startEdit("tactic", t, gd.tactics, false, persistGamedata));
+      list.appendChild(item);
     }
   }
 

@@ -4,6 +4,7 @@ import { AOS_FACTIONS } from "./factions.js";
 import { renderSetup } from "./setup.js";
 import { renderCompanion } from "./companion.js";
 import { renderDatabase } from "./database.js";
+import { renderArchive } from "./archive.js";
 import { icon } from "./icons.js";
 
 const app = document.getElementById("app");
@@ -113,6 +114,7 @@ function render() {
     case "setup": return renderSetup({ state, app, navigate, saveData, el, esc });
     case "companion": return renderCompanion({ state, app, navigate, saveData, el, esc });
     case "database": return renderDatabase({ state, app, navigate, saveData, el, esc });
+    case "archive": return renderArchive({ state, app, navigate, saveData, el, esc });
   }
 }
 
@@ -181,6 +183,7 @@ function renderHome() {
     <span class="title">${icon("sword", 18)} AoS Companion</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       <button class="small" id="btn-theme" title="Wissel tussen donker, licht en systeem">${themeLabel()}</button>
+      <button class="small" id="btn-archive">${icon("flag")} Archief</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">${icon("users")} Accounts</button>` : ""}
       <button class="small" id="btn-logout">${icon("logout")} ${esc(state.user.name)}</button>
@@ -193,6 +196,7 @@ function renderHome() {
     e.currentTarget.innerHTML = themeLabel();
   });
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
+  header.querySelector("#btn-archive").addEventListener("click", () => navigate("archive"));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 
   app.appendChild(el(`<h2>Mijn legers</h2>`));

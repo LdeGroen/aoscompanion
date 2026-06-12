@@ -331,6 +331,74 @@ export function buildRuleEditor({ rule, el, esc, onChange = () => {}, actions = 
   return card;
 }
 
+// ---------- Battleplan-ability ----------
+// Als een gewone ability, plus: alleen-als-underdog en actief in specifieke
+// battlerounds (geen ronde aangevinkt = alle battlerounds).
+export function buildBattleplanAbilityEditor({ ab, el, esc, onChange = () => {}, actions = [] }) {
+  const card = el(`<div class="card inner">
+    <label>Naam ability</label>
+    <input type="text" data-f="name" value="${esc(ab.name)}" />
+    <label>Phases (meerdere mogelijk)</label>
+    <div class="chips" data-chips></div>
+    <label>Beschrijving</label>
+    <textarea data-f="description">${esc(ab.description)}</textarea>
+    <div class="checkline"><input type="checkbox" data-f="once" ${ab.oncePerBattle ? "checked" : ""} /><span>Once per battle</span></div>
+    <div class="checkline"><input type="checkbox" data-f="underdog" ${ab.underdogOnly ? "checked" : ""} /><span>Alleen als jij de underdog bent</span></div>
+    <label>Actief in battlerounds (geen aangevinkt = alle battlerounds)</label>
+    <div class="chips" data-rounds></div>
+    <div class="btnrow" data-actions></div>
+  </div>`);
+  card.querySelector('[data-f="name"]').addEventListener("input", (e) => { ab.name = e.target.value; onChange(); });
+  card.querySelector('[data-f="description"]').addEventListener("input", (e) => { ab.description = e.target.value; onChange(); });
+  card.querySelector('[data-f="once"]').addEventListener("change", (e) => { ab.oncePerBattle = e.target.checked; onChange(); });
+  card.querySelector('[data-f="underdog"]').addEventListener("change", (e) => { ab.underdogOnly = e.target.checked; onChange(); });
+  buildPhaseChips(card.querySelector("[data-chips]"), ab, el, onChange);
+
+  const roundsWrap = card.querySelector("[data-rounds]");
+  ab.rounds = ab.rounds || [];
+  for (const r of [1, 2, 3, 4, 5]) {
+    const chip = el(`<span class="chip ${ab.rounds.includes(r) ? "active" : ""}">Battleround ${r}</span>`);
+    chip.addEventListener("click", () => {
+      if (ab.rounds.includes(r)) ab.rounds = ab.rounds.filter((x) => x !== r);
+      else ab.rounds.push(r);
+      chip.classList.toggle("active");
+      onChange();
+    });
+    roundsWrap.appendChild(chip);
+  }
+
+  buildActions(card.querySelector("[data-actions]"), actions, el);
+  return card;
+}
+
+// ---------- Battle tactic (naam + 3 opvolgende stappen) ----------
+export function buildTacticEditor({ tactic, el, esc, onChange = () => {}, actions = [] }) {
+  const card = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
+    <label>Naam battle tactic</label>
+    <input type="text" data-f="name" value="${esc(tactic.name)}" />
+    <div data-steps></div>
+    <div class="btnrow" data-actions></div>
+  </div>`);
+  card.querySelector('[data-f="name"]').addEventListener("input", (e) => { tactic.name = e.target.value; onChange(); });
+
+  const stepsWrap = card.querySelector("[data-steps]");
+  tactic.steps = tactic.steps || [1, 2, 3].map((n) => ({ name: `Stap ${n}`, description: "" }));
+  tactic.steps.forEach((step, i) => {
+    const sCard = el(`<div style="border-top:1px dashed var(--border);margin-top:10px;padding-top:6px">
+      <label>Stap ${i + 1} — naam</label>
+      <input type="text" data-f="name" value="${esc(step.name)}" />
+      <label>Beschrijving</label>
+      <textarea data-f="description">${esc(step.description)}</textarea>
+    </div>`);
+    sCard.querySelector('[data-f="name"]').addEventListener("input", (e) => { step.name = e.target.value; onChange(); });
+    sCard.querySelector('[data-f="description"]').addEventListener("input", (e) => { step.description = e.target.value; onChange(); });
+    stepsWrap.appendChild(sCard);
+  });
+
+  buildActions(card.querySelector("[data-actions]"), actions, el);
+  return card;
+}
+
 // ---------- Lore (spell / manifestation / prayer) ----------
 // universalChoice: toon de keuze faction/universal (alleen zinvol bij
 // manifestation lores in set-up; in de database ligt dat al vast).

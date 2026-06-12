@@ -31,6 +31,8 @@ laadt dezelfde URL.
   · `js/icons.js` (inline SVG-iconen, lucide-stijl — gebruik `${icon("naam")}` in templates,
   geen emoji's in knoppen: die renderen per toestel anders)
   · `js/modelview.js` (gedeelde model-popup + weaponTable, gebruikt door companion én database)
+  · `js/battleplans.js` (battleplan/tactic-seeds + gamedata-blob + puntentelling)
+  · `js/scorecard.js` (game-record, eindscherm, tekst/PNG-export) · `js/archive.js` (archiefscherm)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
 - UI is mobile-first (gebruikt aan de speltafel). **Thema's**: donker (default), licht of
@@ -49,6 +51,22 @@ laadt dezelfde URL.
   `usedAbilities` (once per battle) blijft de hele battle staan. "Einde spel" wist `army.game`.
   Een game duurt **altijd 5 battlerounds** (`LAST_ROUND` in companion.js); na battleround 5
   volgt het game-over-scherm (stage `"gameOver"`).
+- **Battleplans & battle tactics** (js/battleplans.js): game-brede gedeelde blob
+  (key `gamedata`), bij eerste laden geseed met de 12 Pitched Battles-battleplans
+  (score-schema's als data: `scoring.variants` per battleround, `liferoot`, `endBonus`)
+  en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database (abilities met
+  `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
+- **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
+  faction/subfaction, battleplan, 3 tactics — als **snapshot** in `game`, zodat
+  db-wijzigingen lopende potjes niet raken). Vanaf ronde 2 kies je per ronde de
+  underdog (`game.underdog[round]`). Scoren gebeurt in de End of Turn-phase per
+  beurt-eigenaar (`game.scores[side][round][optKey]`); tactics alleen in eigen beurt,
+  max 1 stap per tactic per beurt (5 punten/stap, `scoredRounds`). Lopende stand in
+  `.scoreline`; puntentelling in `calcScores`.
+- **Scorekaart & archief**: js/scorecard.js bouwt het game-record, het eindscherm,
+  tekst-export en PNG-export (handgetekend canvas — geen dependencies). Afgeronde
+  games met battleplan worden automatisch in `state.data.gameArchive` gezet
+  (synct mee); js/archive.js is het archiefscherm (route `archive`).
 - Models in een army hebben een eigen `id`. Herbruikbare kaartjes komen uit de
   **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
   universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet

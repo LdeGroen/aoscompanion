@@ -294,6 +294,7 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 .ability .adesc, .command .cdesc, .muted-list, .lore-entry .subtitle { white-space: pre-line; }
 .ability.faction { border-left-color: var(--gold); }
 .ability.enhancement { border-left-color: var(--green); }
+.ability.battleplan { border-left-color: var(--red); }
 .ability.used { opacity: 0.6; border-left-color: var(--text-dim); }
 .ability.used .aname, .ability.used .adesc { text-decoration: line-through; }
 
@@ -337,6 +338,36 @@ details.type-group > summary::before {
 }
 details[open].type-group > summary::before { transform: rotate(90deg); }
 details.type-group > summary .count { color: var(--text-dim); font-weight: normal; font-size: 0.85rem; font-family: "Segoe UI", system-ui, sans-serif; }
+
+/* --- Lopende score (companion mode) --- */
+.scoreline {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 10px;
+  font-size: 1.05rem;
+}
+.scoreline strong { color: var(--gold); font-size: 1.2rem; }
+
+/* --- Scorekaart (game-over en archief) --- */
+.scorecard .sc-head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.scorecard .sc-score { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; }
+.scorecard .sc-side { flex: 1; min-width: 0; }
+.scorecard .sc-name { font-family: Georgia, serif; font-weight: bold; font-size: 1.15rem; }
+.scorecard .sc-mid { text-align: center; flex-shrink: 0; }
+.scorecard .sc-points { font-family: Georgia, serif; font-weight: bold; font-size: 2rem; color: var(--text); }
+.scorecard .sc-result { font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); }
+.scorecard .sc-result.win { color: var(--green); }
+.scorecard .sc-result.loss { color: var(--red); }
+.scorecard .sc-block { margin-top: 14px; }
+.scorecard .sc-block h3 { color: var(--gold); font-family: Georgia, serif; }
+
+table.scoregrid { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.scoregrid td { padding: 5px 4px; border-bottom: 1px dashed var(--border); }
+table.scoregrid td.lbl { color: var(--text-dim); width: 38%; }
+table.scoregrid td.cell { text-align: center; background: var(--bg-input); border: 1px solid var(--border); min-width: 30px; }
+table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: nowrap; padding-left: 8px; }
 
 /* --- Modal (model-popup en units-menu in companion mode) --- */
 .modal-overlay {

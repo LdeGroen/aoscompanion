@@ -106,6 +106,34 @@ export async function saveUniversalDb(db) {
   }
 }
 
+// ---------- Generieke gedeelde blobs (bijv. "gamedata") ----------
+// Zelfde patroon als de faction-/universal-blobs: backend leidend,
+// localStorage als offline-cache.
+export async function loadSharedBlob(key, normalize) {
+  if (backend.hasBackend() && backend.getToken()) {
+    try {
+      const remote = await backend.getShared(key);
+      const db = normalize(remote);
+      localStorage.setItem(LOCAL_PREFIX + key, JSON.stringify(db));
+      return { db, offline: false };
+    } catch (e) {
+      const cached = localStorage.getItem(LOCAL_PREFIX + key);
+      if (cached) return { db: normalize(JSON.parse(cached)), offline: true };
+      throw e;
+    }
+  }
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(LOCAL_PREFIX + key)); } catch {}
+  return { db: normalize(cached), offline: false };
+}
+
+export async function saveSharedBlob(key, db) {
+  localStorage.setItem(LOCAL_PREFIX + key, JSON.stringify(db));
+  if (backend.hasBackend() && backend.getToken()) {
+    await backend.setShared(key, db);
+  }
+}
+
 // ---------- Eigenaarschap ----------
 // Iedere gedeelde entry onthoudt wie hem deelde (addedBy). Bewerken en
 // verwijderen mag alleen door die persoon of door de superadmin. Entries van

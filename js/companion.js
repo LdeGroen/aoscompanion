@@ -1,8 +1,10 @@
-import { PHASES } from "./factions.js";
+import { PHASES, AOS_FACTIONS } from "./factions.js";
 import { effectiveModel, enhancementSource } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
 import * as sharedb from "./sharedb.js";
+import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
+import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -34,7 +36,7 @@ export function renderCompanion(ctx) {
   function newGame() {
     return {
       round: 1,
-      stage: "deployment", // deployment (alleen vóór battleround 1) | roundSetup | turn
+      stage: "battleSetup", // battleSetup | deployment | roundSetup | turn | gameOver
       firstTurn: "player", // wie heeft de eerste beurt deze ronde
       turnIndex: 0,        // 0 = eerste beurt van de ronde, 1 = tweede
       phaseIndex: 0,
@@ -43,11 +45,27 @@ export function renderCompanion(ctx) {
       usedAbilities: {},   // abilityKey -> true (once per battle, hele spel)
       summoned: {},        // modelId -> true (manifestations die in het spel zijn)
       disabled: {},        // modelId -> true (via het units-menu uit de battle gezet)
+      opponent: { name: "", faction: "", subfaction: "" },
+      battleplan: null,    // snapshot van het gekozen battleplan (naam, scoring, abilities)
+      tactics: [],         // snapshots van 3 battle tactics + scoredRounds per stap
+      scores: { player: {}, enemy: {} }, // [side][round][optKey] = true
+      liferoot: { player: 0, enemy: 0 }, // cumulatief (The Liferoots)
+      endBonusOwner: "",   // wie de eindbonus pakt (Noxious Nexus)
+      underdog: {},        // round -> "player" | "enemy" | "none" (vanaf ronde 2)
+      firstTurnByRound: {},// round -> wie eerste beurt had (voor de scorekaart)
     };
   }
   game.usedAbilities = game.usedAbilities || {}; // voor spellen gestart vóór deze feature
   game.summoned = game.summoned || {};
   game.disabled = game.disabled || {};
+  // Migratie voor potjes van vóór de battleplan-feature
+  game.opponent = game.opponent || { name: "", faction: "", subfaction: "" };
+  game.tactics = game.tactics || [];
+  game.scores = game.scores || { player: {}, enemy: {} };
+  game.liferoot = game.liferoot || { player: 0, enemy: 0 };
+  game.endBonusOwner = game.endBonusOwner || "";
+  game.underdog = game.underdog || {};
+  game.firstTurnByRound = game.firstTurnByRound || {};
 
   // Manifestations tellen pas mee (stats, abilities) nadat ze gesummend zijn;
   // "Destroyed" haalt ze weer uit het spel tot de volgende summon. Daarnaast
@@ -140,6 +158,14 @@ export function renderCompanion(ctx) {
     for (const r of army.subfactionRules) {
       if (r.phases.includes(fullKey)) result.push({ ...r, source: "Subfaction rule", type: "faction" });
     }
+    // Battleplan-abilities: optioneel beperkt tot bepaalde battlerounds en/of
+    // alleen actief als jij de underdog bent.
+    for (const ab of game.battleplan?.abilities || []) {
+      if (!(ab.phases || []).includes(fullKey)) continue;
+      if (ab.rounds?.length && !ab.rounds.includes(game.round)) continue;
+      if (ab.underdogOnly && game.underdog[game.round] !== "player") continue;
+      result.push({ ...ab, source: `Battleplan: ${game.battleplan.name}`, type: "battleplan" });
+    }
     return result;
   }
 
@@ -154,10 +180,122 @@ export function renderCompanion(ctx) {
   function rerender() {
     app.innerHTML = "";
     window.scrollTo(0, 0);
-    if (game.stage === "deployment") renderDeployment();
+    if (game.stage === "battleSetup") renderBattleSetup();
+    else if (game.stage === "deployment") renderDeployment();
     else if (game.stage === "roundSetup") renderRoundSetup();
     else if (game.stage === "gameOver") renderGameOver();
     else renderTurn();
+  }
+
+  // ===================== Battle set-up (vóór deployment) =====================
+  // Tegenstander, battleplan en 3 battle tactics kiezen. Battleplan en tactics
+  // worden als snapshot in de spelstatus gezet, zodat database-wijzigingen een
+  // lopend potje niet beïnvloeden.
+  let gamedata = null;
+  let gamedataLoaded = false;
+
+  function renderBattleSetup() {
+    topbar("Battle set-up");
+    if (!gamedataLoaded) {
+      loadGamedata()
+        .then(({ db }) => { gamedata = db; gamedataLoaded = true; rerender(); })
+        .catch(() => { gamedata = null; gamedataLoaded = true; rerender(); });
+      app.appendChild(el(`<p class="empty">Battleplans en battle tactics laden…</p>`));
+      return;
+    }
+
+    // --- Tegenstander ---
+    const opp = game.opponent;
+    const oppCard = el(`<div class="card">
+      <h2>Tegenstander</h2>
+      <label>Naam van je tegenstander</label>
+      <input type="text" id="opp-name" value="${esc(opp.name)}" placeholder="bijv. Nico" />
+      <div class="row">
+        <div>
+          <label>Faction</label>
+          <select id="opp-faction">
+            <option value="">— kies faction —</option>
+            ${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === opp.faction ? "selected" : ""}>${esc(f)}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label>Subfaction</label>
+          <select id="opp-subfaction"></select>
+        </div>
+      </div>
+    </div>`);
+    app.appendChild(oppCard);
+    const subSel = oppCard.querySelector("#opp-subfaction");
+    const fillSubs = () => {
+      subSel.innerHTML = `<option value="">— geen —</option>`;
+      for (const s of AOS_FACTIONS[opp.faction] || []) {
+        subSel.appendChild(el(`<option ${s === opp.subfaction ? "selected" : ""}>${esc(s)}</option>`));
+      }
+    };
+    fillSubs();
+    oppCard.querySelector("#opp-name").addEventListener("input", (e) => { opp.name = e.target.value; saveData(); });
+    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; fillSubs(); saveData(); });
+    subSel.addEventListener("change", (e) => { opp.subfaction = e.target.value; saveData(); });
+
+    // --- Battleplan ---
+    const bpCard = el(`<div class="card">
+      <h2>Battleplan</h2>
+      <label>Welk battleplan spelen jullie?</label>
+      <select id="bp-select">
+        <option value="">— geen battleplan (alleen phases) —</option>
+        ${(gamedata?.battleplans || []).map((b) => `<option value="${esc(b.id)}" ${b.id === game.setupBattleplanId ? "selected" : ""}>${esc(b.name)}</option>`).join("")}
+      </select>
+      ${gamedata ? "" : `<p class="subtitle" style="color:var(--red)">Battleplans konden niet geladen worden — je kunt wel zonder spelen.</p>`}
+    </div>`);
+    app.appendChild(bpCard);
+    bpCard.querySelector("#bp-select").addEventListener("change", (e) => { game.setupBattleplanId = e.target.value; saveData(); });
+
+    // --- Battle tactics (kies er 3) ---
+    game.setupTacticIds = game.setupTacticIds || [];
+    const tCard = el(`<div class="card"><h2>Battle tactics</h2>
+      <p class="subtitle">Kies 3 battle tactics. Iedere tactic heeft 3 opvolgende stappen; je scoort er max 1 per eigen beurt (${TACTIC_STEP_POINTS} punten per stap).</p>
+      <div data-list></div>
+    </div>`);
+    app.appendChild(tCard);
+    const tList = tCard.querySelector("[data-list]");
+    const drawTactics = () => {
+      tList.innerHTML = "";
+      if (!gamedata?.tactics?.length) { tList.appendChild(el(`<p class="empty">Geen battle tactics beschikbaar.</p>`)); return; }
+      for (const t of gamedata.tactics) {
+        const picked = game.setupTacticIds.includes(t.id);
+        const line = el(`<div class="checkline" style="align-items:flex-start">
+          <input type="checkbox" ${picked ? "checked" : ""} />
+          <span><strong>${esc(t.name)}</strong><div class="subtitle">${(t.steps || []).map((s, i) => `${i + 1}. ${esc(s.name || "")}`).join(" · ")}</div></span>
+        </div>`);
+        line.querySelector("input").addEventListener("change", (e) => {
+          if (e.target.checked) {
+            if (game.setupTacticIds.length >= 3) { e.target.checked = false; alert("Je kunt maximaal 3 battle tactics kiezen."); return; }
+            game.setupTacticIds.push(t.id);
+          } else {
+            game.setupTacticIds = game.setupTacticIds.filter((id) => id !== t.id);
+          }
+          saveData();
+        });
+        tList.appendChild(line);
+      }
+    };
+    drawTactics();
+
+    const startBtn = el(`<button class="primary bigbtn">${icon("play")} Naar deployment</button>`);
+    startBtn.addEventListener("click", () => {
+      const bp = (gamedata?.battleplans || []).find((b) => b.id === game.setupBattleplanId);
+      if (bp && game.setupTacticIds.length !== 3
+          && !confirm(`Je hebt ${game.setupTacticIds.length} battle tactics gekozen in plaats van 3. Toch doorgaan?`)) return;
+      game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
+      game.tactics = game.setupTacticIds
+        .map((id) => (gamedata?.tactics || []).find((t) => t.id === id))
+        .filter(Boolean)
+        .map((t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), scoredRounds: [] }));
+      game.stage = "deployment";
+      saveData();
+      rerender();
+    });
+    bottomBar(startBtn);
   }
 
   // ---------- Modal (model-popup en units-menu) ----------
@@ -294,8 +432,23 @@ export function renderCompanion(ctx) {
       </div>
       <label>Met hoeveel command points begin je deze battleround?</label>
       <input type="number" id="cp-input" min="0" value="${game.round === 1 ? 4 : game.cp || 4}" />
+      <div data-underdog></div>
     </div>`);
     app.appendChild(card);
+
+    // Underdog: vanaf battleround 2 aangeven wie achterstaat
+    if (game.round >= 2 && game.battleplan) {
+      const udWrap = card.querySelector("[data-underdog]");
+      udWrap.appendChild(el(`<label>Wie is deze battleround de underdog?</label>`));
+      const row = el(`<div class="btnrow"></div>`);
+      const current = game.underdog[game.round] || "none";
+      for (const [key, label] of [["player", "Ik"], ["enemy", game.opponent?.name || "De tegenstander"], ["none", "Niemand"]]) {
+        const b = el(`<button class="${current === key ? "primary" : ""}">${esc(label)}</button>`);
+        b.addEventListener("click", () => { game.underdog[game.round] = key; saveData(); rerender(); });
+        row.appendChild(b);
+      }
+      udWrap.appendChild(row);
+    }
 
     const startBtn = el(`<button class="primary bigbtn" id="btn-start">${icon("play")} Start battleround ${game.round}</button>`);
     bottomBar(startBtn);
@@ -308,6 +461,7 @@ export function renderCompanion(ctx) {
       game.turnIndex = 0;
       game.phaseIndex = 0;
       game.usedCommands = {};
+      game.firstTurnByRound[game.round] = game.firstTurn; // voor de scorekaart
       saveData();
       rerender();
     });
@@ -333,6 +487,16 @@ export function renderCompanion(ctx) {
     turnbar.querySelector("#cp-min").addEventListener("click", () => { if (game.cp > 0) { game.cp--; saveData(); rerender(); } });
     turnbar.querySelector("#cp-plus").addEventListener("click", () => { game.cp++; saveData(); rerender(); });
     app.appendChild(turnbar);
+
+    // Lopende score
+    if (game.battleplan) {
+      const s = calcScores(game);
+      app.appendChild(el(`<div class="scoreline">
+        <span>${esc(state.user.name)} <strong>${s.player.total}</strong></span>
+        <span class="subtitle">—</span>
+        <span><strong>${s.enemy.total}</strong> ${esc(game.opponent?.name || "Tegenstander")}</span>
+      </div>`));
+    }
 
     // Phase navigatie
     const nav = el(`<div class="phase-nav"></div>`);
@@ -394,10 +558,26 @@ export function renderCompanion(ctx) {
   // ===================== Game over (na battleround 5) =====================
   function renderGameOver() {
     topbar(`Game afgelopen`);
-    app.appendChild(el(`<div class="card" style="text-align:center">
-      <h2>${icon("flag", 20)} Game afgelopen</h2>
-      <p class="subtitle">Alle ${LAST_ROUND} battlerounds zijn gespeeld. Goed gespeeld!</p>
-    </div>`));
+
+    if (game.battleplan) {
+      // Record opbouwen en (eenmalig) automatisch archiveren
+      state.data.gameArchive = state.data.gameArchive || [];
+      let rec = state.data.gameArchive.find((x) => x.id === game.archivedId);
+      if (!rec) {
+        rec = buildGameRecord(army, game, state.user.name);
+        state.data.gameArchive.push(rec);
+        game.archivedId = rec.id;
+        saveData();
+      }
+      app.appendChild(buildScoreSummary(rec, { el, esc }));
+      app.appendChild(buildExportButtons(rec, { el }));
+      app.appendChild(el(`<p class="subtitle">${icon("check")} Opgeslagen in het archief (zie home-scherm).</p>`));
+    } else {
+      app.appendChild(el(`<div class="card" style="text-align:center">
+        <h2>${icon("flag", 20)} Game afgelopen</h2>
+        <p class="subtitle">Alle ${LAST_ROUND} battlerounds zijn gespeeld. Goed gespeeld!</p>
+      </div>`));
+    }
 
     const newGameBtn = el(`<button class="primary bigbtn">${icon("play")} Nieuw potje met dit leger</button>`);
     newGameBtn.addEventListener("click", () => {
@@ -497,6 +677,96 @@ export function renderCompanion(ctx) {
         card.appendChild(attachDestroyed(row, m));
       }
       app.appendChild(card);
+
+      // Scoren aan het einde van iedere beurt (battleplan gekozen)
+      if (game.battleplan) renderScoringCard(owner);
+    }
+  }
+
+  // ---------- Scoren (End of Turn, per beurt-eigenaar) ----------
+  function renderScoringCard(owner) {
+    const r = game.round;
+    const oppName = game.opponent?.name || "tegenstander";
+    app.appendChild(el(`<h3>${owner === "player" ? "Jouw score" : `Score van ${esc(oppName)}`} — einde van deze beurt</h3>`));
+    const card = el(`<div class="card"></div>`);
+
+    game.scores[owner] = game.scores[owner] || {};
+    game.scores[owner][r] = game.scores[owner][r] || {};
+    const slot = game.scores[owner][r];
+
+    const opts = scoringOptionsFor(game.battleplan, r);
+    if (!opts.length) card.appendChild(el(`<p class="empty">Geen objective-score in battleround ${r} bij dit battleplan.</p>`));
+    for (const opt of opts) {
+      const line = el(`<div class="checkline">
+        <input type="checkbox" ${slot[opt.key] ? "checked" : ""} />
+        <span>${esc(opt.label)} <span class="lval">+${opt.points}</span></span>
+      </div>`);
+      line.querySelector("input").addEventListener("change", (e) => {
+        if (e.target.checked) slot[opt.key] = true;
+        else delete slot[opt.key];
+        saveData();
+        rerender();
+      });
+      card.appendChild(line);
+    }
+
+    // Liferoot points (The Liferoots): cumulatief, doorgeven aan het einde van je beurt
+    if (game.battleplan.scoring?.liferoot) {
+      const lf = el(`<div>
+        <label>Liferoot points van ${owner === "player" ? "jou" : esc(oppName)} (cumulatief)</label>
+        <input type="number" min="0" value="${game.liferoot[owner] || 0}" />
+      </div>`);
+      lf.querySelector("input").addEventListener("change", (e) => {
+        game.liferoot[owner] = parseInt(e.target.value) || 0;
+        saveData();
+      });
+      card.appendChild(lf);
+    }
+
+    // Eindbonus (Noxious Nexus): pas aan het einde van de laatste beurt van ronde 5
+    if (game.battleplan.scoring?.endBonus && r === LAST_ROUND && game.turnIndex === 1) {
+      const eb = game.battleplan.scoring.endBonus;
+      const wrap = el(`<div><label>${esc(eb.label)} (+${eb.points} punten) — wie?</label><div class="btnrow" data-eb></div></div>`);
+      const ebRow = wrap.querySelector("[data-eb]");
+      for (const [key, label] of [["player", "Ik"], ["enemy", oppName], ["", "Niemand"]]) {
+        const b = el(`<button class="small ${game.endBonusOwner === key ? "primary" : ""}">${esc(label)}</button>`);
+        b.addEventListener("click", () => { game.endBonusOwner = key; saveData(); rerender(); });
+        ebRow.appendChild(b);
+      }
+      card.appendChild(wrap);
+    }
+    app.appendChild(card);
+
+    // Battle tactics: alleen in je eigen beurt, max 1 stap per tactic per beurt
+    if (owner === "player" && game.tactics.length) {
+      app.appendChild(el(`<h3>Battle tactics</h3>`));
+      const tc = el(`<div class="card"></div>`);
+      for (const t of game.tactics) {
+        t.scoredRounds = t.scoredRounds || [];
+        const done = t.scoredRounds.length;
+        const idxThisRound = t.scoredRounds.indexOf(r);
+        const scoredThis = idxThisRound >= 0;
+        const stepIdx = scoredThis ? idxThisRound : done;
+        const step = (t.steps || [])[stepIdx];
+        let label;
+        if (scoredThis) label = `Stap ${stepIdx + 1} gescoord deze beurt (+${TACTIC_STEP_POINTS})`;
+        else if (done < 3) label = `Stap ${done + 1} scoren: ${esc(step?.name || "")} (+${TACTIC_STEP_POINTS})`;
+        else label = "Alle 3 stappen gescoord";
+        const row = el(`<div class="checkline" style="align-items:flex-start">
+          <input type="checkbox" ${scoredThis ? "checked" : ""} ${scoredThis || done < 3 ? "" : "disabled"} />
+          <span><strong>${esc(t.name)}</strong> <span class="subtitle">(${done}/3)</span><br>${label}
+            ${!scoredThis && done < 3 && step?.description ? `<div class="subtitle">${esc(step.description)}</div>` : ""}
+          </span>
+        </div>`);
+        row.querySelector("input").addEventListener("change", (e) => {
+          if (e.target.checked) t.scoredRounds.push(r);
+          else t.scoredRounds = t.scoredRounds.filter((x) => x !== r);
+          saveData();
+          rerender();
+        });
+        tc.appendChild(row);
+      }
+      app.appendChild(tc);
     }
   }
 
@@ -610,7 +880,7 @@ export function renderCompanion(ctx) {
   }
 
   function abilityCard(ab) {
-    const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : "";
+    const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : ab.type === "battleplan" ? "battleplan" : "";
     if (!ab.oncePerBattle) {
       const card = el(`<div class="ability ${typeClass}">
         <div class="owner">${esc(ab.source)}</div>
