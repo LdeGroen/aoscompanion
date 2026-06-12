@@ -45,7 +45,7 @@ export function renderCompanion(ctx) {
       usedAbilities: {},   // abilityKey -> true (once per battle, hele spel)
       summoned: {},        // modelId -> true (manifestations die in het spel zijn)
       disabled: {},        // modelId -> true (via het units-menu uit de battle gezet)
-      opponent: { name: "", faction: "", subfaction: "" },
+      opponent: { name: "", faction: "", subfaction: "", models: [] },
       battleplan: null,    // snapshot van het gekozen battleplan (naam, scoring, abilities)
       tactics: [],         // snapshots van jouw 2 battle tactics + scoredRounds per stap
       enemyTactics: [],    // de 2 battle tactics van je tegenstander
@@ -61,6 +61,7 @@ export function renderCompanion(ctx) {
   game.disabled = game.disabled || {};
   // Migratie voor potjes van vóór de battleplan-feature
   game.opponent = game.opponent || { name: "", faction: "", subfaction: "" };
+  game.opponent.models = game.opponent.models || [];
   game.tactics = game.tactics || [];
   game.enemyTactics = game.enemyTactics || [];
   game.scores = game.scores || { player: {}, enemy: {} };
@@ -242,6 +243,34 @@ export function renderCompanion(ctx) {
     oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; fillSubs(); saveData(); });
     subSel.addEventListener("change", (e) => { opp.subfaction = e.target.value; saveData(); });
 
+    // --- Unieke models van de tegenstander (uit de database) ---
+    opp.models = opp.models || [];
+    const omCard = el(`<div class="card"><h2>Models van ${esc(opp.name || "je tegenstander")}</h2>
+      <p class="subtitle">Voeg de unieke models van je tegenstander toe uit de database. Tijdens de game open je hun kaartjes via de Tegenstander-knop bovenin.</p>
+      <div data-list></div>
+      <div class="btnrow"><button class="small" data-add>${icon("import")} Kaartje uit de database</button></div>
+    </div>`);
+    app.appendChild(omCard);
+    const omList = omCard.querySelector("[data-list]");
+    if (!opp.models.length) omList.appendChild(el(`<p class="empty">Nog geen models toegevoegd.</p>`));
+    for (const m of opp.models) {
+      const row = el(`<div class="card-header clickable" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
+        <button class="danger small">✕</button>
+      </div>`);
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("button")) return;
+        openModal(buildModelPopupContent(m, { el, esc }), el);
+      });
+      row.querySelector("button").addEventListener("click", () => {
+        opp.models = opp.models.filter((x) => x !== m);
+        saveData();
+        rerender();
+      });
+      omList.appendChild(row);
+    }
+    omCard.querySelector("[data-add]").addEventListener("click", openOpponentModelPicker);
+
     // --- Battleplan ---
     const bpCard = el(`<div class="card">
       <h2>Battleplan</h2>
@@ -369,6 +398,80 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Tegenstander-menu: zijn naam/faction en de kaartjes van zijn unieke models
+  // (toegevoegd in de battle set-up), in dezelfde popup als je eigen models.
+  function showOpponentMenu() {
+    const o = game.opponent || {};
+    const wrap = el(`<div>
+      <h2>${esc(o.name || "Tegenstander")}</h2>
+      ${o.faction ? `<p class="subtitle">${esc(o.faction)}${o.subfaction ? " — " + esc(o.subfaction) : ""}</p>` : ""}
+      <div data-list></div>
+    </div>`);
+    const list = wrap.querySelector("[data-list]");
+    const models = o.models || [];
+    if (!models.length) {
+      list.appendChild(el(`<p class="empty">Geen models toegevoegd voor je tegenstander. Dat doe je in de battle set-up (bij een nieuw potje).</p>`));
+    }
+    for (const m of models) {
+      const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+        <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
+        <span class="subtitle">Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}</span>
+      </div>`);
+      row.addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
+      list.appendChild(row);
+    }
+    openModal(wrap, el);
+  }
+
+  // Picker (battle set-up): kaartjes uit de database van de tegenstander-faction
+  // + universal manifestations toevoegen aan de tegenstander.
+  async function openOpponentModelPicker() {
+    const opp = game.opponent;
+    if (!opp.faction) { alert("Kies eerst de faction van je tegenstander."); return; }
+    let models;
+    try {
+      const { db } = await sharedb.loadFactionDb(opp.faction);
+      const { db: uni } = await sharedb.loadUniversalDb();
+      models = [...db.models, ...uni.models];
+    } catch (e) {
+      alert("Database niet beschikbaar: " + e.message);
+      return;
+    }
+    const wrap = el(`<div><h2>Kaartjes — ${esc(opp.faction)}</h2>
+      <p class="subtitle">Klik op een naam voor het kaartje; voeg toe wat je tegenstander meeneemt.</p>
+      <div data-list></div></div>`);
+    const list = wrap.querySelector("[data-list]");
+    if (!models.length) list.appendChild(el(`<p class="empty">Geen kaartjes in de ${esc(opp.faction)}-database.</p>`));
+    for (const m of models) {
+      const isAdded = () => opp.models.some((x) => x.name.toLowerCase() === m.name.toLowerCase());
+      const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+        <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
+        <button class="small ${isAdded() ? "" : "primary"}"></button>
+      </div>`);
+      const btn = row.querySelector("button");
+      const refresh = () => {
+        btn.innerHTML = isAdded() ? `${icon("check")} Toegevoegd` : `${icon("plus")} Toevoegen`;
+        btn.disabled = isAdded();
+      };
+      refresh();
+      btn.addEventListener("click", () => {
+        const copy = JSON.parse(JSON.stringify(m));
+        delete copy.addedBy;
+        copy.enhancementIds = [];
+        opp.models.push(copy);
+        saveData();
+        refresh();
+        rerender(); // lijst in de battle set-up bijwerken (scrollpositie blijft staan)
+      });
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("button")) return;
+        openModal(buildModelPopupContent(m, { el, esc }), el);
+      });
+      list.appendChild(row);
+    }
+    openModal(wrap, el);
+  }
+
   // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld
   function bottomBar(btn) {
     const bar = el(`<div class="bottombar"></div>`);
@@ -383,11 +486,13 @@ export function renderCompanion(ctx) {
         <div class="subtitle">${esc(subtitle)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
       </div>
     </div>`);
+    bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
