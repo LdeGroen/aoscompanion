@@ -20,6 +20,9 @@ export function renderCompanion(ctx) {
 
   // Effectieve stats: enhancement stat improvements verwerkt
   const eff = (m) => effectiveModel(army, m);
+  // Effectieve wizard/priest-levels (incl. enhancements die een caster maken)
+  const wizLevel = (m) => parseInt(eff(m).model.wizardLevel) || 0;
+  const prsLevel = (m) => parseInt(eff(m).model.priestLevel) || 0;
 
   // Spelstatus wordt op het leger bewaard zodat je app kunt verversen zonder je spel kwijt te raken.
   if (!army.game) {
@@ -425,19 +428,21 @@ export function renderCompanion(ctx) {
     // In de tegenstander-hero-phase ook de manifestation lore tonen (met
     // klikbare spell-namen) — in jouw hero phase staat hij al bij de wizards.
     if (phaseKey === "hero" && owner === "enemy" && army.manifestationLore
-        && army.models.some((m) => m.wizardLevel > 0)) {
+        && army.models.some((m) => wizLevel(m) > 0)) {
       app.appendChild(el(`<h3>Manifestation lore</h3>`));
       app.appendChild(loreCard("Manifestation lore", army.manifestationLore, "Cast", army.manifestationLore.universal));
     }
 
     if (phaseKey === "hero" && owner === "player") {
-      const casters = activeModels().filter((m) => m.wizardLevel > 0 || m.priestLevel > 0);
+      // Effectieve levels: ook een model dat via een enhancement wizard/priest
+      // is geworden telt als caster.
+      const casters = activeModels().filter((m) => wizLevel(m) > 0 || prsLevel(m) > 0);
       if (casters.length) {
         app.appendChild(el(`<h3>Wizards & priests</h3>`));
         for (const m of casters) {
           const roles = [];
-          if (m.wizardLevel > 0) roles.push(`Wizard (${m.wizardLevel})`);
-          if (m.priestLevel > 0) roles.push(`Priest (${m.priestLevel})`);
+          if (wizLevel(m) > 0) roles.push(`Wizard (${wizLevel(m)})`);
+          if (prsLevel(m) > 0) roles.push(`Priest (${prsLevel(m)})`);
           const card = el(`<div class="card inner"><div class="card-header"><strong>${esc(m.name)}</strong><span class="chip tag">${roles.join(" · ")}</span></div></div>`);
           makeClickable(card, m);
           app.appendChild(card);
@@ -576,8 +581,8 @@ export function renderCompanion(ctx) {
   const weaponTable = (weapons, toHitTransform) => sharedWeaponTable(weapons, el, esc, toHitTransform);
 
   function renderLoresDisplay(target = app) {
-    const hasWizard = army.models.some((m) => m.wizardLevel > 0);
-    const hasPriest = army.models.some((m) => m.priestLevel > 0);
+    const hasWizard = army.models.some((m) => wizLevel(m) > 0);
+    const hasPriest = army.models.some((m) => prsLevel(m) > 0);
     if (hasWizard && army.spellLore) target.appendChild(loreCard("Spell lore", army.spellLore, "Cast"));
     // Bij een universal manifestation lore zijn de spells universal manifestation-models:
     // de namen worden klikbaar en openen het kaartje als popup.

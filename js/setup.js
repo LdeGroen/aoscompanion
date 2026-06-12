@@ -1,5 +1,6 @@
 import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, groupByType, loreKind } from "./factions.js";
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
+import { effectiveModel } from "./enhancements.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
@@ -440,8 +441,11 @@ export function renderSetup(ctx) {
 
   // ===================== Lores =====================
   function renderLores() {
-    const hasWizard = army.models.some((m) => m.wizardLevel > 0);
-    const hasPriest = army.models.some((m) => m.priestLevel > 0);
+    // Effectieve levels: een enhancement kan een model wizard/priest maken,
+    // dan moet je hier al de bijbehorende lores kunnen kiezen.
+    const effLevel = (m, field) => parseInt(effectiveModel(army, m).model[field]) || 0;
+    const hasWizard = army.models.some((m) => effLevel(m, "wizardLevel") > 0);
+    const hasPriest = army.models.some((m) => effLevel(m, "priestLevel") > 0);
 
     const card = el(`<div class="card"><h2>Lores</h2><div data-content></div></div>`);
     app.appendChild(card);
