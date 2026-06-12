@@ -28,6 +28,7 @@ export function buildGameRecord(army, game, playerName) {
       underdog: game.underdog?.[r] || "",
     })),
     tactics: (game.tactics || []).map((t) => ({ name: t.name, scoredRounds: [...(t.scoredRounds || [])] })),
+    enemyTactics: (game.enemyTactics || []).map((t) => ({ name: t.name, scoredRounds: [...(t.scoredRounds || [])] })),
     liferoot: game.battleplan?.scoring?.liferoot ? { ...(game.liferoot || {}) } : null,
     endBonus: game.battleplan?.scoring?.endBonus
       ? { label: game.battleplan.scoring.endBonus.label, points: game.battleplan.scoring.endBonus.points, owner: game.endBonusOwner || "" }
@@ -42,6 +43,8 @@ export function resultLabel(rec) {
   const size = Math.abs(d) > 10 ? "Major" : "Minor";
   return d > 0 ? { text: `${size} victory`, win: true } : { text: `${size} defeat`, win: false };
 }
+
+const tacticsFor = (rec, side) => (side === "player" ? rec.tactics : rec.enemyTactics) || [];
 
 const fmtDate = (iso) => {
   const d = new Date(iso);
@@ -102,12 +105,10 @@ function sideBlock(rec, side, { el, esc }) {
   const objTotal = rec.rounds.reduce((a, r) => a + r[side], 0);
   row("Objective control", rec.rounds.map((r) => String(r[side])), String(objTotal));
 
-  if (side === "player") {
-    for (const t of rec.tactics) {
-      row(esc(t.name),
-        rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? String(TACTIC_STEP_POINTS) : "·")),
-        `${t.scoredRounds.length * TACTIC_STEP_POINTS}/${3 * TACTIC_STEP_POINTS}`);
-    }
+  for (const t of tacticsFor(rec, side)) {
+    row(esc(t.name),
+      rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? String(TACTIC_STEP_POINTS) : "·")),
+      `${t.scoredRounds.length * TACTIC_STEP_POINTS}/${3 * TACTIC_STEP_POINTS}`);
   }
   if (rec.liferoot) {
     rows.appendChild(el(`<tr><td class="lbl">Liferoot points</td><td class="cell" colspan="5">${rec.liferoot[side] || 0}</td><td class="tot"></td></tr>`));
@@ -132,10 +133,8 @@ export function recordAsText(rec) {
     const who = side === "player" ? rec.player : rec.opponent;
     lines.push(`${who.name}:`);
     lines.push(`  Objective control: ${rec.rounds.map((r) => r[side]).join(" | ")} = ${rec.rounds.reduce((a, r) => a + r[side], 0)}`);
-    if (side === "player") {
-      for (const t of rec.tactics) {
-        lines.push(`  ${t.name}: ${rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "-")).join(" | ")} = ${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
-      }
+    for (const t of tacticsFor(rec, side)) {
+      lines.push(`  ${t.name}: ${rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "-")).join(" | ")} = ${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
     }
     if (rec.liferoot) lines.push(`  Liferoot points: ${rec.liferoot[side] || 0}`);
     if (rec.endBonus && rec.endBonus.owner === side) lines.push(`  ${rec.endBonus.label}: +${rec.endBonus.points}`);
@@ -150,8 +149,8 @@ export function recordAsText(rec) {
 export function drawScoreImage(rec) {
   const W = 640;
   const rowH = 30;
-  const playerRows = 3 + rec.tactics.length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "player" ? 1 : 0) + 1;
-  const enemyRows = 3 + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "enemy" ? 1 : 0) + 1;
+  const playerRows = 3 + tacticsFor(rec, "player").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "player" ? 1 : 0) + 1;
+  const enemyRows = 3 + tacticsFor(rec, "enemy").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "enemy" ? 1 : 0) + 1;
   const H = 170 + (playerRows + enemyRows) * rowH + 2 * 46 + 40;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -210,10 +209,8 @@ export function drawScoreImage(rec) {
     drawRow("Eerste beurt", rec.rounds.map((r) => (r.firstTurn === side ? "✓" : "·")), "");
     drawRow("Underdog", rec.rounds.map((r) => (r.underdog === side ? "✓" : "·")), "");
     drawRow("Objective control", rec.rounds.map((r) => r[side]), rec.rounds.reduce((a, r) => a + r[side], 0));
-    if (side === "player") {
-      for (const t of rec.tactics) {
-        drawRow(t.name, rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "·")), `${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
-      }
+    for (const t of tacticsFor(rec, side)) {
+      drawRow(t.name, rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "·")), `${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
     }
     if (rec.liferoot) drawRow("Liferoot points", [rec.liferoot[side] || 0, "", "", "", ""], "");
     if (rec.endBonus?.owner === side) drawRow(rec.endBonus.label, ["", "", "", "", ""], `+${rec.endBonus.points}`);

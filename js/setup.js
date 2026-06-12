@@ -87,14 +87,17 @@ export function renderSetup(ctx) {
     return universalManifestNames;
   }
 
-  function rerender() {
+  // scrollTop: alleen bij echte navigatie (editor openen/sluiten) naar boven;
+  // bij invullen of aanvinken blijft de scrollpositie staan.
+  function rerender(scrollTop = false) {
+    const y = window.scrollY;
     app.innerHTML = "";
-    window.scrollTo(0, 0);
     if (editing) {
       renderModelEditor(editing);
     } else {
       renderArmyOverview();
     }
+    window.scrollTo(0, scrollTop ? 0 : y);
   }
 
   // ===================== Leger-overzicht =====================
@@ -207,7 +210,7 @@ export function renderSetup(ctx) {
           <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>
         </div>
       </div>`);
-      card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(); });
+      card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(true); });
       card.querySelector('[data-act="share"]').addEventListener("click", () =>
         shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m)));
       card.querySelector('[data-act="copy"]').addEventListener("click", () => {
@@ -230,7 +233,7 @@ export function renderSetup(ctx) {
     }
     modelsCard.querySelector("#btn-new-model").addEventListener("click", () => {
       editing = blankModel();
-      rerender();
+      rerender(true);
     });
     modelsCard.querySelector("#btn-from-lib").addEventListener("click", () => renderLibraryPicker());
 
@@ -347,7 +350,7 @@ export function renderSetup(ctx) {
       <span class="title">${isNew ? "Nieuw model" : "Model bewerken"}</span>
       <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
     </div>`);
-    header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; rerender(); });
+    header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; rerender(true); });
     app.appendChild(header);
 
     const editor = buildModelEditor({ container: app, m, el, esc, army });
@@ -367,7 +370,7 @@ export function renderSetup(ctx) {
         shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m));
       }
       editing = null;
-      rerender();
+      rerender(true);
     });
     app.appendChild(saveBtn);
   }

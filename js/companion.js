@@ -47,7 +47,8 @@ export function renderCompanion(ctx) {
       disabled: {},        // modelId -> true (via het units-menu uit de battle gezet)
       opponent: { name: "", faction: "", subfaction: "" },
       battleplan: null,    // snapshot van het gekozen battleplan (naam, scoring, abilities)
-      tactics: [],         // snapshots van 3 battle tactics + scoredRounds per stap
+      tactics: [],         // snapshots van jouw 2 battle tactics + scoredRounds per stap
+      enemyTactics: [],    // de 2 battle tactics van je tegenstander
       scores: { player: {}, enemy: {} }, // [side][round][optKey] = true
       liferoot: { player: 0, enemy: 0 }, // cumulatief (The Liferoots)
       endBonusOwner: "",   // wie de eindbonus pakt (Noxious Nexus)
@@ -61,6 +62,7 @@ export function renderCompanion(ctx) {
   // Migratie voor potjes van vóór de battleplan-feature
   game.opponent = game.opponent || { name: "", faction: "", subfaction: "" };
   game.tactics = game.tactics || [];
+  game.enemyTactics = game.enemyTactics || [];
   game.scores = game.scores || { player: {}, enemy: {} };
   game.liferoot = game.liferoot || { player: 0, enemy: 0 };
   game.endBonusOwner = game.endBonusOwner || "";
@@ -177,14 +179,17 @@ export function renderCompanion(ctx) {
   // ---------- Render ----------
   const LAST_ROUND = 5; // een game duurt altijd 5 battlerounds
 
-  function rerender() {
+  // scrollTop: alleen bij echte navigatie (phase/stage-wissel) naar boven;
+  // bij invullen of aanvinken blijft de scrollpositie staan.
+  function rerender(scrollTop = false) {
+    const y = window.scrollY;
     app.innerHTML = "";
-    window.scrollTo(0, 0);
     if (game.stage === "battleSetup") renderBattleSetup();
     else if (game.stage === "deployment") renderDeployment();
     else if (game.stage === "roundSetup") renderRoundSetup();
     else if (game.stage === "gameOver") renderGameOver();
     else renderTurn();
+    window.scrollTo(0, scrollTop ? 0 : y);
   }
 
   // ===================== Battle set-up (vóór deployment) =====================
@@ -250,50 +255,53 @@ export function renderCompanion(ctx) {
     app.appendChild(bpCard);
     bpCard.querySelector("#bp-select").addEventListener("change", (e) => { game.setupBattleplanId = e.target.value; saveData(); });
 
-    // --- Battle tactics (kies er 3) ---
+    // --- Battle tactics: 2 voor jou, 2 van je tegenstander ---
     game.setupTacticIds = game.setupTacticIds || [];
-    const tCard = el(`<div class="card"><h2>Battle tactics</h2>
-      <p class="subtitle">Kies 3 battle tactics. Iedere tactic heeft 3 opvolgende stappen; je scoort er max 1 per eigen beurt (${TACTIC_STEP_POINTS} punten per stap).</p>
-      <div data-list></div>
-    </div>`);
-    app.appendChild(tCard);
-    const tList = tCard.querySelector("[data-list]");
-    const drawTactics = () => {
-      tList.innerHTML = "";
+    game.setupEnemyTacticIds = game.setupEnemyTacticIds || [];
+
+    const tacticPicker = (title, hint, ids) => {
+      const tCard = el(`<div class="card"><h2>${title}</h2>
+        <p class="subtitle">${hint}</p>
+        <div data-list></div>
+      </div>`);
+      app.appendChild(tCard);
+      const tList = tCard.querySelector("[data-list]");
       if (!gamedata?.tactics?.length) { tList.appendChild(el(`<p class="empty">Geen battle tactics beschikbaar.</p>`)); return; }
       for (const t of gamedata.tactics) {
-        const picked = game.setupTacticIds.includes(t.id);
         const line = el(`<div class="checkline" style="align-items:flex-start">
-          <input type="checkbox" ${picked ? "checked" : ""} />
+          <input type="checkbox" ${ids.includes(t.id) ? "checked" : ""} />
           <span><strong>${esc(t.name)}</strong><div class="subtitle">${(t.steps || []).map((s, i) => `${i + 1}. ${esc(s.name || "")}`).join(" · ")}</div></span>
         </div>`);
         line.querySelector("input").addEventListener("change", (e) => {
           if (e.target.checked) {
-            if (game.setupTacticIds.length >= 3) { e.target.checked = false; alert("Je kunt maximaal 3 battle tactics kiezen."); return; }
-            game.setupTacticIds.push(t.id);
+            if (ids.length >= 2) { e.target.checked = false; alert("Kies maximaal 2 battle tactics."); return; }
+            ids.push(t.id);
           } else {
-            game.setupTacticIds = game.setupTacticIds.filter((id) => id !== t.id);
+            ids.splice(ids.indexOf(t.id), 1);
           }
           saveData();
         });
         tList.appendChild(line);
       }
     };
-    drawTactics();
+    tacticPicker("Jouw battle tactics", `Kies er 2. Iedere tactic heeft 3 opvolgende stappen; je scoort er max 1 per eigen beurt (${TACTIC_STEP_POINTS} punten per stap).`, game.setupTacticIds);
+    tacticPicker(`Battle tactics van ${esc(opp.name || "je tegenstander")}`, "Welke 2 heeft je tegenstander gekozen? Die scoor je aan het einde van zijn beurt.", game.setupEnemyTacticIds);
 
     const startBtn = el(`<button class="primary bigbtn">${icon("play")} Naar deployment</button>`);
     startBtn.addEventListener("click", () => {
       const bp = (gamedata?.battleplans || []).find((b) => b.id === game.setupBattleplanId);
-      if (bp && game.setupTacticIds.length !== 3
-          && !confirm(`Je hebt ${game.setupTacticIds.length} battle tactics gekozen in plaats van 3. Toch doorgaan?`)) return;
-      game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
-      game.tactics = game.setupTacticIds
+      if (bp && (game.setupTacticIds.length !== 2 || game.setupEnemyTacticIds.length !== 2)
+          && !confirm(`Je hebt ${game.setupTacticIds.length} eigen en ${game.setupEnemyTacticIds.length} vijandelijke battle tactics gekozen in plaats van 2 + 2. Toch doorgaan?`)) return;
+      const snapshot = (ids) => ids
         .map((id) => (gamedata?.tactics || []).find((t) => t.id === id))
         .filter(Boolean)
         .map((t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), scoredRounds: [] }));
+      game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
+      game.tactics = snapshot(game.setupTacticIds);
+      game.enemyTactics = snapshot(game.setupEnemyTacticIds);
       game.stage = "deployment";
       saveData();
-      rerender();
+      rerender(true);
     });
     bottomBar(startBtn);
   }
@@ -407,7 +415,7 @@ export function renderCompanion(ctx) {
     nextBtn.addEventListener("click", () => {
       game.stage = "roundSetup";
       saveData();
-      rerender();
+      rerender(true);
     });
     bottomBar(nextBtn);
   }
@@ -463,7 +471,7 @@ export function renderCompanion(ctx) {
       game.usedCommands = {};
       game.firstTurnByRound[game.round] = game.firstTurn; // voor de scorekaart
       saveData();
-      rerender();
+      rerender(true);
     });
   }
 
@@ -502,7 +510,7 @@ export function renderCompanion(ctx) {
     const nav = el(`<div class="phase-nav"></div>`);
     PHASES.forEach((p, i) => {
       const btn = el(`<button class="${i === game.phaseIndex ? "active" : ""}">${p.label}</button>`);
-      btn.addEventListener("click", () => { game.phaseIndex = i; saveData(); rerender(); });
+      btn.addEventListener("click", () => { game.phaseIndex = i; saveData(); rerender(true); });
       nav.appendChild(btn);
     });
     app.appendChild(nav);
@@ -550,7 +558,7 @@ export function renderCompanion(ctx) {
         game.stage = "roundSetup";
       }
       saveData();
-      rerender();
+      rerender(true);
     });
     bottomBar(nextBtn);
   }
@@ -737,11 +745,13 @@ export function renderCompanion(ctx) {
     }
     app.appendChild(card);
 
-    // Battle tactics: alleen in je eigen beurt, max 1 stap per tactic per beurt
-    if (owner === "player" && game.tactics.length) {
-      app.appendChild(el(`<h3>Battle tactics</h3>`));
+    // Battle tactics: jouw 2 aan het einde van je eigen beurt, die van de
+    // tegenstander aan het einde van zijn beurt; max 1 stap per tactic per beurt.
+    const tacticsList = owner === "player" ? game.tactics : game.enemyTactics;
+    if (tacticsList.length) {
+      app.appendChild(el(`<h3>${owner === "player" ? "Jouw battle tactics" : `Battle tactics van ${esc(oppName)}`}</h3>`));
       const tc = el(`<div class="card"></div>`);
-      for (const t of game.tactics) {
+      for (const t of tacticsList) {
         t.scoredRounds = t.scoredRounds || [];
         const done = t.scoredRounds.length;
         const idxThisRound = t.scoredRounds.indexOf(r);

@@ -32,7 +32,7 @@ export function renderDatabase(ctx) {
     db = null;
     loadError = null;
     editing = null;
-    draw();
+    draw(true);
     try {
       const result = await sharedb.loadFactionDb(faction);
       db = result.db;
@@ -85,7 +85,8 @@ export function renderDatabase(ctx) {
 
   function startEdit(kind, target, list, isUniversal = false, saver = null) {
     editing = { kind, target, list, isUniversal, saver, copy: JSON.parse(JSON.stringify(target)) };
-    draw();
+    // De model-editor is een eigen scherm (naar boven); inline editors blijven op hun plek
+    draw(kind === "model");
   }
 
   function finishEdit() {
@@ -98,9 +99,16 @@ export function renderDatabase(ctx) {
     else persist();
   }
 
-  function draw() {
+  // scrollTop: alleen bij laden/faction-wissel/model-editor naar boven;
+  // bij aanvinken of inline bewerken blijft de scrollpositie staan.
+  function draw(scrollTop = false) {
+    const y = window.scrollY;
+    drawInner();
+    window.scrollTo(0, scrollTop ? 0 : y);
+  }
+
+  function drawInner() {
     app.innerHTML = "";
-    window.scrollTo(0, 0);
 
     if (editing?.kind === "model") return drawModelEdit();
 
@@ -327,7 +335,7 @@ export function renderDatabase(ctx) {
       <span class="title">Database-kaartje bewerken</span>
       <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
     </div>`);
-    header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; draw(); });
+    header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; draw(true); });
     app.appendChild(header);
 
     m.enhancementIds = m.enhancementIds || [];

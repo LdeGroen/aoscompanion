@@ -150,9 +150,8 @@ export function calcSide(game, side) {
   const endBonus = game.battleplan?.scoring?.endBonus && game.endBonusOwner === side
     ? game.battleplan.scoring.endBonus.points : 0;
   let tactics = 0;
-  if (side === "player") {
-    for (const t of game.tactics || []) tactics += (t.scoredRounds || []).length * TACTIC_STEP_POINTS;
-  }
+  const tacticsList = side === "player" ? game.tactics : game.enemyTactics;
+  for (const t of tacticsList || []) tactics += (t.scoredRounds || []).length * TACTIC_STEP_POINTS;
   return { perRound, objective, endBonus, tactics, total: objective + endBonus + tactics };
 }
 

@@ -57,12 +57,16 @@ laadt dezelfde URL.
   en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database (abilities met
   `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
-  faction/subfaction, battleplan, 3 tactics — als **snapshot** in `game`, zodat
-  db-wijzigingen lopende potjes niet raken). Vanaf ronde 2 kies je per ronde de
-  underdog (`game.underdog[round]`). Scoren gebeurt in de End of Turn-phase per
-  beurt-eigenaar (`game.scores[side][round][optKey]`); tactics alleen in eigen beurt,
-  max 1 stap per tactic per beurt (5 punten/stap, `scoredRounds`). Lopende stand in
-  `.scoreline`; puntentelling in `calcScores`.
+  faction/subfaction, battleplan, **2 eigen tactics + de 2 van de tegenstander** — als
+  **snapshot** in `game` (`tactics`/`enemyTactics`), zodat db-wijzigingen lopende potjes
+  niet raken). Vanaf ronde 2 kies je per ronde de underdog (`game.underdog[round]`).
+  Scoren gebeurt in de End of Turn-phase per beurt-eigenaar
+  (`game.scores[side][round][optKey]`); tactics van de actieve speler aan het einde van
+  diens eigen beurt, max 1 stap per tactic per beurt (5 punten/stap, `scoredRounds`).
+  Lopende stand in `.scoreline`; puntentelling in `calcScores`.
+- **Scrollgedrag**: rerender/draw in companion, setup en database behouden de
+  scrollpositie; alleen echte navigatie (phase/stage-wissel, editor openen/sluiten,
+  laden) geeft `rerender(true)`/`draw(true)` mee voor naar-boven-scrollen.
 - **Scorekaart & archief**: js/scorecard.js bouwt het game-record, het eindscherm,
   tekst-export en PNG-export (handgetekend canvas — geen dependencies). Afgeronde
   games met battleplan worden automatisch in `state.data.gameArchive` gezet
