@@ -57,7 +57,9 @@ laadt dezelfde URL.
   en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database (abilities met
   `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
-  faction/subfaction, battleplan, **2 eigen tactics + de 2 van de tegenstander** — als
+  faction/subfaction + zijn unieke models uit de database (`game.opponent.models`,
+  snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),
+  battleplan, **2 eigen tactics + de 2 van de tegenstander** — als
   **snapshot** in `game` (`tactics`/`enemyTactics`), zodat db-wijzigingen lopende potjes
   niet raken). Vanaf ronde 2 kies je per ronde de underdog (`game.underdog[round]`).
   Scoren gebeurt in de End of Turn-phase per beurt-eigenaar
