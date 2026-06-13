@@ -1,5 +1,4 @@
-import { PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, STAT_MODS, enhancementCategoryLabel, loreKind } from "./factions.js";
-import { enhancementFits, modLabel } from "./enhancements.js";
+import { PHASE_OPTIONS, SAVES, TO_HIT_WOUND, MODEL_TYPES, WARDS, STAT_MODS, loreKind } from "./factions.js";
 import { icon } from "./icons.js";
 
 // Herbruikbare editors voor models, enhancements en rules.
@@ -11,10 +10,9 @@ import { icon } from "./icons.js";
 // het database-scherm niets — daar sla je pas op bij de opslaan-knop).
 
 // ---------- Model ----------
-// enhancementPool: enhancements uit de database die aan dit model toegevoegd
-// kunnen worden (alleen in leger-context). Toevoegen embedt een kopie op
-// m.enhancements; de army houdt zelf geen enhancement-lijst meer bij.
-export function buildModelEditor({ container, m, el, esc, army = null, onChange = () => {}, enhancementPool = [] }) {
+// Puur de warscroll-velden. Enhancements worden los toegevoegd (zie de
+// enhancement-picker in setup.js), niet meer in deze editor.
+export function buildModelEditor({ container, m, el, esc, onChange = () => {} }) {
   const form = el(`<div class="card">
     <label>Naam van het model / de unit</label>
     <input type="text" id="m-name" value="${esc(m.name)}" placeholder="bijv. Liberators met Grandhammers" />
@@ -133,46 +131,6 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
     m.abilities.push({ name: "", phases: [], description: "" });
     drawAbilities();
   });
-
-  // --- Enhancements toevoegen vanuit de database (alleen in leger-context) ---
-  // Aangevinkte enhancements worden als volledig object op m.enhancements gezet.
-  if (army) {
-    m.enhancements = m.enhancements || [];
-    const enhPick = el(`<div class="card"><h2>Enhancements</h2><div data-body></div></div>`);
-    container.appendChild(enhPick);
-    const enhBody = enhPick.querySelector("[data-body]");
-    const same = (a, b) => a.name.toLowerCase() === b.name.toLowerCase() && a.category === b.category;
-    const drawEnhPicker = () => {
-      enhBody.innerHTML = "";
-      const type = form.querySelector("#m-type").value;
-      const fits = enhancementPool.filter((e) => enhancementFits(e, { type }));
-      // Al toegekende enhancements die niet (meer) bij het type passen, toch tonen
-      const stale = m.enhancements.filter((sel) => !fits.some((e) => same(e, sel)));
-      if (!fits.length && !stale.length) {
-        enhBody.appendChild(el(`<p class="empty">${type ? `Geen enhancements in de database voor het type "${esc(type)}". Artifacts of Power en Heroic Traits zijn alleen voor Heroes; Other Enhancements gelden voor het ingestelde type.` : "Kies eerst een type voor dit model."}</p>`));
-        return;
-      }
-      const render = (e, isStale) => {
-        const mods = (e.statMods || []).map(modLabel).join(", ");
-        const checked = m.enhancements.some((sel) => same(sel, e));
-        const line = el(`<div class="checkline" style="align-items:flex-start">
-          <input type="checkbox" ${checked ? "checked" : ""} />
-          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}</span>
-        </div>`);
-        line.querySelector("input").addEventListener("change", (ev) => {
-          if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));
-          else m.enhancements = m.enhancements.filter((sel) => !same(sel, e));
-          onChange();
-          drawEnhPicker();
-        });
-        enhBody.appendChild(line);
-      };
-      for (const e of fits) render(e, false);
-      for (const e of stale) render(e, true);
-    };
-    drawEnhPicker();
-    form.querySelector("#m-type").addEventListener("change", drawEnhPicker);
-  }
 
   // Leest de formuliervelden in het model; false als de naam ontbreekt.
   function commit() {

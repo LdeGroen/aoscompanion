@@ -1,6 +1,7 @@
-import { AOS_FACTIONS, groupByType, loreKind } from "./factions.js";
+import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind } from "./factions.js";
 import { buildModelEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
-import { effectiveModel, migrateModelEnhancements } from "./enhancements.js";
+import { effectiveModel, migrateModelEnhancements, enhancementFits, modLabel } from "./enhancements.js";
+import { openModal } from "./modelview.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
@@ -76,6 +77,51 @@ export function renderSetup(ctx) {
 
   const modelShareTarget = (m) =>
     m.type === "Manifestation" && m.universal ? "universal database" : `${army.faction}-database`;
+
+  // Snelle enhancement-picker (modal) voor één model — zonder de warscroll te
+  // bewerken. Toont de faction-enhancements die bij het model-type passen;
+  // aanvinken embedt een kopie op m.enhancements.
+  function showEnhancementPicker(m) {
+    m.enhancements = m.enhancements || [];
+    const same = (a, b) => a.name.toLowerCase() === b.name.toLowerCase() && a.category === b.category;
+    const wrap = el(`<div><h2>Enhancements — ${esc(m.name)}</h2>
+      <p class="subtitle">Artifacts of Power en Heroic Traits zijn voor Heroes; Other Enhancements voor het ingestelde model-type.</p>
+      <div data-body></div>
+    </div>`);
+    const body = wrap.querySelector("[data-body]");
+    const draw = () => {
+      body.innerHTML = "";
+      const pool = factionEnhancements || [];
+      const fits = pool.filter((e) => enhancementFits(e, m));
+      const stale = m.enhancements.filter((sel) => !fits.some((e) => same(e, sel)));
+      if (factionEnhancements === null) { body.appendChild(el(`<p class="empty">Enhancements laden…</p>`)); return; }
+      if (!fits.length && !stale.length) {
+        body.appendChild(el(`<p class="empty">Geen enhancements in de ${esc(army.faction)}-database voor het type "${esc(m.type || "?")}".</p>`));
+        return;
+      }
+      const render = (e, isStale) => {
+        const mods = (e.statMods || []).map(modLabel).join(", ");
+        const checked = m.enhancements.some((sel) => same(sel, e));
+        const line = el(`<div class="checkline" style="align-items:flex-start">
+          <input type="checkbox" ${checked ? "checked" : ""} />
+          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="subtitle">${esc(e.description)}</div>` : ""}</span>
+        </div>`);
+        line.querySelector("input").addEventListener("change", (ev) => {
+          if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));
+          else m.enhancements = m.enhancements.filter((sel) => !same(sel, e));
+          saveData();
+          draw();
+          rerender(); // werkt de teller in het overzicht bij (scrollpositie blijft)
+        });
+        body.appendChild(line);
+      };
+      for (const e of fits) render(e, false);
+      for (const e of stale) render(e, true);
+    };
+    draw();
+    if (factionEnhancements === null) loadFactionEnhancements().then(draw);
+    openModal(wrap, el);
+  }
 
   // Namen van universal manifestation-models, voor de spell-picker in een
   // universal manifestation lore.
@@ -169,8 +215,7 @@ export function renderSetup(ctx) {
     // --- Models ---
     const modelsCard = el(`<div class="card"><h2>Models</h2><div id="models-list"></div>
       <div class="btnrow">
-        <button class="primary" id="btn-new-model">${icon("plus")} Nieuw model</button>
-        <button id="btn-from-lib">${icon("import")} Kaartje uit de database</button>
+        <button class="primary" id="btn-from-lib">${icon("plus")} Model toevoegen uit database</button>
       </div>
     </div>`);
     app.appendChild(modelsCard);
@@ -208,6 +253,7 @@ export function renderSetup(ctx) {
           </div>
         </div>
         <div class="btnrow">
+          ${m.type !== "Manifestation" ? `<button class="small" data-act="enh">${icon("plus")} Enhancements${(m.enhancements || []).length ? ` (${m.enhancements.length})` : ""}</button>` : ""}
           <button class="small" data-act="edit">${icon("edit")} Bewerken</button>
           <button class="small" data-act="copy">${icon("copy")} Dupliceren</button>
           <button class="small" data-act="share">${icon("share")} Deel in database</button>
@@ -215,6 +261,8 @@ export function renderSetup(ctx) {
         </div>
       </div>`);
       card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(true); });
+      const enhBtn = card.querySelector('[data-act="enh"]');
+      if (enhBtn) enhBtn.addEventListener("click", () => showEnhancementPicker(m));
       card.querySelector('[data-act="share"]').addEventListener("click", () =>
         shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m)));
       card.querySelector('[data-act="copy"]').addEventListener("click", () => {
@@ -235,10 +283,6 @@ export function renderSetup(ctx) {
       itemsWrap.appendChild(card);
       }
     }
-    modelsCard.querySelector("#btn-new-model").addEventListener("click", () => {
-      editing = blankModel();
-      rerender(true);
-    });
     modelsCard.querySelector("#btn-from-lib").addEventListener("click", () => renderLibraryPicker());
 
     // --- Lores ---
@@ -356,9 +400,7 @@ export function renderSetup(ctx) {
     header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; rerender(true); });
     app.appendChild(header);
 
-    // Enhancement-pool uit de database; bij binnenkomst opnieuw renderen
-    const editor = buildModelEditor({ container: app, m, el, esc, army, onChange: saveData, enhancementPool: factionEnhancements || [] });
-    if (factionEnhancements === null) loadFactionEnhancements().then(() => { if (editing === m) rerender(); });
+    const editor = buildModelEditor({ container: app, m, el, esc, onChange: saveData });
 
     // --- Opslaan ---
     const shareLine = el(`<div class="card"><div class="checkline">

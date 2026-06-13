@@ -117,6 +117,11 @@ laadt dezelfde URL.
   `migrateModelEnhancements` omgezet: `m.enhancementIds` → `m.enhancements`, en
   `army.enhancements` verwijderd). In de database hebben enhancements geen "Naar dit
   leger"-knop meer. Categorieën artifact / heroicTrait / other (met `forType`).
+  Je voegt enhancements toe via een **snelle picker-modal** per army-model
+  (`showEnhancementPicker` in setup.js, knop "Enhancements (N)" in het overzicht) —
+  niet meer in de model-editor (die is puur warscroll-velden). Models voeg je aan een
+  leger toe **uit de database** ("Model toevoegen uit database"); nieuwe warscrolls
+  maken vanuit een leger kan niet meer (alle warscrolls staan in de database).
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
   werken de spelregels). Stat improvements (`statMods`) worden in companion mode live
   verwerkt via `effectiveModel()` en gemarkeerd met ✦; bibliotheek-kaartjes en gedeelde
