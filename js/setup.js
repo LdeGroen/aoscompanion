@@ -273,10 +273,11 @@ export function renderSetup(ctx) {
       try {
         const { db } = await sharedb.loadFactionDb(army.faction);
         const { db: uni } = await sharedb.loadUniversalDb();
+        // Manifestaties komen lore-gedreven in het leger, niet via deze picker
         models = [
           ...db.models.map((m) => ({ m, isUniversal: false })),
           ...uni.models.map((m) => ({ m, isUniversal: true })),
-        ];
+        ].filter(({ m }) => m.type !== "Manifestation");
       } catch (e) {
         body.innerHTML = "";
         body.appendChild(el(`<p class="empty" style="color:var(--red)">Database laden mislukt: ${esc(e.message)}</p>`));
@@ -514,7 +515,12 @@ export function renderSetup(ctx) {
             label: `${icon("trash")} ${def.label} verwijderen`,
             danger: true,
             onClick: () => {
-              if (confirm(`${def.label} verwijderen?`)) { army[def.armyField] = null; saveData(); draw(); }
+              if (!confirm(`${def.label} verwijderen?`)) return;
+              army[def.armyField] = null;
+              // bij een manifestation lore ook de lore-gedreven manifestaties weghalen
+              if (kindKey === "manifestation") army.models = army.models.filter((m) => !m.fromLore);
+              saveData();
+              draw();
             },
           },
         ],

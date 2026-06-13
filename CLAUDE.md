@@ -87,6 +87,14 @@ laadt dezelfde URL.
   meer gevuld of gelezen, alleen nog genormaliseerd in storage.js voor oude data.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
+- **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij
+  het importeren van een manifestation-lore (database → "Naar dit leger") worden de
+  bijbehorende warscrolls automatisch in `army.models` gezet (`fromLore: true`); een
+  andere lore kiezen of de lore verwijderen haalt ze weer weg. De koppeling komt uit de
+  lore-entries ("Summon X" → warscroll "X", tolerante naam-match). De model-pickers
+  weren type Manifestation. In de database staan manifestaties in twee aparte groepen
+  (**Faction manifestations** / **Universal manifestations**, die laatste standaard
+  ingeklapt) en zijn alleen ter inzage (geen "Naar dit leger"-knop).
 - **Manifestations** zijn pas "in het spel" na summonen: `game.summoned[modelId]` wordt
   gezet via de Manifestations-sectie in beide hero phases. Niet-gesummende manifestations
   zijn onzichtbaar in alle stats- en ability-weergaven (helper `isActive`/`activeModels`

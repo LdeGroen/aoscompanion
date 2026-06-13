@@ -1,4 +1,4 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, LORE_KINDS, groupByType, phaseLabel } from "./factions.js";
+import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, LORE_KINDS, MODEL_TYPES, groupByType, phaseLabel } from "./factions.js";
 import { modLabel } from "./enhancements.js";
 import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import * as sharedb from "./sharedb.js";
@@ -26,7 +26,7 @@ export function renderDatabase(ctx) {
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
   let editing = null; // null | { kind: "model"|"enhancement"|"rule"|"lore", target, copy, list, isUniversal }
-  const collapsedTypes = new Set(); // ingeklapte type-groepen (blijft staan tijdens redraws)
+  const collapsedTypes = new Set(["Universal manifestations"]); // ingeklapte type-groepen; universal manifestations standaard dicht
 
   async function load() {
     db = null;
@@ -273,8 +273,16 @@ export function renderDatabase(ctx) {
       list.appendChild(el(`<p class="empty">Nog geen kaartjes in de ${esc(faction)}-database. Deel een kaartje via set-up (knop "Deel in database").</p>`));
       return;
     }
-    // Gegroepeerd per type, per groep uit- en inklapbaar
-    for (const [typeLabel, groupItems] of groupByType(items, (x) => x.m.type)) {
+    // Gegroepeerd per type; manifestations gesplitst in Faction vs Universal
+    const labelOf = ({ m, isUniversal }) =>
+      m.type === "Manifestation" ? (isUniversal ? "Universal manifestations" : "Faction manifestations") : (m.type || "Zonder type");
+    const order = [];
+    for (const t of MODEL_TYPES) { if (t === "Manifestation") order.push("Faction manifestations", "Universal manifestations"); else order.push(t); }
+    order.push("Zonder type");
+    const grouped = new Map();
+    for (const it of items) { const l = labelOf(it); if (!grouped.has(l)) grouped.set(l, []); grouped.get(l).push(it); }
+    const ordered = order.filter((l) => grouped.has(l)).map((l) => [l, grouped.get(l)]);
+    for (const [typeLabel, groupItems] of ordered) {
       const group = el(`<details class="type-group" ${collapsedTypes.has(typeLabel) ? "" : "open"}>
         <summary>${esc(typeLabel)} <span class="count">(${groupItems.length})</span></summary>
         <div data-items></div>
@@ -297,10 +305,11 @@ export function renderDatabase(ctx) {
           </div>
         </div>
         <div class="btnrow">
-          ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
+          ${army && m.type !== "Manifestation" ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
           ${canEdit(m) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
           <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
         </div>
+        ${m.type === "Manifestation" ? `<div class="subtitle">Manifestaties komen automatisch in je leger via hun lore.</div>` : ""}
       </div>`);
       // Klik op het kaartje (maar niet op een knop) opent de volledige popup
       item.classList.add("clickable");
@@ -356,6 +365,28 @@ export function renderDatabase(ctx) {
     copy.enhancementIds = [];
     delete copy.addedBy;
     return copy;
+  }
+
+  // Manifestaties komen lore-gedreven in het leger: bij het kiezen van een
+  // manifestation-lore worden de bijbehorende warscrolls automatisch toegevoegd
+  // (en eerdere lore-manifestaties verwijderd). Namen uit de lore-entries
+  // ("Summon X" → "X") worden tegen de database-warscrolls gematcht.
+  const normManif = (s) => String(s || "").toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "");
+  function syncArmyManifestations(lore) {
+    army.models = (army.models || []).filter((m) => !m.fromLore);
+    if (!lore || lore.kind !== "manifestation") return;
+    const pool = [...(uni?.models || []), ...db.models].filter((m) => m.type === "Manifestation");
+    const wanted = (lore.entries || []).map((e) => e.name.replace(/^summon\s+/i, "").trim());
+    let added = 0;
+    for (const name of wanted) {
+      const src = pool.find((m) => normManif(m.name) === normManif(name));
+      if (!src) continue;
+      const mc = importCopy(src);
+      mc.fromLore = true;
+      army.models.push(mc);
+      added++;
+    }
+    return added;
   }
 
   // ---------- Enhancements ----------
@@ -462,11 +493,17 @@ export function renderDatabase(ctx) {
           const copy = JSON.parse(JSON.stringify(lore));
           delete copy.addedBy;
           delete copy.id;
-          delete copy.kind;
+          copy.kind = lore.kind; // kind bewaren voor de manifestatie-sync
           if (isUniversal) copy.universal = true;
           army[field] = copy;
+          let msg = `"${lore.name}" is nu de ${kindDef.label.toLowerCase()} van je leger.`;
+          if (lore.kind === "manifestation") {
+            const n = syncArmyManifestations(copy);
+            msg += n ? ` ${n} manifestatie${n === 1 ? "" : "s"} toegevoegd aan je leger.` : "";
+          }
+          delete copy.kind; // army-veld verwacht geen kind verder
           saveData();
-          alert(`"${lore.name}" is nu de ${kindDef.label.toLowerCase()} van je leger.`);
+          alert(msg);
         });
         const editBtn = item.querySelector('[data-act="edit"]');
         if (editBtn) editBtn.addEventListener("click", () => startEdit("lore", lore, srcList, isUniversal));
