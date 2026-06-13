@@ -11,7 +11,10 @@ import { icon } from "./icons.js";
 // het database-scherm niets — daar sla je pas op bij de opslaan-knop).
 
 // ---------- Model ----------
-export function buildModelEditor({ container, m, el, esc, army = null, onChange = () => {} }) {
+// enhancementPool: enhancements uit de database die aan dit model toegevoegd
+// kunnen worden (alleen in leger-context). Toevoegen embedt een kopie op
+// m.enhancements; de army houdt zelf geen enhancement-lijst meer bij.
+export function buildModelEditor({ container, m, el, esc, army = null, onChange = () => {}, enhancementPool = [] }) {
   const form = el(`<div class="card">
     <label>Naam van het model / de unit</label>
     <input type="text" id="m-name" value="${esc(m.name)}" placeholder="bijv. Liberators met Grandhammers" />
@@ -131,39 +134,41 @@ export function buildModelEditor({ container, m, el, esc, army = null, onChange 
     drawAbilities();
   });
 
-  // --- Enhancements toekennen (alleen in leger-context) ---
+  // --- Enhancements toevoegen vanuit de database (alleen in leger-context) ---
+  // Aangevinkte enhancements worden als volledig object op m.enhancements gezet.
   if (army) {
+    m.enhancements = m.enhancements || [];
     const enhPick = el(`<div class="card"><h2>Enhancements</h2><div data-body></div></div>`);
     container.appendChild(enhPick);
     const enhBody = enhPick.querySelector("[data-body]");
+    const same = (a, b) => a.name.toLowerCase() === b.name.toLowerCase() && a.category === b.category;
     const drawEnhPicker = () => {
       enhBody.innerHTML = "";
       const type = form.querySelector("#m-type").value;
-      if (!army.enhancements.length) {
-        enhBody.appendChild(el(`<p class="empty">Nog geen enhancements aangemaakt — dat doe je in het leger-overzicht onder "Enhancements".</p>`));
-        return;
-      }
-      const fits = army.enhancements.filter((e) => enhancementFits(e, { type }));
-      // Niet-passende maar wel aangevinkte enhancements (bijv. na type-wissel) blijven zichtbaar
-      const stale = army.enhancements.filter((e) => !fits.includes(e) && m.enhancementIds.includes(e.id));
+      const fits = enhancementPool.filter((e) => enhancementFits(e, { type }));
+      // Al toegekende enhancements die niet (meer) bij het type passen, toch tonen
+      const stale = m.enhancements.filter((sel) => !fits.some((e) => same(e, sel)));
       if (!fits.length && !stale.length) {
-        enhBody.appendChild(el(`<p class="empty">${type ? `Geen enhancements beschikbaar voor het type "${esc(type)}". Artifacts of Power en Heroic Traits zijn alleen voor Heroes.` : "Kies eerst een type voor dit model."}</p>`));
+        enhBody.appendChild(el(`<p class="empty">${type ? `Geen enhancements in de database voor het type "${esc(type)}". Artifacts of Power en Heroic Traits zijn alleen voor Heroes; Other Enhancements gelden voor het ingestelde type.` : "Kies eerst een type voor dit model."}</p>`));
         return;
       }
-      for (const e of [...fits, ...stale]) {
-        const isStale = stale.includes(e);
+      const render = (e, isStale) => {
         const mods = (e.statMods || []).map(modLabel).join(", ");
+        const checked = m.enhancements.some((sel) => same(sel, e));
         const line = el(`<div class="checkline" style="align-items:flex-start">
-          <input type="checkbox" ${m.enhancementIds.includes(e.id) ? "checked" : ""} />
+          <input type="checkbox" ${checked ? "checked" : ""} />
           <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}</span>
         </div>`);
         line.querySelector("input").addEventListener("change", (ev) => {
-          if (ev.target.checked) m.enhancementIds.push(e.id);
-          else m.enhancementIds = m.enhancementIds.filter((id) => id !== e.id);
+          if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));
+          else m.enhancements = m.enhancements.filter((sel) => !same(sel, e));
+          onChange();
           drawEnhPicker();
         });
         enhBody.appendChild(line);
-      }
+      };
+      for (const e of fits) render(e, false);
+      for (const e of stale) render(e, true);
     };
     drawEnhPicker();
     form.querySelector("#m-type").addEventListener("change", drawEnhPicker);

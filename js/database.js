@@ -347,8 +347,7 @@ export function renderDatabase(ctx) {
     header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; draw(true); });
     app.appendChild(header);
 
-    m.enhancementIds = m.enhancementIds || [];
-    const editor = buildModelEditor({ container: app, m, el, esc });
+    const editor = buildModelEditor({ container: app, m, el, esc }); // geen army → geen enhancement-sectie
     const saveBtn = el(`<button class="primary bigbtn">${icon("check")} Opslaan in de database</button>`);
     saveBtn.addEventListener("click", () => {
       if (!editor.commit()) { alert("Geef het model een naam."); return; }
@@ -362,7 +361,8 @@ export function renderDatabase(ctx) {
     copy.id = uid();
     copy.type = copy.type || "";
     copy.ward = copy.ward || "";
-    copy.enhancementIds = [];
+    copy.enhancements = [];
+    delete copy.enhancementIds;
     delete copy.addedBy;
     return copy;
   }
@@ -418,21 +418,11 @@ export function renderDatabase(ctx) {
           <div class="muted-list">${esc(enh.description)}</div>
           <div class="subtitle">${ownerLabel(enh)}</div>
           <div class="btnrow">
-            ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
             ${canEdit(enh) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
             <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
           </div>
+          ${army ? `<div class="subtitle">Enhancements voeg je toe aan een model in de set-up (model bewerken → Enhancements).</div>` : ""}
         </div>`);
-        const armyBtn = item.querySelector('[data-act="army"]');
-        if (armyBtn) armyBtn.addEventListener("click", () => {
-          const copy = JSON.parse(JSON.stringify(enh));
-          copy.id = uid();
-          delete copy.addedBy;
-          army.enhancements = (army.enhancements || []).filter((x) => x.name.toLowerCase() !== enh.name.toLowerCase() || x.category !== enh.category);
-          army.enhancements.push(copy);
-          saveData();
-          alert(`"${enh.name}" is toegevoegd aan je leger.`);
-        });
         const editBtn = item.querySelector('[data-act="edit"]');
         if (editBtn) editBtn.addEventListener("click", () => startEdit("enhancement", enh, db.enhancements));
         const delBtn = item.querySelector('[data-act="del"]');

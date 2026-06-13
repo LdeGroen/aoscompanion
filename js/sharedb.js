@@ -168,7 +168,9 @@ function cleanCopy(item, extra = {}) {
 }
 
 export async function shareModel(faction, model, user) {
-  const item = cleanCopy(model, { enhancementIds: [] });
+  // Gedeelde kaartjes dragen geen instantie-specifieke enhancements mee
+  const item = cleanCopy(model, { enhancements: [] });
+  delete item.enhancementIds;
   // Universal manifestations zijn niet faction-gebonden en gaan naar de
   // universal-blob, zodat ze bij iedere faction beschikbaar zijn.
   if (model.type === "Manifestation" && model.universal) {

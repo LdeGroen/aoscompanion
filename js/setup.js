@@ -1,6 +1,6 @@
-import { AOS_FACTIONS, ENHANCEMENT_CATEGORIES, groupByType, loreKind } from "./factions.js";
-import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
-import { effectiveModel } from "./enhancements.js";
+import { AOS_FACTIONS, groupByType, loreKind } from "./factions.js";
+import { buildModelEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
+import { effectiveModel, migrateModelEnhancements } from "./enhancements.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
@@ -12,28 +12,33 @@ export function renderSetup(ctx) {
   if (!army) return navigate("home");
 
   // Migratie voor data van vóór deze features
-  army.enhancements = army.enhancements || [];
   for (const m of army.models) {
     m.type = m.type || "";
     m.ward = m.ward || "";
-    m.enhancementIds = m.enhancementIds || [];
+  }
+  migrateModelEnhancements(army); // enhancementIds → embedded model.enhancements
+
+  // Faction-enhancements uit de database, voor de picker in de model-editor.
+  // Async geladen; bij binnenkomst opnieuw renderen.
+  let factionEnhancements = null;
+  async function loadFactionEnhancements() {
+    try {
+      const { db } = await sharedb.loadFactionDb(army.faction);
+      factionEnhancements = db.enhancements || [];
+    } catch {
+      factionEnhancements = [];
+    }
   }
 
-  // Kopieert de faction rules en alle enhancements van de gekozen faction uit
-  // de gedeelde database in dit leger (vervangt wat er stond). Daarna zijn het
-  // gewone leger-items die je lokaal kunt aanpassen.
+  // Kopieert de faction rules van de gekozen faction uit de gedeelde database
+  // in dit leger (enhancements worden niet meer leger-breed gekopieerd — die
+  // voeg je per model toe vanuit de database).
   async function applyFactionDefaults() {
+    factionEnhancements = null; // andere faction → andere enhancement-pool
     try {
       const { db } = await sharedb.loadFactionDb(army.faction);
       army.factionRules = JSON.parse(JSON.stringify(db.factionRules));
-      army.enhancements = db.enhancements.map((e) => {
-        const copy = JSON.parse(JSON.stringify(e));
-        copy.id = uid();
-        return copy;
-      });
       army.subfactionRules = [];
-      // De oude enhancement-ids bestaan niet meer
-      for (const m of army.models) m.enhancementIds = [];
     } catch (e) {
       console.warn("Faction-database niet beschikbaar, geen defaults geladen:", e.message);
     }
@@ -49,8 +54,7 @@ export function renderSetup(ctx) {
   }
 
   // Een vers leger krijgt meteen de defaults van de (standaard geselecteerde) faction
-  if (!army.dbDefaultsLoaded && !army.models.length && !army.factionRules.length
-      && !army.subfactionRules.length && !army.enhancements.length) {
+  if (!army.dbDefaultsLoaded && !army.models.length && !army.factionRules.length && !army.subfactionRules.length) {
     army.dbDefaultsLoaded = true;
     applyFactionDefaults().then(() => { saveData(); rerender(); });
   }
@@ -200,7 +204,7 @@ export function renderSetup(ctx) {
             <h3>${esc(m.name) || "(naamloos)"}</h3>
             <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}${m.ward && m.ward !== "-" ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
             ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
-            <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities${m.enhancementIds.length ? ` · ${m.enhancementIds.length} enhancement${m.enhancementIds.length === 1 ? "" : "s"}` : ""}</div>
+            <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities${(m.enhancements || []).length ? ` · ${m.enhancements.length} enhancement${m.enhancements.length === 1 ? "" : "s"}` : ""}</div>
           </div>
         </div>
         <div class="btnrow">
@@ -236,9 +240,6 @@ export function renderSetup(ctx) {
       rerender(true);
     });
     modelsCard.querySelector("#btn-from-lib").addEventListener("click", () => renderLibraryPicker());
-
-    // --- Enhancements ---
-    renderEnhancementsSection();
 
     // --- Lores ---
     renderLores();
@@ -307,7 +308,8 @@ export function renderSetup(ctx) {
           copy.id = uid();
           copy.type = copy.type || "";
           copy.ward = copy.ward || "";
-          copy.enhancementIds = [];
+          copy.enhancements = [];
+          delete copy.enhancementIds;
           delete copy.addedBy;
           army.models.push(copy);
           saveData();
@@ -333,7 +335,7 @@ export function renderSetup(ctx) {
       ward: "",
       banishment: "",
       universal: false,
-      enhancementIds: [],
+      enhancements: [],
       wizardLevel: 0,
       priestLevel: 0,
       champion: false,
@@ -354,7 +356,9 @@ export function renderSetup(ctx) {
     header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; rerender(true); });
     app.appendChild(header);
 
-    const editor = buildModelEditor({ container: app, m, el, esc, army });
+    // Enhancement-pool uit de database; bij binnenkomst opnieuw renderen
+    const editor = buildModelEditor({ container: app, m, el, esc, army, onChange: saveData, enhancementPool: factionEnhancements || [] });
+    if (factionEnhancements === null) loadFactionEnhancements().then(() => { if (editing === m) rerender(); });
 
     // --- Opslaan ---
     const shareLine = el(`<div class="card"><div class="checkline">
@@ -374,73 +378,6 @@ export function renderSetup(ctx) {
       rerender(true);
     });
     app.appendChild(saveBtn);
-  }
-
-  // ===================== Enhancements =====================
-  function blankEnhancement(category) {
-    return {
-      id: uid(),
-      name: "",
-      category,                 // artifact | heroicTrait | other
-      forType: "",              // alleen bij category "other"
-      description: "",
-      phases: [],               // leeg = puur een stat improvement
-      oncePerBattle: false,
-      statMods: [],             // [{stat, value}]
-    };
-  }
-
-  function renderEnhancementsSection() {
-    const wrap = el(`<div class="card"><h2>Enhancements</h2>
-      <p class="subtitle">Artifacts of Power en Heroic Traits kunnen alleen aan models met type "Hero" gegeven worden. Other Enhancements gelden voor één model-type naar keuze.</p>
-      <div data-cats></div>
-    </div>`);
-    app.appendChild(wrap);
-    const cats = wrap.querySelector("[data-cats]");
-
-    const singular = { artifact: "Artifact of Power", heroicTrait: "Heroic Trait", other: "Other Enhancement" };
-    for (const cat of ENHANCEMENT_CATEGORIES) {
-      const section = el(`<div class="card inner"><h3>${cat.label}</h3><div data-list></div>
-        <button class="small" data-add>${icon("plus")} ${singular[cat.key]} toevoegen</button>
-      </div>`);
-      cats.appendChild(section);
-      const list = section.querySelector("[data-list]");
-
-      const draw = () => {
-        list.innerHTML = "";
-        const items = army.enhancements.filter((e) => e.category === cat.key);
-        if (!items.length) list.appendChild(el(`<p class="empty">Nog geen ${cat.label.toLowerCase()}.</p>`));
-        for (const enh of items) {
-          list.appendChild(buildEnhancementEditor({
-            enh, el, esc,
-            onChange: saveData,
-            actions: [
-              {
-                label: `${icon("share")} Deel in database`,
-                onClick: () => shareToDb(() => sharedb.shareEnhancement(army.faction, enh, state.user), `Enhancement "${enh.name}"`),
-              },
-              {
-                label: "Verwijder enhancement",
-                danger: true,
-                onClick: () => {
-                  if (!confirm(`Enhancement "${enh.name || "(naamloos)"}" verwijderen?`)) return;
-                  army.enhancements = army.enhancements.filter((e) => e.id !== enh.id);
-                  for (const m of army.models) m.enhancementIds = (m.enhancementIds || []).filter((id) => id !== enh.id);
-                  saveData();
-                  draw();
-                },
-              },
-            ],
-          }));
-        }
-      };
-      draw();
-      section.querySelector("[data-add]").addEventListener("click", () => {
-        army.enhancements.push(blankEnhancement(cat.key));
-        saveData();
-        draw();
-      });
-    }
   }
 
   // ===================== Lores =====================

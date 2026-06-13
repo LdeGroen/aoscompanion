@@ -1,5 +1,5 @@
 import { PHASES, AOS_FACTIONS, groupByType } from "./factions.js";
-import { effectiveModel, enhancementSource } from "./enhancements.js";
+import { effectiveModel, enhancementSource, migrateModelEnhancements } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
 import * as sharedb from "./sharedb.js";
@@ -13,12 +13,11 @@ export function renderCompanion(ctx) {
   if (!army) return navigate("home");
 
   // Migratie voor data van vóór type/ward/enhancements
-  army.enhancements = army.enhancements || [];
   for (const m of army.models) {
     m.type = m.type || "";
     m.ward = m.ward || "";
-    m.enhancementIds = m.enhancementIds || [];
   }
+  migrateModelEnhancements(army); // enhancementIds → embedded model.enhancements
 
   // Effectieve stats: enhancement stat improvements verwerkt
   const eff = (m) => effectiveModel(army, m);
@@ -497,7 +496,8 @@ export function renderCompanion(ctx) {
           } else {
             const copy = JSON.parse(JSON.stringify(m));
             delete copy.addedBy;
-            copy.enhancementIds = [];
+            delete copy.enhancementIds;
+            copy.enhancements = [];
             opp.models.push(copy);
           }
           saveData();

@@ -111,8 +111,12 @@ laadt dezelfde URL.
   (`addToValue` in enhancements.js telt er netjes bij op).
 - Beschrijvingen (abilities, rules, commands) respecteren regeleinden via
   `white-space: pre-line` in de CSS — geen <br>-injectie nodig.
-- **Enhancements** staan op het leger (`army.enhancements`, categorieën artifact /
-  heroicTrait / other met `forType`); een model verwijst ernaar via `m.enhancementIds`.
+- **Enhancements** zitten als volledig object op het model zelf (`model.enhancements`),
+  toegevoegd vanuit de database in de model-editor (de pool komt uit `db.enhancements`
+  van de faction). Er is géén `army.enhancements`-lijst meer (oude data wordt door
+  `migrateModelEnhancements` omgezet: `m.enhancementIds` → `m.enhancements`, en
+  `army.enhancements` verwijderd). In de database hebben enhancements geen "Naar dit
+  leger"-knop meer. Categorieën artifact / heroicTrait / other (met `forType`).
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
   werken de spelregels). Stat improvements (`statMods`) worden in companion mode live
   verwerkt via `effectiveModel()` en gemarkeerd met ✦; bibliotheek-kaartjes en gedeelde

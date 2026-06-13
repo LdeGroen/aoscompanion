@@ -11,9 +11,23 @@ export function enhancementFits(enh, model) {
   return model.type === "Hero";
 }
 
-export function enhancementsOf(army, model) {
+// Enhancements zitten als volledig object op het model zelf (model.enhancements),
+// toegevoegd vanuit de database in de model-editor.
+export function enhancementsOf(_army, model) {
+  return model.enhancements || [];
+}
+
+// Migratie voor models van vóór deze wijziging: enhancementIds (verwijzingen
+// naar army.enhancements) → embedded model.enhancements. Eenmalig per army.
+export function migrateModelEnhancements(army) {
   const all = army.enhancements || [];
-  return (model.enhancementIds || []).map((id) => all.find((e) => e.id === id)).filter(Boolean);
+  for (const m of army.models || []) {
+    if (!m.enhancements) {
+      m.enhancements = (m.enhancementIds || []).map((id) => all.find((e) => e.id === id)).filter(Boolean).map((e) => JSON.parse(JSON.stringify(e)));
+    }
+    delete m.enhancementIds;
+  }
+  delete army.enhancements; // leger houdt geen enhancement-lijst meer bij
 }
 
 // "4+" n stappen beter → "3+" (nooit beter dan 2+); "-" blijft "-"
