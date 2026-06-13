@@ -123,6 +123,77 @@ export function renderSetup(ctx) {
     openModal(wrap, el);
   }
 
+  // Manifestaties op het model zetten op basis van de gekozen manifestation-lore
+  // (warscrolls uit faction- + universal-database, gematcht op "Summon X" → "X").
+  const normManif = (s) => String(s || "").toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "");
+  function syncArmyManifestations(lore, pool) {
+    army.models = (army.models || []).filter((m) => !m.fromLore);
+    if (!lore || lore.kind !== "manifestation") return;
+    const manifs = pool.filter((m) => m.type === "Manifestation");
+    for (const entry of lore.entries || []) {
+      const name = entry.name.replace(/^summon\s+/i, "").trim();
+      const src = manifs.find((m) => normManif(m.name) === normManif(name));
+      if (!src) continue;
+      const mc = JSON.parse(JSON.stringify(src));
+      mc.id = uid();
+      mc.enhancements = [];
+      delete mc.enhancementIds; delete mc.addedBy;
+      mc.fromLore = true;
+      army.models.push(mc);
+    }
+  }
+
+  // Lore kiezen uit de database (modal). Spell/prayer uit de faction-database,
+  // manifestation uit faction + universal. Je maakt geen nieuwe lores meer aan.
+  function showLorePicker(kindKey) {
+    const def = loreKind(kindKey);
+    const wrap = el(`<div><h2>${def.label} kiezen</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    body.appendChild(el(`<p class="empty">Lores laden…</p>`));
+    const overlay = openModal(wrap, el);
+    (async () => {
+      let candidates = [], pool = [];
+      try {
+        const { db } = await sharedb.loadFactionDb(army.faction);
+        const { db: uni } = await sharedb.loadUniversalDb();
+        pool = [...(uni.models || []), ...(db.models || [])];
+        candidates = (db.lores || []).filter((l) => l.kind === kindKey);
+        if (kindKey === "manifestation") {
+          candidates = candidates.concat((uni.lores || []).filter((l) => l.kind === "manifestation").map((l) => ({ ...l, universal: true })));
+        }
+      } catch (e) {
+        body.innerHTML = "";
+        body.appendChild(el(`<p class="empty" style="color:var(--red)">Database niet beschikbaar: ${esc(e.message)}</p>`));
+        return;
+      }
+      body.innerHTML = "";
+      if (!candidates.length) {
+        body.appendChild(el(`<p class="empty">Geen ${def.label.toLowerCase()} in de database voor ${esc(army.faction)}.</p>`));
+        return;
+      }
+      for (const l of candidates) {
+        const entryNames = (l.entries || []).map((e) => e.name).filter(Boolean).join(" · ");
+        const item = el(`<div class="card inner clickable">
+          <div class="card-header"><h3>${esc(l.name)}</h3>${l.universal ? '<span class="chip tag">Universal</span>' : ""}</div>
+          ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
+        </div>`);
+        item.addEventListener("click", () => {
+          const copy = JSON.parse(JSON.stringify(l));
+          delete copy.id; delete copy.addedBy;
+          if (kindKey === "manifestation") {
+            copy.universal = !!l.universal;
+            syncArmyManifestations(copy, pool);
+          }
+          army[def.armyField] = copy;
+          saveData();
+          overlay.remove();
+          rerender();
+        });
+        body.appendChild(item);
+      }
+    })();
+  }
+
   // Namen van universal manifestation-models, voor de spell-picker in een
   // universal manifestation lore.
   let universalManifestNames = null;
@@ -457,16 +528,9 @@ export function renderSetup(ctx) {
       body.innerHTML = "";
       const lore = army[def.armyField];
       if (!lore) {
-        const btn = el(`<button class="small">${icon("plus")} ${def.label} kiezen</button>`);
-        btn.addEventListener("click", () => {
-          army[def.armyField] = {
-            name: "",
-            entries: [1, 2, 3].map(() => ({ name: "", value: "", description: "" })),
-          };
-          saveData();
-          draw();
-        });
-        body.appendChild(el(`<p class="empty">Nog geen ${def.label.toLowerCase()} gekozen (optioneel). Je kunt er ook een importeren via de Database.</p>`));
+        const btn = el(`<button class="small">${icon("plus")} ${def.label} kiezen uit database</button>`);
+        btn.addEventListener("click", () => showLorePicker(kindKey));
+        body.appendChild(el(`<p class="empty">Nog geen ${def.label.toLowerCase()} gekozen (optioneel).</p>`));
         body.appendChild(btn);
         return;
       }

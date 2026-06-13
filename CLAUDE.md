@@ -122,6 +122,10 @@ laadt dezelfde URL.
   niet meer in de model-editor (die is puur warscroll-velden). Models voeg je aan een
   leger toe **uit de database** ("Model toevoegen uit database"); nieuwe warscrolls
   maken vanuit een leger kan niet meer (alle warscrolls staan in de database).
+- **Lores** kies je ook uit de database (`showLorePicker` in setup.js): spell/prayer uit
+  de faction-blob, manifestation uit faction + universal. Zelf een blanco lore maken in
+  een leger kan niet meer. Een manifestation-lore kiezen synct meteen de warscrolls
+  (`syncArmyManifestations`, `fromLore`).
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
   werken de spelregels). Stat improvements (`statMods`) worden in companion mode live
   verwerkt via `effectiveModel()` en gemarkeerd met ✦; bibliotheek-kaartjes en gedeelde
