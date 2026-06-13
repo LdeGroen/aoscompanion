@@ -2,7 +2,7 @@
 export const AOS_FACTIONS = {
   // --- ORDER ---
   "Stormcast Eternals": ["Lightning Echelon", "Sacrosanct Convocation", "Thunderhead Host", "Sentinels of the Bleak Citadels", "Vanguard Wing", "Draconith Skywing", "Heroes of the First-Forged", "Ruiniation Brotherhood"],
-  "Cities of Sigmar": ["Dawnbringer Crusade", "Fortress-city Defenders", "Ironweld Guild Army", "Collegiate Arcane Expedition", "Veteran Cannoneers", "Fearless Exemplars"],
+  "Cities of Sigmar": ["Stalwart Guardians", "Collegiate Exemplars", "Zealous Hordes", "Swift Reinforcements", "Veteran Cannoneers", "Fearless Exemplars", "Thrall Warhost", "Grudgebound War Throng"],
   "Seraphon": ["Eternal Starhost", "Sunclaw Starhost", "Shadowstrike Starhost", "Thunderquake Starhost"],
   "Sylvaneth": ["Followers of Kurnoth", "Outcasts", "Lords of the Clan", "Glade Defenders", "Wargrove of the Burgeoning", "Wargrove of Everdusk"],
   "Lumineth Realm-lords": ["Warhost of Duality", "Pilgrims of Haixiah", "Aelementor Guardians", "Scinari Council"],
