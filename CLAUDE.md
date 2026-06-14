@@ -86,15 +86,32 @@ laadt dezelfde URL.
   universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet
   meer gevuld of gelezen, alleen nog genormaliseerd in storage.js voor oude data.
 - **List-building (set-up)**: de set-up is een echte list-builder (2000 pt). Warscrolls in
-  de DB dragen `points`, `reinforceable`, `unique`, `keywords` (uit BSData; per-hero
-  regiment-opties zitten NIET in BSData en worden dus niet afgedwongen). Een leger bestaat
-  uit **regiments**: `army.regiments = [{id}]`, en elk model in `army.models` heeft
-  `regimentId` (""=auxiliary/terrain/manifestation), `isLeader`, `isGeneral`, `reinforced`.
-  Effectieve punten = `points × (reinforced?2:1)`; manifestaties en faction terrain gratis.
-  Pragmatische validatie (≤2000, 1 general, unique 0-1, max 1 monster/beast per regiment)
-  als waarschuwingen. Companion leest gewoon de platte `army.models` — regiments zijn puur
-  metadata. Toevoegen via de database-picker (`pickModel` in setup.js); manifestaties
-  blijven lore-gedreven.
+  de DB dragen `points`, `reinforceable`, `unique`, `keywords` en `regimentOptions`
+  (geïmporteerd uit BSData — zie hieronder). Een leger bestaat uit **regiments**:
+  `army.regiments = [{id}]` (of `{id, ror:{name,points}}` voor een Regiment of Renown), en
+  elk model in `army.models` heeft `regimentId` (""=auxiliary/terrain/manifestation),
+  `isLeader`, `isGeneral`, `reinforced` en `inRoR`. Effectieve punten = `points ×
+  (reinforced?2:1)`; manifestaties en faction terrain gratis; een RoR telt zijn vaste
+  `ror.points` (de RoR-units zelf hebben `inRoR:true` → 0 pt). Pragmatische validatie
+  (≤2000, 1 general, unique 0-1) als waarschuwingen. Companion leest gewoon de platte
+  `army.models` — regiments zijn puur metadata. Toevoegen via de database-picker
+  (`pickModel` in setup.js); manifestaties blijven lore-gedreven.
+- **Regiment-opties** (welke units een hero in zijn regiment mag): geïmporteerd uit BSData
+  (Battle-Profiles-sectie van de faction-`.cat`: `modifier add/category/force` → `affects`-id
+  → keyword óf specifieke named unit). Per warscroll opgeslagen als `regimentOptions:
+  [{names:[...], max}]`. De unit-picker in een regiment filtert hierop
+  (`canTakeInRegiment`, geport van Sigdex' `matchesRegimentOption`): keyword-opties gelden
+  voor niet-heroes, heroes alleen via een specifieke named-optie (max 1). Geen opties bekend
+  → alles toestaan (pragmatisch). Een checkbox "Toon alle units (negeer regiment-opties)"
+  in de picker laat de filter los. De import is geport van AjSchaff/Sigdex; scripts in
+  `ko-import/` (`parse-regiments.mjs`, `driver-regiments.mjs`, `batch-merge-regiments.mjs`).
+- **Regiments of Renown**: vaste warbands uit BSData (`Regiments of Renown.cat` voor units +
+  abilities, `Age of Sigmar 4.0.gst` voor punten + toegestane facties — gekoppeld via de
+  forceEntry-id). Opgeslagen in de gedeelde blob **`regimentsofrenown`**
+  (`{list:[{name, points, allowedArmies, units:[{name,count,model}]}]}`); de `model` is een
+  volledige warscroll-kopie, opgelost uit de faction-DB's, zodat companion ze gewoon kan
+  tonen. In de set-up kies je een RoR (gefilterd op faction); de units komen als een vast,
+  niet-bewerkbaar regiment in het leger.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij

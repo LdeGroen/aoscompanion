@@ -23,13 +23,35 @@ export function renderSetup(ctx) {
   const POINTS_LIMIT = 2000;
   const FREE_TYPES = new Set(["Manifestation", "Faction terrain"]);
   const isHero = (m) => m.type === "Hero" || m.type === "Named hero";
-  const pointsOf = (m) => FREE_TYPES.has(m.type) ? 0 : (parseInt(m.points) || 0) * (m.reinforced ? 2 : 1);
-  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0);
+  // RoR-units tellen niet los mee (de RoR heeft een vaste prijs op het regiment).
+  const pointsOf = (m) => (FREE_TYPES.has(m.type) || m.inRoR) ? 0 : (parseInt(m.points) || 0) * (m.reinforced ? 2 : 1);
+  const rorPoints = () => army.regiments.reduce((s, r) => s + (r.ror ? (parseInt(r.ror.points) || 0) : 0), 0);
+  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints();
+
+  // Mag een unit in het regiment van deze leider? Geport van Sigdex' matchesRegimentOption:
+  // keyword-opties gelden voor niet-heroes; heroes mogen alleen via een specifieke named-optie.
+  // Geen opties bekend (oude data / ontbreekt) → alles toestaan (pragmatisch).
+  function canTakeInRegiment(leader, unit) {
+    const opts = leader && leader.regimentOptions;
+    if (!opts || !opts.length) return true;
+    const nm = (unit.name || "").toLowerCase();
+    const kw = (unit.keywords || []).map((k) => k.toLowerCase());
+    for (const opt of opts) {
+      for (const o of opt.names || []) {
+        const lo = o.toLowerCase();
+        if (nm === lo) return true; // specifieke named unit/hero
+        if (isHero(unit)) continue; // heroes alleen via named-optie
+        if (lo.includes(" ")) { if (lo.split(/\s+/).every((p) => kw.includes(p))) return true; }
+        else if (kw.includes(lo)) return true;
+      }
+    }
+    return false;
+  }
 
   function copyForArmy(m) {
     const c = JSON.parse(JSON.stringify(m));
     c.id = uid(); c.type = c.type || ""; c.ward = c.ward || "";
-    c.enhancements = []; c.reinforced = false; c.regimentId = "";
+    c.enhancements = []; c.reinforced = false; c.regimentId = ""; c.inRoR = false;
     delete c.enhancementIds; delete c.addedBy; delete c.isLeader; delete c.isGeneral; delete c.fromLore;
     return c;
   }
@@ -52,9 +74,11 @@ export function renderSetup(ctx) {
     if (heroes.length) heroes[0].isGeneral = true;
   }
 
-  // Modal-picker: kies een warscroll uit de gedeelde database (gefilterd)
-  async function pickModel({ title, filter, onPick }) {
-    const wrap = el(`<div><h2>${esc(title)}</h2><div data-body></div></div>`);
+  // Modal-picker: kies een warscroll uit de gedeelde database (gefilterd).
+  // `restrict` (optioneel) = strengere filter (regiment-opties); een checkbox
+  // laat de speler die negeren en alles tonen.
+  async function pickModel({ title, filter, onPick, restrict = null }) {
+    const wrap = el(`<div><h2>${esc(title)}</h2>${restrict ? `<label class="subtitle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" data-all> Toon alle units (negeer regiment-opties)</label>` : ""}<div data-body></div></div>`);
     const body = wrap.querySelector("[data-body]");
     body.appendChild(el(`<p class="empty">Database laden…</p>`));
     const overlay = openModal(wrap, el);
@@ -67,22 +91,27 @@ export function renderSetup(ctx) {
       body.innerHTML = ""; body.appendChild(el(`<p class="empty" style="color:var(--red)">Database niet beschikbaar: ${esc(e.message)}</p>`));
       return;
     }
-    const filtered = models.filter(filter);
-    body.innerHTML = "";
-    if (!filtered.length) { body.appendChild(el(`<p class="empty">Niets beschikbaar in de ${esc(army.faction)}-database.</p>`)); return; }
-    for (const [typeLabel, group] of groupByType(filtered)) {
-      const det = el(`<details class="type-group" open><summary>${esc(typeLabel)} <span class="count">(${group.length})</span></summary><div data-items></div></details>`);
-      const items = det.querySelector("[data-items]");
-      for (const m of group) {
-        const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-          <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}</span>
-          <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
-        </div>`);
-        row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
-        items.appendChild(row);
+    const draw = (showAll) => {
+      const filtered = models.filter((m) => filter(m) && (showAll || !restrict || restrict(m)));
+      body.innerHTML = "";
+      if (!filtered.length) { body.appendChild(el(`<p class="empty">${restrict && !showAll ? "Geen units die in dit regiment passen — vink hierboven aan om alles te tonen." : `Niets beschikbaar in de ${esc(army.faction)}-database.`}</p>`)); return; }
+      for (const [typeLabel, group] of groupByType(filtered)) {
+        const det = el(`<details class="type-group" open><summary>${esc(typeLabel)} <span class="count">(${group.length})</span></summary><div data-items></div></details>`);
+        const items = det.querySelector("[data-items]");
+        for (const m of group) {
+          const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}</span>
+            <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
+          </div>`);
+          row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
+          items.appendChild(row);
+        }
+        body.appendChild(det);
       }
-      body.appendChild(det);
-    }
+    };
+    const cb = wrap.querySelector("[data-all]");
+    if (cb) cb.addEventListener("change", () => draw(cb.checked));
+    draw(false);
   }
 
   // Pragmatische validatie-waarschuwingen
@@ -93,13 +122,6 @@ export function renderSetup(ctx) {
     const uniq = {};
     for (const m of army.models) if (m.unique) uniq[m.name] = (uniq[m.name] || 0) + 1;
     for (const [n, c] of Object.entries(uniq)) if (c > 1) w.push(`Unique unit meer dan 1× in het leger: ${n}.`);
-    for (const reg of army.regiments) {
-      const inReg = army.models.filter((m) => m.regimentId === reg.id);
-      const leader = inReg.find((m) => m.isLeader);
-      const kw = (m, k) => (m.keywords || []).includes(k);
-      if (inReg.filter((m) => kw(m, "MONSTER") || m.type === "Monster").length > 1) w.push(`Regiment ${leader ? leader.name : ""}: meer dan 1 Monster.`);
-      if (inReg.filter((m) => kw(m, "BEAST") || m.type === "Beast").length > 1) w.push(`Regiment ${leader ? leader.name : ""}: meer dan 1 Beast.`);
-    }
     return w;
   }
 
@@ -133,6 +155,7 @@ export function renderSetup(ctx) {
   }
 
   function renderRegiment(reg) {
+    if (reg.ror) return renderRoR(reg);
     const inReg = army.models.filter((m) => m.regimentId === reg.id);
     const leader = inReg.find((m) => m.isLeader);
     const units = inReg.filter((m) => !m.isLeader);
@@ -148,9 +171,33 @@ export function renderSetup(ctx) {
     for (const u of units) uwrap.appendChild(modelRow(u, {}));
     card.querySelector("[data-add]").addEventListener("click", () => pickModel({
       title: "Unit toevoegen aan regiment",
-      filter: (m) => !isHero(m) && m.type !== "Faction terrain" && m.type !== "Manifestation",
-      onPick: (u) => { u.regimentId = reg.id; army.models.push(u); },
+      // heroes mogen ook (regimental heroes), maar alleen als de leider ze toestaat
+      filter: (m) => m.type !== "Faction terrain" && m.type !== "Manifestation" && !(m.isLeader),
+      restrict: (m) => canTakeInRegiment(leader, m),
+      onPick: (u) => { u.regimentId = reg.id; u.isLeader = false; army.models.push(u); },
     }));
+    app.appendChild(card);
+  }
+
+  // Regiment of Renown: vaste warband (eigen prijs, units niet bewerkbaar).
+  function renderRoR(reg) {
+    const inReg = army.models.filter((m) => m.regimentId === reg.id);
+    const card = el(`<div class="card">
+      <div class="card-header"><h3>${icon("star")} ${esc(reg.ror.name)} <span class="chip tag">RoR</span></h3><span class="subtitle">${parseInt(reg.ror.points) || 0} pts</span></div>
+      <div data-units></div>
+      <div class="btnrow"><button class="small danger" data-del>${icon("trash")} Regiment of Renown verwijderen</button></div>
+    </div>`);
+    const uwrap = card.querySelector("[data-units]");
+    for (const u of inReg) {
+      const row = el(`<div class="card inner clickable" style="margin:6px 0"><div class="card-header"><div><strong>${esc(u.name)}</strong><div class="subtitle">vast onderdeel van de RoR</div></div></div></div>`);
+      row.addEventListener("click", () => openModal(buildModelPopupContent(u, { el, esc, army }), el));
+      uwrap.appendChild(row);
+    }
+    card.querySelector("[data-del]").addEventListener("click", () => {
+      army.models = army.models.filter((m) => m.regimentId !== reg.id);
+      army.regiments = army.regiments.filter((r) => r.id !== reg.id);
+      saveData(); rerender();
+    });
     app.appendChild(card);
   }
 
@@ -198,6 +245,33 @@ export function renderSetup(ctx) {
     }));
     app.appendChild(terCard);
 
+    // Regiments of Renown (vaste warbands; toevoegen)
+    if (rorList === null) loadRoR().then(() => rerender());
+    const rorCard = el(`<div class="card"><h2>${icon("star")} Regiments of Renown</h2><div class="btnrow"></div></div>`);
+    const rorBtnRow = rorCard.querySelector(".btnrow");
+    if (rorList === null) {
+      rorBtnRow.appendChild(el(`<p class="empty">Laden…</p>`));
+    } else {
+      const avail = rorForFaction();
+      if (!avail.length) {
+        rorBtnRow.appendChild(el(`<p class="empty">Geen Regiments of Renown voor ${esc(army.faction)}.</p>`));
+      } else {
+        const addBtn = el(`<button class="small" data-add>${icon("plus")} Regiment of Renown toevoegen</button>`);
+        addBtn.addEventListener("click", () => {
+          const wrap = el(`<div><h2>Regiment of Renown kiezen</h2><div data-body></div></div>`);
+          const body = wrap.querySelector("[data-body]");
+          const overlay = openModal(wrap, el);
+          for (const r of avail) {
+            const row = el(`<div class="card inner clickable" style="margin:6px 0"><div class="card-header"><div><strong>${esc(r.name)}</strong><div class="subtitle">${(r.units || []).map((u) => `${u.count > 1 ? u.count + "× " : ""}${esc(u.name)}`).join(", ")}</div></div><span class="subtitle">${parseInt(r.points) || 0} pts</span></div></div>`);
+            row.addEventListener("click", () => { overlay.remove(); addRoR(r); });
+            body.appendChild(row);
+          }
+        });
+        rorBtnRow.appendChild(addBtn);
+      }
+    }
+    app.appendChild(rorCard);
+
     // Manifestations (lore-gedreven, ter inzage)
     const manifs = army.models.filter((m) => m.type === "Manifestation");
     if (manifs.length) {
@@ -217,6 +291,33 @@ export function renderSetup(ctx) {
     } catch {
       factionEnhancements = [];
     }
+  }
+
+  // Regiments of Renown uit de gedeelde database (key "regimentsofrenown").
+  // Async geladen; null = nog niet geladen.
+  let rorList = null;
+  async function loadRoR() {
+    try {
+      const { db } = await sharedb.loadSharedBlob("regimentsofrenown", (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] });
+      rorList = db.list;
+    } catch {
+      rorList = [];
+    }
+  }
+  // RoR die deze faction mag nemen
+  const rorForFaction = () => (rorList || []).filter((r) => (r.allowedArmies || []).some((a) => a.toLowerCase() === (army.faction || "").toLowerCase()));
+  function addRoR(r) {
+    const rid = uid();
+    army.regiments.push({ id: rid, ror: { name: r.name, points: r.points } });
+    for (const u of r.units || []) {
+      const n = parseInt(u.count) || 1;
+      for (let i = 0; i < n; i++) {
+        const m = copyForArmy(u.model || { name: u.name, type: "" });
+        m.regimentId = rid; m.isLeader = false; m.inRoR = true; m.reinforced = false;
+        army.models.push(m);
+      }
+    }
+    saveData(); rerender();
   }
 
   // Kopieert de faction rules van de gekozen faction uit de gedeelde database
