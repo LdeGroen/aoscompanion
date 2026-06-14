@@ -1,7 +1,7 @@
 import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind } from "./factions.js";
 import { buildModelEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
 import { effectiveModel, migrateModelEnhancements, enhancementFits, modLabel } from "./enhancements.js";
-import { openModal } from "./modelview.js";
+import { openModal, buildModelPopupContent } from "./modelview.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
@@ -18,6 +18,194 @@ export function renderSetup(ctx) {
     m.ward = m.ward || "";
   }
   migrateModelEnhancements(army); // enhancementIds → embedded model.enhancements
+
+  // ===================== List-building (regiments + punten) =====================
+  const POINTS_LIMIT = 2000;
+  const FREE_TYPES = new Set(["Manifestation", "Faction terrain"]);
+  const isHero = (m) => m.type === "Hero" || m.type === "Named hero";
+  const pointsOf = (m) => FREE_TYPES.has(m.type) ? 0 : (parseInt(m.points) || 0) * (m.reinforced ? 2 : 1);
+  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0);
+
+  function copyForArmy(m) {
+    const c = JSON.parse(JSON.stringify(m));
+    c.id = uid(); c.type = c.type || ""; c.ward = c.ward || "";
+    c.enhancements = []; c.reinforced = false; c.regimentId = "";
+    delete c.enhancementIds; delete c.addedBy; delete c.isLeader; delete c.isGeneral; delete c.fromLore;
+    return c;
+  }
+
+  // Migratie van bestaande legers naar de regiment-structuur (eenmalig)
+  army.regiments = army.regiments || [];
+  for (const m of army.models) {
+    m.reinforced = m.reinforced || false;
+    if (m.regimentId === undefined) m.regimentId = "";
+  }
+  if (army.models.length && !army.regiments.length) {
+    const heroes = army.models.filter(isHero);
+    const looseUnits = army.models.filter((m) => !isHero(m) && !FREE_TYPES.has(m.type));
+    heroes.forEach((h, i) => {
+      const rid = uid();
+      army.regiments.push({ id: rid });
+      h.isLeader = true; h.regimentId = rid;
+      if (i === 0) for (const u of looseUnits) u.regimentId = rid;
+    });
+    if (heroes.length) heroes[0].isGeneral = true;
+  }
+
+  // Modal-picker: kies een warscroll uit de gedeelde database (gefilterd)
+  async function pickModel({ title, filter, onPick }) {
+    const wrap = el(`<div><h2>${esc(title)}</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    body.appendChild(el(`<p class="empty">Database laden…</p>`));
+    const overlay = openModal(wrap, el);
+    let models = [];
+    try {
+      const { db } = await sharedb.loadFactionDb(army.faction);
+      const { db: uni } = await sharedb.loadUniversalDb();
+      models = [...(db.models || []), ...(uni.models || [])];
+    } catch (e) {
+      body.innerHTML = ""; body.appendChild(el(`<p class="empty" style="color:var(--red)">Database niet beschikbaar: ${esc(e.message)}</p>`));
+      return;
+    }
+    const filtered = models.filter(filter);
+    body.innerHTML = "";
+    if (!filtered.length) { body.appendChild(el(`<p class="empty">Niets beschikbaar in de ${esc(army.faction)}-database.</p>`)); return; }
+    for (const [typeLabel, group] of groupByType(filtered)) {
+      const det = el(`<details class="type-group" open><summary>${esc(typeLabel)} <span class="count">(${group.length})</span></summary><div data-items></div></details>`);
+      const items = det.querySelector("[data-items]");
+      for (const m of group) {
+        const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+          <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}</span>
+          <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
+        </div>`);
+        row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
+        items.appendChild(row);
+      }
+      body.appendChild(det);
+    }
+  }
+
+  // Pragmatische validatie-waarschuwingen
+  function rosterWarnings() {
+    const w = [];
+    if (totalPoints() > POINTS_LIMIT) w.push(`Boven de ${POINTS_LIMIT} punten.`);
+    if (army.models.some(isHero) && !army.models.some((m) => m.isGeneral)) w.push("Nog geen General gekozen.");
+    const uniq = {};
+    for (const m of army.models) if (m.unique) uniq[m.name] = (uniq[m.name] || 0) + 1;
+    for (const [n, c] of Object.entries(uniq)) if (c > 1) w.push(`Unique unit meer dan 1× in het leger: ${n}.`);
+    for (const reg of army.regiments) {
+      const inReg = army.models.filter((m) => m.regimentId === reg.id);
+      const leader = inReg.find((m) => m.isLeader);
+      const kw = (m, k) => (m.keywords || []).includes(k);
+      if (inReg.filter((m) => kw(m, "MONSTER") || m.type === "Monster").length > 1) w.push(`Regiment ${leader ? leader.name : ""}: meer dan 1 Monster.`);
+      if (inReg.filter((m) => kw(m, "BEAST") || m.type === "Beast").length > 1) w.push(`Regiment ${leader ? leader.name : ""}: meer dan 1 Beast.`);
+    }
+    return w;
+  }
+
+  // Compacte rij voor één model in de roster
+  function modelRow(m, { leader = false } = {}) {
+    const isManif = m.type === "Manifestation", isTerrain = m.type === "Faction terrain";
+    const card = el(`<div class="card inner clickable" style="margin:6px 0">
+      <div class="card-header"><div>
+        <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}
+        <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}</div>
+      </div></div>
+      <div class="btnrow" data-actions></div>
+    </div>`);
+    card.addEventListener("click", (e) => { if (e.target.closest("button")) return; openModal(buildModelPopupContent(m, { el, esc, army }), el); });
+    const act = card.querySelector("[data-actions]");
+    const addBtn = (label, cls, fn) => { const b = el(`<button class="small ${cls || ""}">${label}</button>`); b.addEventListener("click", fn); act.appendChild(b); };
+    if (m.reinforceable) addBtn(`${icon(m.reinforced ? "check" : "plus")} Reinforced`, m.reinforced ? "primary" : "", () => { m.reinforced = !m.reinforced; saveData(); rerender(); });
+    if (!isManif && !isTerrain) addBtn(`${icon("plus")} Enhancements${(m.enhancements || []).length ? ` (${m.enhancements.length})` : ""}`, "", () => showEnhancementPicker(m));
+    if (leader) addBtn(`★ ${m.isGeneral ? "General" : "Maak general"}`, m.isGeneral ? "primary" : "", () => { army.models.forEach((x) => { x.isGeneral = false; }); m.isGeneral = true; saveData(); rerender(); });
+    addBtn(icon("trash"), "danger", () => {
+      if (leader) {
+        if (!confirm("Leider verwijderen? Het hele regiment (met units) wordt verwijderd.")) return;
+        army.models = army.models.filter((x) => x.regimentId !== m.regimentId);
+        army.regiments = army.regiments.filter((r) => r.id !== m.regimentId);
+      } else {
+        army.models = army.models.filter((x) => x.id !== m.id);
+      }
+      saveData(); rerender();
+    });
+    return card;
+  }
+
+  function renderRegiment(reg) {
+    const inReg = army.models.filter((m) => m.regimentId === reg.id);
+    const leader = inReg.find((m) => m.isLeader);
+    const units = inReg.filter((m) => !m.isLeader);
+    const regPts = inReg.reduce((s, m) => s + pointsOf(m), 0);
+    const card = el(`<div class="card">
+      <div class="card-header"><h3>${icon("shield")} ${leader ? esc(leader.name) : "Regiment"}</h3><span class="subtitle">${regPts} pts</span></div>
+      <div data-leader></div><div data-units></div>
+      <div class="btnrow"><button class="small" data-add>${icon("plus")} Unit toevoegen</button></div>
+    </div>`);
+    if (leader) card.querySelector("[data-leader]").appendChild(modelRow(leader, { leader: true }));
+    const uwrap = card.querySelector("[data-units]");
+    if (!units.length) uwrap.appendChild(el(`<p class="empty">Nog geen units in dit regiment.</p>`));
+    for (const u of units) uwrap.appendChild(modelRow(u, {}));
+    card.querySelector("[data-add]").addEventListener("click", () => pickModel({
+      title: "Unit toevoegen aan regiment",
+      filter: (m) => !isHero(m) && m.type !== "Faction terrain" && m.type !== "Manifestation",
+      onPick: (u) => { u.regimentId = reg.id; army.models.push(u); },
+    }));
+    app.appendChild(card);
+  }
+
+  function renderRoster() {
+    const total = totalPoints(), over = total > POINTS_LIMIT;
+    const warns = rosterWarnings();
+    app.appendChild(el(`<div class="card">
+      <div class="scoreline"><span>Punten</span> <strong style="color:${over ? "var(--red)" : "var(--gold)"}">${total}</strong> <span class="subtitle">/ ${POINTS_LIMIT}</span></div>
+      ${warns.length ? `<div class="muted-list" style="color:var(--red)">⚠ ${warns.map(esc).join("<br>⚠ ")}</div>` : ""}
+    </div>`));
+
+    app.appendChild(el(`<h2>Regiments</h2>`));
+    for (const reg of army.regiments) renderRegiment(reg);
+    const addRegCard = el(`<div class="card"><button class="primary" data-add>${icon("plus")} Regiment toevoegen (kies een hero als leider)</button></div>`);
+    addRegCard.querySelector("[data-add]").addEventListener("click", () => pickModel({
+      title: "Kies een hero als regiment-leider",
+      filter: (m) => isHero(m),
+      onPick: (h) => { const rid = uid(); army.regiments.push({ id: rid }); h.isLeader = true; h.regimentId = rid; if (!army.models.some((x) => x.isGeneral)) h.isGeneral = true; army.models.push(h); },
+    }));
+    app.appendChild(addRegCard);
+
+    // Auxiliary units (niet in een regiment)
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type));
+    const auxCard = el(`<div class="card"><h2>Auxiliary units</h2><div data-list></div><div class="btnrow"><button class="small" data-add>${icon("plus")} Auxiliary unit toevoegen</button></div></div>`);
+    const auxList = auxCard.querySelector("[data-list]");
+    if (!aux.length) auxList.appendChild(el(`<p class="empty">Geen auxiliary units.</p>`));
+    for (const u of aux) auxList.appendChild(modelRow(u, {}));
+    auxCard.querySelector("[data-add]").addEventListener("click", () => pickModel({
+      title: "Auxiliary unit toevoegen",
+      filter: (m) => m.type !== "Faction terrain" && m.type !== "Manifestation",
+      onPick: (u) => { u.regimentId = ""; army.models.push(u); },
+    }));
+    app.appendChild(auxCard);
+
+    // Faction terrain (gratis, 1)
+    const terrain = army.models.filter((m) => m.type === "Faction terrain");
+    const terCard = el(`<div class="card"><h2>Faction terrain</h2><div data-list></div><div class="btnrow"><button class="small" data-add>${icon("plus")} Faction terrain toevoegen</button></div></div>`);
+    const terList = terCard.querySelector("[data-list]");
+    if (!terrain.length) terList.appendChild(el(`<p class="empty">Geen faction terrain (gratis, max 1).</p>`));
+    for (const t of terrain) terList.appendChild(modelRow(t, {}));
+    terCard.querySelector("[data-add]").addEventListener("click", () => pickModel({
+      title: "Faction terrain toevoegen",
+      filter: (m) => m.type === "Faction terrain",
+      onPick: (t) => { t.regimentId = ""; army.models.push(t); },
+    }));
+    app.appendChild(terCard);
+
+    // Manifestations (lore-gedreven, ter inzage)
+    const manifs = army.models.filter((m) => m.type === "Manifestation");
+    if (manifs.length) {
+      const mc = el(`<div class="card"><h2>Manifestations</h2><p class="subtitle">Komen automatisch via je manifestation lore.</p><div data-list></div></div>`);
+      for (const m of manifs) mc.querySelector("[data-list]").appendChild(modelRow(m, {}));
+      app.appendChild(mc);
+    }
+  }
 
   // Faction-enhancements uit de database, voor de picker in de model-editor.
   // Async geladen; bij binnenkomst opnieuw renderen.
@@ -283,78 +471,8 @@ export function renderSetup(ctx) {
       rerender();
     });
 
-    // --- Models ---
-    const modelsCard = el(`<div class="card"><h2>Models</h2><div id="models-list"></div>
-      <div class="btnrow">
-        <button class="primary" id="btn-from-lib">${icon("plus")} Model toevoegen uit database</button>
-      </div>
-    </div>`);
-    app.appendChild(modelsCard);
-    const list = modelsCard.querySelector("#models-list");
-    if (!army.models.length) list.appendChild(el(`<p class="empty">Nog geen models toegevoegd.</p>`));
-    // Gegroepeerd per type, per groep uit- en inklapbaar
-    for (const [typeLabel, models] of groupByType(army.models)) {
-      const group = el(`<details class="type-group" ${collapsedTypes.has(typeLabel) ? "" : "open"}>
-        <summary>${esc(typeLabel)} <span class="count">(${models.length})</span></summary>
-        <div data-items></div>
-      </details>`);
-      group.addEventListener("toggle", () => {
-        if (group.open) collapsedTypes.delete(typeLabel);
-        else collapsedTypes.add(typeLabel);
-      });
-      const itemsWrap = group.querySelector("[data-items]");
-      list.appendChild(group);
-      for (const m of models) {
-      const tags = [];
-      if (m.type) tags.push(m.type);
-      if (m.type === "Manifestation" && m.universal) tags.push("Universal");
-      if (m.fly) tags.push("Fly");
-      if (m.wizardLevel > 0) tags.push(`Wizard (${m.wizardLevel})`);
-      if (m.priestLevel > 0) tags.push(`Priest (${m.priestLevel})`);
-      if (m.champion) tags.push("Champion");
-      if (m.musician) tags.push("Musician");
-      if (m.standardBearer) tags.push("Standard Bearer");
-      const card = el(`<div class="card inner">
-        <div class="card-header">
-          <div>
-            <h3>${esc(m.name) || "(naamloos)"}</h3>
-            <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)}${m.controlBonus ? "+" + esc(m.controlBonus) : ""} · Save ${esc(m.save)}${m.ward && m.ward !== "-" ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
-            ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
-            <div class="muted-list">${m.rangedAttacks.length} ranged · ${m.meleeAttacks.length} melee · ${m.abilities.length} abilities${(m.enhancements || []).length ? ` · ${m.enhancements.length} enhancement${m.enhancements.length === 1 ? "" : "s"}` : ""}</div>
-          </div>
-        </div>
-        <div class="btnrow">
-          ${m.type !== "Manifestation" ? `<button class="small" data-act="enh">${icon("plus")} Enhancements${(m.enhancements || []).length ? ` (${m.enhancements.length})` : ""}</button>` : ""}
-          <button class="small" data-act="edit">${icon("edit")} Bewerken</button>
-          <button class="small" data-act="copy">${icon("copy")} Dupliceren</button>
-          <button class="small" data-act="share">${icon("share")} Deel in database</button>
-          <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>
-        </div>
-      </div>`);
-      card.querySelector('[data-act="edit"]').addEventListener("click", () => { editing = m; rerender(true); });
-      const enhBtn = card.querySelector('[data-act="enh"]');
-      if (enhBtn) enhBtn.addEventListener("click", () => showEnhancementPicker(m));
-      card.querySelector('[data-act="share"]').addEventListener("click", () =>
-        shareToDb(() => sharedb.shareModel(army.faction, m, state.user), `Kaartje "${m.name}"`, modelShareTarget(m)));
-      card.querySelector('[data-act="copy"]').addEventListener("click", () => {
-        const copy = JSON.parse(JSON.stringify(m));
-        copy.id = uid();
-        copy.name = m.name + " (kopie)";
-        army.models.push(copy);
-        saveData();
-        rerender();
-      });
-      card.querySelector('[data-act="del"]').addEventListener("click", () => {
-        if (confirm(`Model "${m.name}" verwijderen uit dit leger?`)) {
-          army.models = army.models.filter((x) => x.id !== m.id);
-          saveData();
-          rerender();
-        }
-      });
-      itemsWrap.appendChild(card);
-      }
-    }
-    modelsCard.querySelector("#btn-from-lib").addEventListener("click", () => renderLibraryPicker());
+    // --- Roster (regiments, punten, auxiliary, terrain) ---
+    renderRoster();
 
     // --- Lores ---
     renderLores();

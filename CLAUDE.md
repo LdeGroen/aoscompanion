@@ -85,6 +85,16 @@ laadt dezelfde URL.
   **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
   universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet
   meer gevuld of gelezen, alleen nog genormaliseerd in storage.js voor oude data.
+- **List-building (set-up)**: de set-up is een echte list-builder (2000 pt). Warscrolls in
+  de DB dragen `points`, `reinforceable`, `unique`, `keywords` (uit BSData; per-hero
+  regiment-opties zitten NIET in BSData en worden dus niet afgedwongen). Een leger bestaat
+  uit **regiments**: `army.regiments = [{id}]`, en elk model in `army.models` heeft
+  `regimentId` (""=auxiliary/terrain/manifestation), `isLeader`, `isGeneral`, `reinforced`.
+  Effectieve punten = `points × (reinforced?2:1)`; manifestaties en faction terrain gratis.
+  Pragmatische validatie (≤2000, 1 general, unique 0-1, max 1 monster/beast per regiment)
+  als waarschuwingen. Companion leest gewoon de platte `army.models` — regiments zijn puur
+  metadata. Toevoegen via de database-picker (`pickModel` in setup.js); manifestaties
+  blijven lore-gedreven.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij
