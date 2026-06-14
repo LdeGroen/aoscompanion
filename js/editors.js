@@ -61,6 +61,14 @@ export function buildModelEditor({ container, m, el, esc, onChange = () => {} })
     <div class="checkline"><input type="checkbox" id="m-champ" ${m.champion ? "checked" : ""} /><span>In unit met Champion</span></div>
     <div class="checkline"><input type="checkbox" id="m-mus" ${m.musician ? "checked" : ""} /><span>In unit met Musician</span></div>
     <div class="checkline"><input type="checkbox" id="m-std" ${m.standardBearer ? "checked" : ""} /><span>In unit met Standard Bearer</span></div>
+    <div class="row tight">
+      <div>
+        <label>Punten</label>
+        <input type="number" id="m-points" min="0" value="${esc(m.points ?? "")}" placeholder="bijv. 140" />
+      </div>
+      <div class="checkline" style="align-self:end"><input type="checkbox" id="m-reinf" ${m.reinforceable ? "checked" : ""} /><span>Reinforceable</span></div>
+      <div class="checkline" style="align-self:end"><input type="checkbox" id="m-unique" ${m.unique ? "checked" : ""} /><span>Unique (0-1 per leger)</span></div>
+    </div>
     <div data-manif></div>
   </div>`);
   container.appendChild(form);
@@ -150,6 +158,10 @@ export function buildModelEditor({ container, m, el, esc, onChange = () => {} })
     m.champion = form.querySelector("#m-champ").checked;
     m.musician = form.querySelector("#m-mus").checked;
     m.standardBearer = form.querySelector("#m-std").checked;
+    const ptsVal = form.querySelector("#m-points").value.trim();
+    m.points = ptsVal === "" ? null : parseInt(ptsVal) || 0;
+    m.reinforceable = form.querySelector("#m-reinf").checked;
+    m.unique = form.querySelector("#m-unique").checked;
     if (m.type === "Manifestation") {
       m.banishment = (form.querySelector("#m-banish")?.value || "").trim();
       m.universal = !!form.querySelector("#m-universal")?.checked;
@@ -233,6 +245,8 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
         <option value="">— kies type —</option>
         ${MODEL_TYPES.map((t) => `<option ${t === enh.forType ? "selected" : ""}>${t}</option>`).join("")}
       </select>` : ""}
+    <label>Punten (0 = gratis)</label>
+    <input type="number" data-f="points" min="0" value="${esc(enh.points ?? 0)}" />
     <label>Beschrijving</label>
     <textarea data-f="description">${esc(enh.description)}</textarea>
     <label>Stat improvements (optioneel)</label>
@@ -246,6 +260,7 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
   </div>`);
 
   card.querySelector('[data-f="name"]').addEventListener("input", (e) => { enh.name = e.target.value; onChange(); });
+  card.querySelector('[data-f="points"]').addEventListener("input", (e) => { enh.points = parseInt(e.target.value) || 0; onChange(); });
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { enh.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { enh.oncePerBattle = e.target.checked; onChange(); });
   wireCpCost(card, enh, onChange);

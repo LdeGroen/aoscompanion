@@ -24,9 +24,11 @@ export function renderSetup(ctx) {
   const FREE_TYPES = new Set(["Manifestation", "Faction terrain"]);
   const isHero = (m) => m.type === "Hero" || m.type === "Named hero";
   // RoR-units tellen niet los mee (de RoR heeft een vaste prijs op het regiment).
-  const pointsOf = (m) => (FREE_TYPES.has(m.type) || m.inRoR) ? 0 : (parseInt(m.points) || 0) * (m.reinforced ? 2 : 1);
+  const enhPoints = (m) => (m.enhancements || []).reduce((s, e) => s + (parseInt(e.points) || 0), 0);
+  const pointsOf = (m) => (FREE_TYPES.has(m.type) || m.inRoR) ? 0 : ((parseInt(m.points) || 0) * (m.reinforced ? 2 : 1) + enhPoints(m));
   const rorPoints = () => army.regiments.reduce((s, r) => s + (r.ror ? (parseInt(r.ror.points) || 0) : 0), 0);
-  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints();
+  const subfactionPoints = () => parseInt(army.subfactionPoints) || 0;
+  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints() + subfactionPoints();
 
   // Mag een unit in het regiment van deze leider? Geport van Sigdex' matchesRegimentOption:
   // keyword-opties gelden voor niet-heroes; heroes mogen alleen via een specifieke named-optie.
@@ -337,7 +339,9 @@ export function renderSetup(ctx) {
   async function applySubfactionDefaults() {
     try {
       const { db } = await sharedb.loadFactionDb(army.faction);
-      army.subfactionRules = JSON.parse(JSON.stringify(db.subfactions[army.subfaction]?.rules || []));
+      const sub = db.subfactions[army.subfaction];
+      army.subfactionRules = JSON.parse(JSON.stringify(sub?.rules || []));
+      army.subfactionPoints = parseInt(sub?.points) || 0;
     } catch (e) {
       console.warn("Faction-database niet beschikbaar, geen defaults geladen:", e.message);
     }
@@ -393,7 +397,7 @@ export function renderSetup(ctx) {
         const checked = m.enhancements.some((sel) => same(sel, e));
         const line = el(`<div class="checkline" style="align-items:flex-start">
           <input type="checkbox" ${checked ? "checked" : ""} />
-          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="subtitle">${esc(e.description)}</div>` : ""}</span>
+          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${e.points ? " · " + e.points + " pts" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="subtitle">${esc(e.description)}</div>` : ""}</span>
         </div>`);
         line.querySelector("input").addEventListener("change", (ev) => {
           if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));
@@ -538,9 +542,18 @@ export function renderSetup(ctx) {
           <select id="army-subfaction"></select>
         </div>
       </div>
+      <div data-subpts></div>
       <p class="subtitle">Bij het kiezen van een army of subfaction worden de rules en enhancements uit de gedeelde database automatisch in dit leger gezet — daarna kun je ze hier aanpassen.</p>
     </div>`);
     app.appendChild(base);
+
+    // Subfaction-punten (battle formations kunnen punten kosten; bewerkbaar voor uitzonderingen)
+    const subPtsWrap = base.querySelector("[data-subpts]");
+    if (army.subfaction) {
+      const sp = el(`<div style="margin-top:6px"><label>Punten subfaction / battle formation</label><input type="number" id="army-subpts" min="0" value="${esc(army.subfactionPoints || 0)}" /></div>`);
+      sp.querySelector("#army-subpts").addEventListener("change", (e) => { army.subfactionPoints = parseInt(e.target.value) || 0; saveData(); rerender(); });
+      subPtsWrap.appendChild(sp);
+    }
 
     const facSel = base.querySelector("#army-faction");
     const subSel = base.querySelector("#army-subfaction");
@@ -567,7 +580,7 @@ export function renderSetup(ctx) {
     subSel.addEventListener("change", async () => {
       army.subfaction = subSel.value;
       if (army.subfaction) await applySubfactionDefaults();
-      else army.subfactionRules = [];
+      else { army.subfactionRules = []; army.subfactionPoints = 0; }
       saveData();
       rerender();
     });

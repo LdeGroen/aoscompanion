@@ -105,6 +105,14 @@ laadt dezelfde URL.
   → alles toestaan (pragmatisch). Een checkbox "Toon alle units (negeer regiment-opties)"
   in de picker laat de filter los. De import is geport van AjSchaff/Sigdex; scripts in
   `ko-import/` (`parse-regiments.mjs`, `driver-regiments.mjs`, `batch-merge-regiments.mjs`).
+- **Punten op meer dan units**: `model.points` (warscrolls), `enhancement.points` (betaalde
+  artefacts/heroic/monstrous traits) en `subfaction.points` (battle formations) zijn allemaal
+  bewerkbaar in de database-editors. De list-builder telt ze mee: `pointsOf` voegt
+  enhancement-punten per model toe (×2 geldt alleen voor de unit-punten, niet voor
+  enhancements), en `subfactionPoints` (op het leger als `army.subfactionPoints`, gevuld vanuit
+  de DB-subfaction, bewerkbaar in de set-up) telt apart mee. Faction terrain is in 4e editie
+  gratis. Geïmporteerd met `ko-import/driver-points.mjs` + `batch-merge-points.mjs` (match op
+  naam; battle formations = de subfaction-namen uit factions.js).
 - **Regiments of Renown**: vaste warbands uit BSData (`Regiments of Renown.cat` voor units +
   abilities, `Age of Sigmar 4.0.gst` voor punten + toegestane facties — gekoppeld via de
   forceEntry-id). Opgeslagen in de gedeelde blob **`regimentsofrenown`**
