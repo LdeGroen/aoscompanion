@@ -140,6 +140,32 @@ export function buildModelEditor({ container, m, el, esc, onChange = () => {} })
     drawAbilities();
   });
 
+  // --- Regiment-opties (welke units deze hero in zijn regiment mag nemen) ---
+  m.regimentOptions = m.regimentOptions || [];
+  const roWrap = el(`<div class="card"><h2>Regiment-opties</h2>
+    <p class="subtitle">Welke units mag deze hero in zijn regiment nemen? Eén keyword (bijv. KHARADRON OVERLORDS, SKYFARER) of de exacte naam van een unit/hero per regel. Een hero die je toestaat geldt als max 1. Leeg = geen beperking (alles mag).</p>
+    <div id="ro-list"></div>
+    <button class="small" id="ro-add">${icon("plus")} Optie toevoegen</button></div>`);
+  container.appendChild(roWrap);
+  const roList = roWrap.querySelector("#ro-list");
+  const drawRO = () => {
+    roList.innerHTML = "";
+    if (!m.regimentOptions.length) roList.appendChild(el(`<p class="empty">Geen beperking — alle units mogen.</p>`));
+    m.regimentOptions.forEach((opt, i) => {
+      const row = el(`<div style="display:flex;gap:6px;margin:4px 0;align-items:center">
+        <input type="text" data-ro-name value="${esc((opt.names || []).join(", "))}" placeholder="keyword of unit-naam" style="flex:3" />
+        <input type="number" data-ro-max min="0" value="${esc(opt.max || 0)}" title="max (0 = onbeperkt)" style="flex:1;min-width:60px" />
+        <button class="danger small">✕</button>
+      </div>`);
+      row.querySelector("[data-ro-name]").addEventListener("input", (e) => { opt.names = e.target.value.split(",").map((s) => s.trim()).filter(Boolean); onChange(); });
+      row.querySelector("[data-ro-max]").addEventListener("change", (e) => { opt.max = parseInt(e.target.value) || 0; onChange(); });
+      row.querySelector("button.danger").addEventListener("click", () => { m.regimentOptions.splice(i, 1); onChange(); drawRO(); });
+      roList.appendChild(row);
+    });
+  };
+  drawRO();
+  roWrap.querySelector("#ro-add").addEventListener("click", () => { m.regimentOptions.push({ names: [], max: 0 }); onChange(); drawRO(); });
+
   // Leest de formuliervelden in het model; false als de naam ontbreekt.
   function commit() {
     const name = form.querySelector("#m-name").value.trim();

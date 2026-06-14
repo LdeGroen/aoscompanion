@@ -24,8 +24,10 @@ export function renderSetup(ctx) {
   const FREE_TYPES = new Set(["Manifestation", "Faction terrain"]);
   const isHero = (m) => m.type === "Hero" || m.type === "Named hero";
   // RoR-units tellen niet los mee (de RoR heeft een vaste prijs op het regiment).
+  // Manifestaties zijn altijd gratis (lore-gedreven); faction terrain kán punten kosten
+  // (bijv. Zontari Endrin Dock 20) en telt dus gewoon op m.points mee.
   const enhPoints = (m) => (m.enhancements || []).reduce((s, e) => s + (parseInt(e.points) || 0), 0);
-  const pointsOf = (m) => (FREE_TYPES.has(m.type) || m.inRoR) ? 0 : ((parseInt(m.points) || 0) * (m.reinforced ? 2 : 1) + enhPoints(m));
+  const pointsOf = (m) => (m.type === "Manifestation" || m.inRoR) ? 0 : ((parseInt(m.points) || 0) * (m.reinforced ? 2 : 1) + enhPoints(m));
   const rorPoints = () => army.regiments.reduce((s, r) => s + (r.ror ? (parseInt(r.ror.points) || 0) : 0), 0);
   const subfactionPoints = () => parseInt(army.subfactionPoints) || 0;
   const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints() + subfactionPoints();
@@ -43,8 +45,8 @@ export function renderSetup(ctx) {
         const lo = o.toLowerCase();
         if (nm === lo) return true; // specifieke named unit/hero
         if (isHero(unit)) continue; // heroes alleen via named-optie
-        if (lo.includes(" ")) { if (lo.split(/\s+/).every((p) => kw.includes(p))) return true; }
-        else if (kw.includes(lo)) return true;
+        if (kw.includes(lo)) return true; // hele keyword (ook met spatie, bijv. "kharadron overlords")
+        if (lo.includes(" ") && lo.split(/\s+/).every((p) => kw.includes(p))) return true; // compound van losse keywords
       }
     }
     return false;
@@ -124,6 +126,20 @@ export function renderSetup(ctx) {
     const uniq = {};
     for (const m of army.models) if (m.unique) uniq[m.name] = (uniq[m.name] || 0) + 1;
     for (const [n, c] of Object.entries(uniq)) if (c > 1) w.push(`Unique unit meer dan 1× in het leger: ${n}.`);
+    // Regiment-opbouw: leider verplicht een hero; units moeten bij de regiment-opties passen
+    for (const reg of army.regiments) {
+      if (reg.ror) continue; // RoR is een vaste warband
+      const inReg = army.models.filter((m) => m.regimentId === reg.id);
+      const leader = inReg.find((m) => m.isLeader);
+      if (!leader) { w.push("Een regiment heeft geen hero als leider."); continue; }
+      if (!isHero(leader)) w.push(`Leider van een regiment is geen hero: ${leader.name}.`);
+      const heroes = inReg.filter((m) => !m.isLeader && isHero(m));
+      if (heroes.length > 1) w.push(`Regiment ${leader.name}: meer dan 1 extra hero.`);
+      for (const u of inReg) {
+        if (u.isLeader) continue;
+        if (!canTakeInRegiment(leader, u)) w.push(`${u.name} past niet in het regiment van ${leader.name} (regiment-opties).`);
+      }
+    }
     return w;
   }
 

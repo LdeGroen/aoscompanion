@@ -110,9 +110,16 @@ laadt dezelfde URL.
   bewerkbaar in de database-editors. De list-builder telt ze mee: `pointsOf` voegt
   enhancement-punten per model toe (×2 geldt alleen voor de unit-punten, niet voor
   enhancements), en `subfactionPoints` (op het leger als `army.subfactionPoints`, gevuld vanuit
-  de DB-subfaction, bewerkbaar in de set-up) telt apart mee. Faction terrain is in 4e editie
-  gratis. Geïmporteerd met `ko-import/driver-points.mjs` + `batch-merge-points.mjs` (match op
-  naam; battle formations = de subfaction-namen uit factions.js).
+  de DB-subfaction, bewerkbaar in de set-up) telt apart mee. **Faction terrain kán punten kosten**
+  (bijv. Zontari Endrin Dock 20) en telt dus mee op `m.points`; alleen `Manifestation` (en
+  RoR-units, `inRoR`) zijn altijd 0. Geïmporteerd met `ko-import/driver-points.mjs` +
+  `batch-merge-points.mjs` (match op naam; battle formations = de subfaction-namen uit factions.js).
+- **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
+  optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
+  compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
+  unit-naam matcht (named heroes). Heroes mogen alleen via een named-optie (max 1). Bij een
+  overtreding verschijnt een waarschuwing in `rosterWarnings`. De regiment-opties zijn per
+  warscroll bewerkbaar in de model-editor (lijst van keywords/unit-namen + max).
 - **Regiments of Renown**: vaste warbands uit BSData (`Regiments of Renown.cat` voor units +
   abilities, `Age of Sigmar 4.0.gst` voor punten + toegestane facties — gekoppeld via de
   forceEntry-id). Opgeslagen in de gedeelde blob **`regimentsofrenown`**
