@@ -75,9 +75,10 @@ export const WARDS = ["-", "2+", "3+", "4+", "5+", "6+"];
 // (Named heroes mogen volgens de regels géén enhancements); "other" geldt
 // voor één specifiek model-type dat je zelf kiest (forType).
 export const ENHANCEMENT_CATEGORIES = [
-  { key: "artifact",    label: "Artifacts of Power",  heroOnly: true },
-  { key: "heroicTrait", label: "Heroic Traits",       heroOnly: true },
-  { key: "other",       label: "Other Enhancements",  heroOnly: false },
+  { key: "artifact",       label: "Artifacts of Power",  heroOnly: true },
+  { key: "heroicTrait",    label: "Heroic Traits",       heroOnly: true },
+  { key: "monstrousTrait", label: "Monstrous Traits",    heroOnly: true },
+  { key: "other",          label: "Other Enhancements",  heroOnly: false },
 ];
 
 export function enhancementCategoryLabel(key) {

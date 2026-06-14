@@ -412,7 +412,7 @@ export function renderDatabase(ctx) {
         }
         const mods = (enh.statMods || []).map(modLabel).join(", ");
         const item = el(`<div class="card inner">
-          <div class="card-header"><h3>${esc(enh.name)}</h3>${enh.category === "other" && enh.forType ? `<span class="chip tag">${esc(enh.forType)}</span>` : ""}</div>
+          <div class="card-header"><h3>${esc(enh.name)}</h3>${enh.category === "other" && (enh.forTypes?.length || enh.forType) ? `<span class="chip tag">${esc((enh.forTypes?.length ? enh.forTypes : [enh.forType]).join(", "))}</span>` : ""}</div>
           ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
           ${(enh.phases || []).length ? `<div class="subtitle">Phases: ${enh.phases.map((p) => esc(phaseLabel(p))).join(", ")}${enh.oncePerBattle ? " · once per battle" : ""}</div>` : ""}
           <div class="muted-list">${esc(enh.description)}</div>

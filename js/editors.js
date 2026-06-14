@@ -266,11 +266,8 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
     <label>Naam</label>
     <input type="text" data-f="name" value="${esc(enh.name)}" />
     ${enh.category === "other" ? `
-      <label>Voor model-type</label>
-      <select data-f="forType">
-        <option value="">— kies type —</option>
-        ${MODEL_TYPES.map((t) => `<option ${t === enh.forType ? "selected" : ""}>${t}</option>`).join("")}
-      </select>` : ""}
+      <label>Voor model-type(s) — vink alle types aan waarvoor deze enhancement geldt</label>
+      <div class="chips" data-fortypes>${MODEL_TYPES.map((t) => `<label class="chip"><input type="checkbox" value="${esc(t)}" ${((enh.forTypes && enh.forTypes.length ? enh.forTypes : (enh.forType ? [enh.forType] : [])).includes(t)) ? "checked" : ""}/> ${esc(t)}</label>`).join("")}</div>` : ""}
     <label>Punten (0 = gratis)</label>
     <input type="number" data-f="points" min="0" value="${esc(enh.points ?? 0)}" />
     <label>Beschrijving</label>
@@ -290,8 +287,16 @@ export function buildEnhancementEditor({ enh, el, esc, onChange = () => {}, acti
   card.querySelector('[data-f="description"]').addEventListener("input", (e) => { enh.description = e.target.value; onChange(); });
   card.querySelector('[data-f="once"]').addEventListener("change", (e) => { enh.oncePerBattle = e.target.checked; onChange(); });
   wireCpCost(card, enh, onChange);
-  const forTypeSel = card.querySelector('[data-f="forType"]');
-  if (forTypeSel) forTypeSel.addEventListener("change", () => { enh.forType = forTypeSel.value; onChange(); });
+  const forTypesWrap = card.querySelector("[data-fortypes]");
+  if (forTypesWrap) {
+    // migreer legacy forType → forTypes en houd ze gesynct
+    enh.forTypes = enh.forTypes && enh.forTypes.length ? enh.forTypes : (enh.forType ? [enh.forType] : []);
+    delete enh.forType;
+    forTypesWrap.addEventListener("change", () => {
+      enh.forTypes = [...forTypesWrap.querySelectorAll("input:checked")].map((c) => c.value);
+      onChange();
+    });
+  }
 
   const modsWrap = card.querySelector("[data-mods]");
   const drawMods = () => {

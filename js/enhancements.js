@@ -4,11 +4,22 @@ import { STAT_MODS, enhancementCategoryLabel } from "./factions.js";
 // stat improvements met de getoonde stats.
 
 // Mag deze enhancement aan dit model gegeven worden?
-// Artifacts/heroic traits: alleen type "Hero" (Named heroes expliciet niet).
-// Other enhancements: alleen het model-type waarvoor ze bedoeld zijn.
+// Heroes dragen naast "Hero" ook hun eigen keyword-type (Infantry/Monster/…).
+// Artifacts & Heroic Traits: elke Hero (Named heroes mogen volgens de regels niet).
+// Monstrous Traits: alleen een Hero die ook het MONSTER-keyword heeft.
+// Other enhancements: voor één of meer model-types (forTypes, of legacy forType) —
+// matcht op het model-type én op de keywords (zo geldt bv. een "Monster"-enhancement
+// ook voor een hero-monster, ook al is diens type "Hero").
 export function enhancementFits(enh, model) {
-  if (enh.category === "other") return !!enh.forType && enh.forType === model.type;
-  return model.type === "Hero";
+  const kw = (model.keywords || []).map((k) => String(k).toUpperCase());
+  const isHero = model.type === "Hero";
+  if (enh.category === "monstrousTrait") return isHero && kw.includes("MONSTER");
+  if (enh.category === "artifact" || enh.category === "heroicTrait") return isHero;
+  if (enh.category === "other") {
+    const types = (enh.forTypes && enh.forTypes.length) ? enh.forTypes : (enh.forType ? [enh.forType] : []);
+    return types.some((t) => t === model.type || kw.includes(String(t).toUpperCase()));
+  }
+  return isHero;
 }
 
 // Enhancements zitten als volledig object op het model zelf (model.enhancements),

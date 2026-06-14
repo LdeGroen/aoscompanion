@@ -114,6 +114,18 @@ laadt dezelfde URL.
   (bijv. Zontari Endrin Dock 20) en telt dus mee op `m.points`; alleen `Manifestation` (en
   RoR-units, `inRoR`) zijn altijd 0. Geïmporteerd met `ko-import/driver-points.mjs` +
   `batch-merge-points.mjs` (match op naam; battle formations = de subfaction-namen uit factions.js).
+- **Punten geijkt op de officiële Battle Profiles (April 2026)**: de BSData-import is
+  vergeleken met de officiële GW Battle Profiles-PDF. De hero/unit-tabellen in die PDF
+  zijn visueel opgemaakt (verticaal gecentreerde cellen) en laten zich niet betrouwbaar
+  regel-voor-regel uit tekst parsen — daarom is per faction met `pdftotext -table` +
+  faction-scoping + multi-kandidaat-matching vergeleken (scripts in `ko-import/`, output
+  naar `$TEMP`). Dat leverde **44 echte puntcorrecties** op (vooral Cities of Sigmar,
+  Daughters of Khaine en Sylvaneth — nieuwe battletomes; toegepast met
+  `batch-apply-points.mjs`). De schone TYPE/NAME/POINTS-tabellen onderaan elke faction
+  parsen wél betrouwbaar en zijn gebruikt voor enhancement-categorie + punten
+  (`batch-merge-enhtypes.mjs`, incl. de 12 Monstrous Traits). **Regiment-opties staan in
+  die PDF in dezelfde ongriijpbare cellen en komen dus uit BSData** (de gestructureerde
+  transcriptie); per-warscroll bewerkbaar in de model-editor.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
@@ -168,6 +180,14 @@ laadt dezelfde URL.
   de faction-blob, manifestation uit faction + universal. Zelf een blanco lore maken in
   een leger kan niet meer. Een manifestation-lore kiezen synct meteen de warscrolls
   (`syncArmyManifestations`, `fromLore`).
+  Categorieën: artifact / heroicTrait / **monstrousTrait** / other. `enhancementFits`
+  (enhancements.js) bepaalt geschiktheid op basis van het model-type én de keywords:
+  een hero draagt naast "Hero" ook zijn eigen keyword-type (Infantry/Monster/…).
+  Artifacts & heroic traits → elke "Hero" (Named heroes niet). **Monstrous traits → een
+  "Hero" die ook het MONSTER-keyword heeft** (hero-monsters). "Other" geldt voor één of
+  meer types: `enh.forTypes` (lijst; legacy `forType` wordt gemigreerd) — matcht op het
+  model-type én op de keywords, zodat dezelfde enhancement voor meerdere unit-types kan
+  gelden. De enhancement-editor heeft daarvoor type-checkboxes.
   Artifacts/heroic traits mogen alleen naar type "Hero" (Named heroes bewust niet — zo
   werken de spelregels). Stat improvements (`statMods`) worden in companion mode live
   verwerkt via `effectiveModel()` en gemarkeerd met ✦; bibliotheek-kaartjes en gedeelde
