@@ -126,6 +126,14 @@ laadt dezelfde URL.
   (`batch-merge-enhtypes.mjs`, incl. de 12 Monstrous Traits). **Regiment-opties staan in
   die PDF in dezelfde ongriijpbare cellen en komen dus uit BSData** (de gestructureerde
   transcriptie); per-warscroll bewerkbaar in de model-editor.
+- **Regiment-opties + hero-keywords uit het officiële Excel**: de PDF is door Luc naar
+  Excel omgezet; dat parst wél schoon (nette kolommen). `ko-import/` parst het tot
+  `excel-data.json` en `batch-merge-excel.mjs` zet per faction de **regiment-opties** op
+  elke hero (autoritatief, incl. "0-1 X", "Any X", "X or Y", "non-Monster Skink") en de
+  **hero-keywords** (`model.heroKeywords`, bijv. "Guild Officer", "Favoured Spawning") —
+  afgeleid uit de notes ("This Hero can join an eligible regiment as a X"). Units krijgen
+  hun keywords aangevuld met de RELEVANT KEYWORDS + de factienaam. Hierdoor matchen
+  hero-specifieke opties ("0-1 Guild Officer") nu de juiste hero's.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte

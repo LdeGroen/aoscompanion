@@ -40,11 +40,15 @@ export function renderSetup(ctx) {
     if (!opts || !opts.length) return true;
     const nm = (unit.name || "").toLowerCase();
     const kw = (unit.keywords || []).map((k) => k.toLowerCase());
+    const hk = (unit.heroKeywords || []).map((k) => k.toLowerCase()); // hero-keywords (bijv. Guild Officer)
+    const hero = isHero(unit);
     for (const opt of opts) {
       for (const o of opt.names || []) {
         const lo = o.toLowerCase();
-        if (nm === lo) return true; // specifieke named unit/hero
-        if (isHero(unit)) continue; // heroes alleen via named-optie
+        if (nm === lo) return true; // exacte unit/hero-naam
+        if (hero) { if (hk.includes(lo)) return true; continue; } // heroes alleen via naam of hero-keyword (niet via brede keywords als "Infantry")
+        const nonM = lo.match(/^non-(\S+)\s+(.+)/); // bijv. "non-Monster Skink"
+        if (nonM) { if (!kw.includes(nonM[1]) && nonM[2].split(/\s+/).every((p) => kw.includes(p))) return true; continue; }
         if (kw.includes(lo)) return true; // hele keyword (ook met spatie, bijv. "kharadron overlords")
         if (lo.includes(" ") && lo.split(/\s+/).every((p) => kw.includes(p))) return true; // compound van losse keywords
       }
