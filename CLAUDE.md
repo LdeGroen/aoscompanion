@@ -222,6 +222,20 @@ laadt dezelfde URL.
   Oudere data wordt bij het openen van setup/companion in-place gemigreerd
   (ontbrekende velden krijgen defaults).
 
+## Companion: volledige modus vs score-modus
+In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het
+was: phases, abilities, commands, CP, scoren) en **score-modus** (`renderScoreMode` in
+companion.js): één compact scherm per battleround met "wie gaat eerst" + beide beurten
+(eigen + tegenstander) met hun scorekaart, lopende stand en battleround-navigatie. Bedoeld
+om snel tussen beurten het scoren te overzien. De modus is een **apparaat-voorkeur**
+(`localStorage` `aoscomp_companion_mode`, synct bewust niet, net als het thema) en vervangt
+alleen de `roundSetup`- en `turn`-stages — battle set-up en game-over blijven gelijk. Je kunt
+**midden in een potje** wisselen: een snelle wissel zonder te navigeren hervat de volledige
+modus exact (stage/turn/phase blijven staan); navigeer je in score-modus naar een andere
+battleround, dan zet dat de stage op `roundSetup` van die ronde. `renderScoringCard(owner,
+{endBonus})` wordt door beide modi gebruikt; de eindbonus-vlag wordt expliciet doorgegeven
+(in plaats van uit `game.turnIndex` afgeleid) zodat score-modus beide beurten kan tonen.
+
 ## Accounts & backend
 - Backend = **AppSync** (repo `LdeGroen/appsync`), draait op de Raspberry Pi `energiepi`,
   publiek als `https://apps.lucdegroen.nl`. `js/config.js → API_URL` staat daarop;

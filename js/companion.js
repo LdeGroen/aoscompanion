@@ -69,6 +69,11 @@ export function renderCompanion(ctx) {
   game.underdog = game.underdog || {};
   game.firstTurnByRound = game.firstTurnByRound || {};
 
+  // Weergavemodus (per apparaat, synct bewust niet): "full" = volledige companion,
+  // "score" = compacte score-modus (alleen wie eerst + per beurt scores invullen).
+  let scoreMode = localStorage.getItem("aoscomp_companion_mode") === "score";
+  const setScoreMode = (on) => { scoreMode = on; localStorage.setItem("aoscomp_companion_mode", on ? "score" : "full"); rerender(true); };
+
   // Manifestations tellen pas mee (stats, abilities) nadat ze gesummend zijn;
   // "Destroyed" haalt ze weer uit het spel tot de volgende summon. Daarnaast
   // kan ieder model via het units-menu uit de battle gezet worden.
@@ -186,8 +191,9 @@ export function renderCompanion(ctx) {
     app.innerHTML = "";
     if (game.stage === "battleSetup") renderBattleSetup();
     else if (game.stage === "deployment") renderDeployment();
-    else if (game.stage === "roundSetup") renderRoundSetup();
     else if (game.stage === "gameOver") renderGameOver();
+    else if (scoreMode) renderScoreMode(); // score-modus vervangt roundSetup + turn
+    else if (game.stage === "roundSetup") renderRoundSetup();
     else renderTurn();
     window.scrollTo(0, scrollTop ? 0 : y);
   }
@@ -541,12 +547,15 @@ export function renderCompanion(ctx) {
         <div class="subtitle">${esc(subtitle)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        ${(game.stage === "roundSetup" || game.stage === "turn") ? `<button class="small ${scoreMode ? "primary" : ""}" id="btn-mode">${icon(scoreMode ? "monitor" : "list")} ${scoreMode ? "Volledig" : "Score-modus"}</button>` : ""}
         <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
       </div>
     </div>`);
+    const modeBtn = bar.querySelector("#btn-mode");
+    if (modeBtn) modeBtn.addEventListener("click", () => setScoreMode(!scoreMode));
     bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
@@ -893,12 +902,12 @@ export function renderCompanion(ctx) {
       app.appendChild(card);
 
       // Scoren aan het einde van iedere beurt (battleplan gekozen)
-      if (game.battleplan) renderScoringCard(owner);
+      if (game.battleplan) renderScoringCard(owner, { endBonus: game.round === LAST_ROUND && game.turnIndex === 1 });
     }
   }
 
   // ---------- Scoren (End of Turn, per beurt-eigenaar) ----------
-  function renderScoringCard(owner) {
+  function renderScoringCard(owner, { endBonus = false } = {}) {
     const r = game.round;
     const oppName = game.opponent?.name || "tegenstander";
     app.appendChild(el(`<h3>${owner === "player" ? "Jouw score" : `Score van ${esc(oppName)}`} — einde van deze beurt</h3>`));
@@ -938,7 +947,7 @@ export function renderCompanion(ctx) {
     }
 
     // Eindbonus (Noxious Nexus): pas aan het einde van de laatste beurt van ronde 5
-    if (game.battleplan.scoring?.endBonus && r === LAST_ROUND && game.turnIndex === 1) {
+    if (game.battleplan.scoring?.endBonus && endBonus) {
       const eb = game.battleplan.scoring.endBonus;
       const wrap = el(`<div><label>${esc(eb.label)} (+${eb.points} punten) — wie?</label><div class="btnrow" data-eb></div></div>`);
       const ebRow = wrap.querySelector("[data-eb]");
@@ -984,6 +993,58 @@ export function renderCompanion(ctx) {
       }
       app.appendChild(tc);
     }
+  }
+
+  // ===================== Score-modus =====================
+  // Compacte weergave per battleround: kies wie eerst gaat en vul per beurt
+  // (eigen + tegenstander) de scores in. Snel overzicht; geen phases.
+  function renderScoreMode() {
+    topbar(`Score-modus · battleround ${game.round}/${LAST_ROUND}`);
+    const oppName = game.opponent?.name || "Tegenstander";
+
+    const head = el(`<div class="card">
+      <h2>Battleround ${game.round} van ${LAST_ROUND}</h2>
+      <label>Wie heeft deze battleround de eerste beurt?</label>
+      <div class="btnrow">
+        <button id="f-player" class="${game.firstTurn === "player" ? "primary" : ""}">Ik</button>
+        <button id="f-enemy" class="${game.firstTurn === "enemy" ? "primary" : ""}">${esc(oppName)}</button>
+      </div>
+    </div>`);
+    head.querySelector("#f-player").addEventListener("click", () => { game.firstTurn = "player"; game.firstTurnByRound[game.round] = "player"; saveData(); rerender(); });
+    head.querySelector("#f-enemy").addEventListener("click", () => { game.firstTurn = "enemy"; game.firstTurnByRound[game.round] = "enemy"; saveData(); rerender(); });
+    app.appendChild(head);
+
+    if (game.battleplan) {
+      const s = calcScores(game);
+      app.appendChild(el(`<div class="scoreline">
+        <span>${esc(state.user.name)} <strong>${s.player.total}</strong></span>
+        <span class="subtitle">—</span>
+        <span><strong>${s.enemy.total}</strong> ${esc(oppName)}</span>
+      </div>`));
+      // Beide beurten in de juiste volgorde, elk met zijn scorekaart
+      const order = game.firstTurn === "player" ? ["player", "enemy"] : ["enemy", "player"];
+      order.forEach((owner, idx) => {
+        app.appendChild(el(`<h2>${idx === 0 ? "Eerste beurt" : "Tweede beurt"}: ${owner === "player" ? "jij" : esc(oppName)}</h2>`));
+        renderScoringCard(owner, { endBonus: game.round === LAST_ROUND && idx === 1 });
+      });
+    } else {
+      app.appendChild(el(`<p class="empty">Geen battleplan gekozen — er zijn geen scores om in te vullen.</p>`));
+    }
+
+    // Navigatie tussen battlerounds
+    const isLast = game.round >= LAST_ROUND;
+    const nextBtn = el(`<button class="primary bigbtn">${isLast ? `${icon("flag")} Einde spel` : "Volgende battleround →"}</button>`);
+    nextBtn.addEventListener("click", () => {
+      if (isLast) { game.stage = "gameOver"; }
+      else { game.round++; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; game.usedCommands = {}; }
+      saveData(); rerender(true);
+    });
+    let prevBtn = null;
+    if (game.round > 1) {
+      prevBtn = el(`<button title="Vorige battleround">${icon("back")}</button>`);
+      prevBtn.addEventListener("click", () => { game.round--; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; saveData(); rerender(true); });
+    }
+    bottomBar(nextBtn, prevBtn);
   }
 
   // ---------- Manifestations: summonen in de hero phase ----------
