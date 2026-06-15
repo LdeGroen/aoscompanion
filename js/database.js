@@ -23,6 +23,8 @@ export function renderDatabase(ctx) {
   let uni = null; // universal manifestation lores (aparte gedeelde blob)
   let gd = null;  // gamedata: battleplans + battle tactics (aparte gedeelde blob)
   let ror = null; // Regiments of Renown (aparte gedeelde blob "regimentsofrenown")
+  let dbEditors = []; // namen die de database mogen bewerken (blob "dbeditors")
+  let dbEdit = false; // mag de huidige gebruiker de database wijzigen?
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   // Pseudo-faction onderaan de keuzelijst: alle RoR bij elkaar (game-breed).
   const ROR_VIEW = "★ Regiments of Renown";
@@ -64,6 +66,13 @@ export function renderDatabase(ctx) {
     } catch {
       ror = { list: [] };
     }
+    try {
+      const ed = (await sharedb.loadSharedBlob("dbeditors", (raw) => (raw && Array.isArray(raw.editors)) ? raw : { editors: [] })).db;
+      dbEditors = ed.editors;
+    } catch {
+      dbEditors = [];
+    }
+    dbEdit = !!user && (user.isAdmin || dbEditors.includes(user.name));
     draw();
   }
 
@@ -104,7 +113,8 @@ export function renderDatabase(ctx) {
   }
 
   const ownerLabel = (item) => item.addedBy ? `gedeeld door ${esc(item.addedBy)}` : "gedeeld vóór de eigenaars-feature";
-  const canEdit = (item) => sharedb.canEditEntry(item, user);
+  // De database is alleen door beheerders (superadmin + aangewezen db-editors) te wijzigen.
+  const canEdit = () => dbEdit;
 
   function startEdit(kind, target, list, isUniversal = false, saver = null) {
     editing = { kind, target, list, isUniversal, saver, copy: JSON.parse(JSON.stringify(target)) };
@@ -168,6 +178,9 @@ export function renderDatabase(ctx) {
     if (offline) {
       app.appendChild(el(`<div class="reminder">⚠ Offline — je ziet de lokaal gecachete versie van deze database.</div>`));
     }
+    if (!dbEdit) {
+      app.appendChild(el(`<p class="subtitle">Je kunt de database bekijken en items naar je leger halen. Alleen beheerders kunnen items toevoegen of wijzigen.</p>`));
+    }
 
     // Alle Regiments of Renown bij elkaar (eigen keuze onderaan de factionlijst)
     if (faction === ROR_VIEW) { drawRoR(); return; }
@@ -208,7 +221,7 @@ export function renderDatabase(ctx) {
         <div class="subtitle">Score per beurt: ${opts.map((o) => `${esc(o.label)} (${o.points})`).join(" · ")}</div>
         <div class="muted-list">${b.abilities.length ? b.abilities.map((a) => esc(a.name || "(naamloos)")).join(" · ") : "Nog geen abilities"}</div>
         <div class="btnrow">
-          ${sharedb.canEditEntry(b, user) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
+          ${dbEdit ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
         </div>
       </div>`);
       const editBtn = item.querySelector('[data-act="edit"]');
@@ -275,7 +288,7 @@ export function renderDatabase(ctx) {
         <div class="card-header"><h3>${esc(t.name)}</h3></div>
         <div class="muted-list">${(t.steps || []).map((s, i) => `${i + 1}. ${esc(s.name || "(naamloos)")}${s.description ? " — " + esc(s.description) : ""}`).join("\n")}</div>
         <div class="btnrow">
-          ${sharedb.canEditEntry(t, user) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
+          ${dbEdit ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>` : ""}
         </div>
       </div>`);
       const editBtn = item.querySelector('[data-act="edit"]');
@@ -289,7 +302,7 @@ export function renderDatabase(ctx) {
     const card = el(`<div class="card"><h2>${icon("star")} Regiments of Renown</h2>
       <p class="subtitle">Vaste warbands, kiesbaar in meerdere facties. Klik in de list-builder op de RoR om de regel(s) te zien.</p>
       <div data-list></div>
-      <button class="small" data-add>${icon("plus")} Regiment of Renown toevoegen</button></div>`);
+      ${dbEdit ? `<button class="small" data-add>${icon("plus")} Regiment of Renown toevoegen</button>` : ""}</div>`);
     app.appendChild(card);
     const list = card.querySelector("[data-list]");
     if (!ror) {

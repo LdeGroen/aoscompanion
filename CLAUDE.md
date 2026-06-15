@@ -226,10 +226,15 @@ laadt dezelfde URL.
   (`lore.universal`) staan in een aparte gedeelde blob (key `universal`) en zijn in de
   database bij iedere faction zichtbaar/kiesbaar; spell, prayer en faction manifestation
   lores horen bij de faction-blob.
-- **Eigenaarschap in de database**: iedere gedeelde entry heeft `addedBy` (gebruikersnaam).
-  Bewerken/verwijderen/overschrijven mag alleen door die persoon of de superadmin —
-  frontend-handhaving (canEditEntry in sharedb.js), passend bij het lichte
-  beveiligingsmodel. Entries zonder `addedBy` (van vóór deze feature): alleen admin.
+- **Wie mag de database wijzigen**: alleen de **superadmin** (Luc) en door hem **aangewezen
+  db-editors** kunnen de gedeelde database aanpassen (toevoegen/bewerken/verwijderen). De lijst
+  editors staat in de gedeelde blob **`dbeditors`** (`{editors:[namen]}`). In database.js
+  wordt `dbEdit = user.isAdmin || dbeditors.includes(user.name)` berekend; bij `false` is het
+  database-scherm read-only (geen bewerk/verwijder/toevoeg-knoppen, wel "Naar dit leger").
+  In **Accountbeheer** (app.js, alleen superadmin) staat per account een schakelaar "Mag de
+  database bewerken" die de `dbeditors`-blob bijwerkt. (Het oudere `addedBy`/`canEditEntry`-
+  eigenaarschapsmodel is hierdoor vervangen voor het database-scherm; `addedBy` blijft alleen
+  als herkomst-label.) Entries zonder `addedBy` (van vóór deze feature): alleen admin.
 - **Auto-import bij (sub)faction-keuze**: kies je in set-up een faction, dan worden de
   faction rules en álle enhancements van die faction uit de gedeelde database in het
   leger gekopieerd (vervangt wat er stond; `m.enhancementIds` worden geleegd). Idem voor

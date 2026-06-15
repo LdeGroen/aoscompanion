@@ -1,5 +1,6 @@
 import * as store from "./storage.js";
 import * as backend from "./backend.js";
+import * as sharedb from "./sharedb.js";
 import { AOS_FACTIONS } from "./factions.js";
 import { renderSetup } from "./setup.js";
 import { renderCompanion } from "./companion.js";
@@ -279,6 +280,9 @@ function renderAdmin() {
   const list = el(`<div class="card"><h3>Bestaande accounts</h3><div id="acc-list"></div></div>`);
   app.appendChild(list);
 
+  const normEditors = (raw) => (raw && Array.isArray(raw.editors)) ? raw : { editors: [] };
+  let editors = []; // namen die de database mogen bewerken
+
   const refreshList = async () => {
     const target = list.querySelector("#acc-list");
     target.innerHTML = "";
@@ -289,13 +293,23 @@ function renderAdmin() {
       target.appendChild(el(`<p class="empty" style="color:var(--red)">Accounts ophalen mislukt: ${esc(e.message)}</p>`));
       return;
     }
+    try {
+      editors = (await sharedb.loadSharedBlob("dbeditors", normEditors)).db.editors;
+    } catch {
+      editors = [];
+    }
     if (!accounts.length) target.appendChild(el(`<p class="empty">Nog geen accounts.</p>`));
     for (const a of accounts) {
-      const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
-        <span>${esc(a.name)} <span class="subtitle">(ww: ${esc(a.password)})</span></span>
-        <button class="danger small">${icon("trash")} Verwijderen</button>
+      const isSuper = a.name.toLowerCase() === store.SUPERADMIN.name.toLowerCase();
+      const canDb = isSuper || editors.includes(a.name);
+      const row = el(`<div style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <div class="card-header">
+          <span>${esc(a.name)} <span class="subtitle">(ww: ${esc(a.password)})</span></span>
+          <button class="danger small">${icon("trash")} Verwijderen</button>
+        </div>
+        <label class="checkline" style="margin-top:4px"><input type="checkbox" ${canDb ? "checked" : ""} ${isSuper ? "disabled" : ""}/> <span>Mag de database bewerken${isSuper ? " (superadmin, altijd)" : ""}</span></label>
       </div>`);
-      row.querySelector("button").addEventListener("click", async () => {
+      row.querySelector("button.danger").addEventListener("click", async () => {
         if (!confirm(`Account "${a.name}" en alle bijbehorende legers verwijderen?`)) return;
         try {
           if (backend.hasBackend()) await backend.deleteAccount(a.name);
@@ -303,6 +317,16 @@ function renderAdmin() {
           refreshList();
         } catch (e) {
           alert("Verwijderen mislukt: " + e.message);
+        }
+      });
+      const cb = row.querySelector('input[type="checkbox"]');
+      if (!isSuper) cb.addEventListener("change", async () => {
+        editors = cb.checked ? [...new Set([...editors, a.name])] : editors.filter((n) => n !== a.name);
+        try {
+          await sharedb.saveSharedBlob("dbeditors", { editors });
+        } catch (e) {
+          alert("Opslaan mislukt: " + e.message);
+          cb.checked = !cb.checked;
         }
       });
       target.appendChild(row);
