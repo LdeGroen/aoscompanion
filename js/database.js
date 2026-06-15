@@ -448,6 +448,8 @@ export function renderDatabase(ctx) {
   function drawModels() {
     const card = el(`<div class="card"><h2>Models</h2><div data-list></div></div>`);
     app.appendChild(card);
+    const mAdd = addButton("Model toevoegen", () => { const m = blankModel(); db.models.push(m); startEdit("model", m, db.models); });
+    if (mAdd) card.appendChild(mAdd);
     const list = card.querySelector("[data-list]");
 
     // Faction-kaartjes + universal manifestations (bij iedere faction zichtbaar)
@@ -530,7 +532,7 @@ export function renderDatabase(ctx) {
       <span class="title">Database-kaartje bewerken</span>
       <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
     </div>`);
-    header.querySelector("#btn-cancel").addEventListener("click", () => { editing = null; draw(true); });
+    header.querySelector("#btn-cancel").addEventListener("click", () => cancelEdit());
     app.appendChild(header);
 
     const editor = buildModelEditor({ container: app, m, el, esc }); // geen army → geen enhancement-sectie
@@ -581,6 +583,8 @@ export function renderDatabase(ctx) {
       const items = db.enhancements.filter((e) => e.category === cat.key);
       const card = el(`<div class="card"><h2>${cat.label}</h2><div data-list></div></div>`);
       app.appendChild(card);
+      const eAdd = addButton(`${cat.label} toevoegen`, () => { const e = blankEnhancement(cat.key); db.enhancements.push(e); startEdit("enhancement", e, db.enhancements); });
+      if (eAdd) card.appendChild(eAdd);
       const list = card.querySelector("[data-list]");
       if (!items.length) {
         list.appendChild(el(`<p class="empty">Nog geen ${cat.label.toLowerCase()} in deze database.</p>`));
@@ -626,6 +630,10 @@ export function renderDatabase(ctx) {
   function drawLores() {
     const card = el(`<div class="card"><h2>Lores</h2><div data-list></div></div>`);
     app.appendChild(card);
+    for (const k of LORE_KINDS) {
+      const lAdd = addButton(`${k.label} toevoegen`, () => { const lore = blankLore(k.key); db.lores.push(lore); startEdit("lore", lore, db.lores); });
+      if (lAdd) { lAdd.style.marginRight = "6px"; card.appendChild(lAdd); }
+    }
     const list = card.querySelector("[data-list]");
 
     // Faction lores + universal manifestation lores (voor iedere faction kiesbaar)
@@ -700,6 +708,8 @@ export function renderDatabase(ctx) {
   function drawRules(title, rules) {
     const card = el(`<div class="card"><h2>${esc(title)}</h2><div data-list></div></div>`);
     app.appendChild(card);
+    const rAdd = addButton("Rule toevoegen", () => { const r = blankRule(); rules.push(r); startEdit("rule", r, rules); });
+    if (rAdd) card.appendChild(rAdd);
     const list = card.querySelector("[data-list]");
     if (!rules.length) {
       list.appendChild(el(`<p class="empty">Nog geen rules in deze database.</p>`));
@@ -749,11 +759,42 @@ export function renderDatabase(ctx) {
     }
   }
 
+  // Annuleren: een vers toegevoegde (nog naamloze) entry weer uit de lijst halen.
+  function cancelEdit() {
+    if (editing?.target && editing.list && !editing.target.name) {
+      const i = editing.list.indexOf(editing.target);
+      if (i >= 0) editing.list.splice(i, 1);
+    }
+    editing = null;
+    draw();
+  }
+
   function editActions() {
     return [
       { label: `${icon("check")} Opslaan in de database`, primary: true, onClick: () => finishEdit() },
-      { label: "Annuleren", onClick: () => { editing = null; draw(); } },
+      { label: "Annuleren", onClick: () => cancelEdit() },
     ];
+  }
+
+  // Lege sjablonen voor nieuwe database-entries (admin voegt ze toe).
+  function blankModel() {
+    return { id: uid(), name: "", type: "", move: "", health: 1, control: 1, controlBonus: 0, save: "", ward: "", fly: false, champion: false, musician: false, standardBearer: false, wizardLevel: 0, priestLevel: 0, rangedAttacks: [], meleeAttacks: [], abilities: [], banishment: "", universal: false, points: null, reinforceable: false, unique: false, keywords: [], regimentOptions: [], enhancements: [], addedBy: user?.name || "" };
+  }
+  function blankEnhancement(category) {
+    return { name: "", category, forTypes: [], description: "", statMods: [], phases: [], oncePerBattle: false, points: 0, addedBy: user?.name || "" };
+  }
+  function blankRule() {
+    return { name: "", phases: [], description: "", oncePerBattle: false, addedBy: user?.name || "" };
+  }
+  function blankLore(kind) {
+    return { name: "", kind, universal: false, entries: [{ name: "", value: "", description: "" }, { name: "", value: "", description: "" }, { name: "", value: "", description: "" }], addedBy: user?.name || "" };
+  }
+  // Knop "+ Toevoegen" (alleen voor db-editors); voegt een blanco entry toe en opent de editor.
+  function addButton(label, onAdd) {
+    if (!dbEdit) return null;
+    const btn = el(`<button class="small" style="margin-top:6px">${icon("plus")} ${esc(label)}</button>`);
+    btn.addEventListener("click", onAdd);
+    return btn;
   }
 
   load();

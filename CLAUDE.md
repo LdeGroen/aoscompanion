@@ -243,6 +243,21 @@ laadt dezelfde URL.
   Oudere data wordt bij het openen van setup/companion in-place gemigreerd
   (ontbrekende velden krijgen defaults).
 
+## Set-up: importeren + personaliseren (geen DB-bewerken)
+In de set-up bewerk je de gedeelde database **niet** meer; je importeert items zoals ze in de
+database staan. Bij elke warscroll, enhancement, faction rule, subfaction rule en lore in je
+leger staat een **"Personaliseren"**-knop die de volledige editor opent op de **kopie in jouw
+leger** (warscroll → `buildModelEditor` via `personalizeModal`+`commit`; enhancement/rule/lore →
+de inline editor met `onChange: saveData`). Aanpassingen gelden alleen voor dat leger; de
+gedeelde database verandert niet. De oude "Deel in database"-knoppen zijn uit de set-up
+verwijderd (het dode `renderModelEditor`/`renderLibraryPicker`-pad is onbereikbaar — `editing`
+wordt nooit op een model gezet). Nieuwe content komt nu via het database-scherm.
+
+**Toevoegen in de database** (alleen db-editors, zie permissies): elk categorie-blok in het
+database-scherm heeft een "+ Toevoegen"-knop (models, de vier enhancement-categorieën, de drie
+lore-soorten, faction- en subfaction-rules; RoR had die al). Toevoegen pusht een blanco entry
+en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg (`cancelEdit`).
+
 ## Companion: volledige modus vs score-modus
 In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het
 was: phases, abilities, commands, CP, scoren) en **score-modus** (`renderScoreMode` in

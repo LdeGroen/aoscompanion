@@ -1,5 +1,5 @@
-import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind } from "./factions.js";
-import { buildModelEditor, buildRuleEditor, buildLoreEditor } from "./editors.js";
+import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind, phaseLabel } from "./factions.js";
+import { buildModelEditor, buildRuleEditor, buildLoreEditor, buildEnhancementEditor } from "./editors.js";
 import { effectiveModel, migrateModelEnhancements, enhancementFits, modLabel } from "./enhancements.js";
 import { openModal, buildModelPopupContent } from "./modelview.js";
 import * as sharedb from "./sharedb.js";
@@ -147,6 +147,35 @@ export function renderSetup(ctx) {
     return w;
   }
 
+  // ===================== Personaliseren (alleen voor dit leger) =====================
+  // Items komen 1-op-1 uit de database; met "Personaliseren" bewerk je de kopie in
+  // jouw leger (volledige editor). De gedeelde database verandert hier niet.
+  function personalizeModal(title, buildEditor) {
+    const wrap = el(`<div><h2>${icon("edit")} Personaliseren — ${esc(title)}</h2>
+      <p class="subtitle">Alleen voor dit leger; de gedeelde database verandert niet.</p>
+      <div data-ed></div></div>`);
+    const cont = wrap.querySelector("[data-ed]");
+    const editor = buildEditor(cont);
+    const overlay = openModal(wrap, el);
+    const done = el(`<button class="primary bigbtn">${icon("check")} Klaar</button>`);
+    done.addEventListener("click", () => { if (editor && editor.commit) editor.commit(); overlay.remove(); saveData(); rerender(); });
+    wrap.appendChild(done);
+  }
+  function personalizeModel(m) {
+    personalizeModal(m.name || "warscroll", (cont) => buildModelEditor({ container: cont, m, el, esc, onChange: () => {} }));
+  }
+  function personalizeEnhancement(enh) {
+    personalizeModal(enh.name || "enhancement", (cont) => { cont.appendChild(buildEnhancementEditor({ enh, el, esc, onChange: saveData })); return null; });
+  }
+  function personalizeRule(r) {
+    personalizeModal(r.name || "rule", (cont) => { cont.appendChild(buildRuleEditor({ rule: r, el, esc, onChange: saveData })); return null; });
+  }
+  function personalizeLore(kindKey, lore) {
+    const build = (names) => personalizeModal(lore.name || "lore", (cont) => { cont.appendChild(buildLoreEditor({ lore, kind: kindKey, el, esc, onChange: saveData, universalChoice: true, manifestationOptions: names, onRedraw: () => {} })); return null; });
+    if (kindKey === "manifestation") getUniversalManifestNames().then(build);
+    else build(null);
+  }
+
   // Compacte rij voor één model in de roster
   function modelRow(m, { leader = false } = {}) {
     const isManif = m.type === "Manifestation", isTerrain = m.type === "Faction terrain";
@@ -162,6 +191,7 @@ export function renderSetup(ctx) {
     const addBtn = (label, cls, fn) => { const b = el(`<button class="small ${cls || ""}">${label}</button>`); b.addEventListener("click", fn); act.appendChild(b); };
     if (m.reinforceable) addBtn(`${icon(m.reinforced ? "check" : "plus")} Reinforced`, m.reinforced ? "primary" : "", () => { m.reinforced = !m.reinforced; saveData(); rerender(); });
     if (!isManif && !isTerrain) addBtn(`${icon("plus")} Enhancements${(m.enhancements || []).length ? ` (${m.enhancements.length})` : ""}`, "", () => showEnhancementPicker(m));
+    if (!m.inRoR) addBtn(`${icon("edit")} Personaliseren`, "", () => personalizeModel(m));
     if (leader) addBtn(`★ ${m.isGeneral ? "General" : "Maak general"}`, m.isGeneral ? "primary" : "", () => { army.models.forEach((x) => { x.isGeneral = false; }); m.isGeneral = true; saveData(); rerender(); });
     addBtn(icon("trash"), "danger", () => {
       if (leader) {
@@ -447,6 +477,13 @@ export function renderSetup(ctx) {
           draw();
           rerender(); // werkt de teller in het overzicht bij (scrollpositie blijft)
         });
+        // Personaliseren van een gekozen enhancement (de kopie op dit model, leger-only)
+        if (checked) {
+          const sel = m.enhancements.find((x) => same(x, e));
+          const pBtn = el(`<button class="small">${icon("edit")} Personaliseren</button>`);
+          pBtn.addEventListener("click", () => personalizeEnhancement(sel));
+          line.querySelector("span").appendChild(el(`<div style="margin-top:4px"></div>`)).appendChild(pBtn);
+        }
         body.appendChild(line);
       };
       for (const e of fits) render(e, false);
@@ -807,51 +844,33 @@ export function renderSetup(ctx) {
         body.appendChild(btn);
         return;
       }
-      const build = (names) => body.appendChild(buildLoreEditor({
-        lore, kind: kindKey, el, esc,
-        onChange: saveData,
-        universalChoice: true,
-        manifestationOptions: names,
-        onRedraw: draw,
-        actions: [
-          {
-            label: `${icon("share")} Deel in database`,
-            onClick: async () => {
-              if (!lore.name.trim()) { alert("Geef de lore eerst een naam."); return; }
-              const target = kindKey === "manifestation" && lore.universal ? "universal database" : `${army.faction}-database`;
-              try {
-                await sharedb.shareLore(army.faction, kindKey, lore, state.user);
-                alert(`${def.label} "${lore.name}" gedeeld in de ${target}.`);
-              } catch (e) {
-                alert("Delen in de database mislukt: " + e.message);
-              }
-            },
-          },
-          {
-            label: `${icon("trash")} ${def.label} verwijderen`,
-            danger: true,
-            onClick: () => {
-              if (!confirm(`${def.label} verwijderen?`)) return;
-              army[def.armyField] = null;
-              // bij een manifestation lore ook de lore-gedreven manifestaties weghalen
-              if (kindKey === "manifestation") army.models = army.models.filter((m) => !m.fromLore);
-              saveData();
-              draw();
-            },
-          },
-        ],
-      }));
-      // De spell-picker van een universal manifestation lore heeft de namen
-      // van de universal manifestation-models nodig (async uit de database).
-      if (kindKey === "manifestation") getUniversalManifestNames().then(build);
-      else build(null);
+      const entryNames = (lore.entries || []).map((e) => e.name).filter(Boolean).join(" · ");
+      const item = el(`<div class="card inner">
+        <div class="card-header"><h3>${esc(lore.name || "(naamloos)")}</h3>${lore.universal ? '<span class="chip tag">Universal</span>' : ""}</div>
+        ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
+        <div class="btnrow">
+          <button class="small" data-pers>${icon("edit")} Personaliseren</button>
+          <button class="small" data-change>${icon("book")} Andere kiezen</button>
+          <button class="small danger" data-del>${icon("trash")} ${def.label} verwijderen</button>
+        </div>
+      </div>`);
+      item.querySelector("[data-pers]").addEventListener("click", () => personalizeLore(kindKey, lore));
+      item.querySelector("[data-change]").addEventListener("click", () => showLorePicker(kindKey));
+      item.querySelector("[data-del]").addEventListener("click", () => {
+        if (!confirm(`${def.label} verwijderen?`)) return;
+        army[def.armyField] = null;
+        if (kindKey === "manifestation") army.models = army.models.filter((m) => !m.fromLore);
+        saveData();
+        draw();
+      });
+      body.appendChild(item);
     };
     draw();
   }
 
   // ===================== Faction / subfaction rules =====================
   function renderRulesSection(title, rules, isSubfaction) {
-    const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>${icon("plus")} Rule toevoegen</button></div>`);
+    const wrap = el(`<div class="card"><h2>${title}</h2><div data-list></div><button class="small" data-add>${icon("plus")} Eigen rule toevoegen</button></div>`);
     app.appendChild(wrap);
     const list = wrap.querySelector("[data-list]");
 
@@ -859,31 +878,24 @@ export function renderSetup(ctx) {
       list.innerHTML = "";
       if (!rules.length) list.appendChild(el(`<p class="empty">Geen ${title.toLowerCase()}.</p>`));
       rules.forEach((r, i) => {
-        list.appendChild(buildRuleEditor({
-          rule: r, el, esc,
-          onChange: saveData,
-          actions: [
-            {
-              label: `${icon("share")} Deel in database`,
-              onClick: () => {
-                if (isSubfaction && !army.subfaction) { alert("Kies eerst een subfaction voor dit leger."); return; }
-                shareToDb(() => sharedb.shareRule(army.faction, isSubfaction ? army.subfaction : null, r, state.user), `Rule "${r.name}"`);
-              },
-            },
-            {
-              label: "Verwijder rule",
-              danger: true,
-              onClick: () => { rules.splice(i, 1); saveData(); draw(); },
-            },
-          ],
-        }));
+        const item = el(`<div class="card inner">
+          <div class="card-header"><h3>${esc(r.name || "(naamloos)")}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
+          ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
+          <div class="muted-list">${esc(r.description || "")}</div>
+          <div class="btnrow"><button class="small" data-pers>${icon("edit")} Personaliseren</button><button class="small danger" data-del>${icon("trash")} Verwijderen</button></div>
+        </div>`);
+        item.querySelector("[data-pers]").addEventListener("click", () => personalizeRule(r));
+        item.querySelector("[data-del]").addEventListener("click", () => { rules.splice(i, 1); saveData(); draw(); });
+        list.appendChild(item);
       });
     };
     draw();
     wrap.querySelector("[data-add]").addEventListener("click", () => {
-      rules.push({ name: "", phases: [], description: "" });
+      const r = { name: "Nieuwe rule", phases: [], description: "" };
+      rules.push(r);
       saveData();
       draw();
+      personalizeRule(r);
     });
   }
 
