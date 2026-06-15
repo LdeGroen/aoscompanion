@@ -96,6 +96,10 @@ laadt dezelfde URL.
   (≤2000, 1 general, unique 0-1) als waarschuwingen. Companion leest gewoon de platte
   `army.models` — regiments zijn puur metadata. Toevoegen via de database-picker
   (`pickModel` in setup.js); manifestaties blijven lore-gedreven.
+  **Volgorde in het roster** (`renderRoster`): het regiment van de general staat altijd bovenaan
+  (gesorteerd op `generalRid`), daaronder de overige gewone regiments, dan Auxiliary units,
+  Faction terrain en als laatste de Regiments of Renown. **Max 1 RoR**: `addRoR` weigert een
+  tweede (alert) en de toevoeg-knop verdwijnt zodra er één RoR in het leger zit.
 - **Regiment-opties** (welke units een hero in zijn regiment mag): geïmporteerd uit BSData
   (Battle-Profiles-sectie van de faction-`.cat`: `modifier add/category/force` → `affects`-id
   → keyword óf specifieke named unit). Per warscroll opgeslagen als `regimentOptions:
@@ -114,6 +118,11 @@ laadt dezelfde URL.
   (bijv. Zontari Endrin Dock 20) en telt dus mee op `m.points`; alleen `Manifestation` (en
   RoR-units, `inRoR`) zijn altijd 0. Geïmporteerd met `ko-import/driver-points.mjs` +
   `batch-merge-points.mjs` (match op naam; battle formations = de subfaction-namen uit factions.js).
+  **Lores kunnen ook punten kosten**: `lore.points` (op een spell/prayer/manifestation-lore, óók
+  universal manifestation-lores) telt mee in `totalPoints` via `lorePoints()` (som van
+  `army.spellLore/manifestationLore/prayerLore .points`). Geïmporteerd met
+  `ko-import/batch-merge-lorepoints.mjs` (faction-blobs op kind+naam, universal-blob op naam;
+  bron `lore-points.json`). Bewerkbaar in de lore-editor; in het roster-overzicht staat het puntental bij de lore.
 - **Punten geijkt op de officiële Battle Profiles (April 2026)**: de BSData-import is
   vergeleken met de officiële GW Battle Profiles-PDF. De hero/unit-tabellen in die PDF
   zijn visueel opgemaakt (verticaal gecentreerde cellen) en laten zich niet betrouwbaar
@@ -252,6 +261,15 @@ de inline editor met `onChange: saveData`). Aanpassingen gelden alleen voor dat 
 gedeelde database verandert niet. De oude "Deel in database"-knoppen zijn uit de set-up
 verwijderd (het dode `renderModelEditor`/`renderLibraryPicker`-pad is onbereikbaar — `editing`
 wordt nooit op een model gezet). Nieuwe content komt nu via het database-scherm.
+
+**Database doorzoeken**: bovenaan het database-scherm staat een zoekveld (`drawSearchResults` in
+database.js) dat models, enhancements, lores, faction- en subfaction-rules, universal
+manifestations/lores en RoR doorzoekt op naam (+ beschrijving/lore-entries). Twee scopes: **"Alleen
+<faction>"** (alleen de huidige blob) of **"Alle facties"** — die laadt alle faction-blobs eenmalig
+in `allData` (`loadAllData`, cache) en zoekt overal. Resultaten zijn klikbaar en springen naar de
+juiste faction. ⚠️ Itereren over blob-lijsten gaat via een `arr()`-guard (`Array.isArray`), want niet
+elke faction-blob heeft elk veld als array (een `factionRules` kan een object zijn → `for…of` crasht
+anders alleen bij "alle facties").
 
 **Toevoegen in de database** (alleen db-editors, zie permissies): elk categorie-blok in het
 database-scherm heeft een "+ Toevoegen"-knop (models, de vier enhancement-categorieën, de drie

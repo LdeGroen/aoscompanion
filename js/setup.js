@@ -30,7 +30,9 @@ export function renderSetup(ctx) {
   const pointsOf = (m) => (m.type === "Manifestation" || m.inRoR) ? 0 : ((parseInt(m.points) || 0) * (m.reinforced ? 2 : 1) + enhPoints(m));
   const rorPoints = () => army.regiments.reduce((s, r) => s + (r.ror ? (parseInt(r.ror.points) || 0) : 0), 0);
   const subfactionPoints = () => parseInt(army.subfactionPoints) || 0;
-  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints() + subfactionPoints();
+  // Lores kunnen punten kosten (sommige spell/prayer lores en universal manifestation lores).
+  const lorePoints = () => ["spellLore", "manifestationLore", "prayerLore"].reduce((s, k) => s + (parseInt(army[k]?.points) || 0), 0);
+  const totalPoints = () => army.models.reduce((s, m) => s + pointsOf(m), 0) + rorPoints() + subfactionPoints() + lorePoints();
 
   // Mag een unit in het regiment van deze leider? Geport van Sigdex' matchesRegimentOption:
   // keyword-opties gelden voor niet-heroes; heroes mogen alleen via een specifieke named-optie.
@@ -283,7 +285,11 @@ export function renderSetup(ctx) {
     </div>`));
 
     app.appendChild(el(`<h2>Regiments</h2>`));
-    for (const reg of army.regiments) renderRegiment(reg);
+    // Volgorde: het regiment van de general bovenaan, daarna de overige gewone regiments.
+    const generalRid = (army.models.find((m) => m.isGeneral) || {}).regimentId;
+    const regiments = army.regiments.filter((r) => !r.ror)
+      .sort((a, b) => (a.id === generalRid ? -1 : 0) - (b.id === generalRid ? -1 : 0));
+    for (const reg of regiments) renderRegiment(reg);
     const addRegCard = el(`<div class="card"><button class="primary" data-add>${icon("plus")} Regiment toevoegen (kies een hero als leider)</button></div>`);
     addRegCard.querySelector("[data-add]").addEventListener("click", () => pickModel({
       title: "Kies een hero als regiment-leider",
@@ -318,11 +324,16 @@ export function renderSetup(ctx) {
     }));
     app.appendChild(terCard);
 
-    // Regiments of Renown (vaste warbands; toevoegen)
+    // Regiments of Renown (vaste warbands) — onderaan, en maximaal 1 per leger.
     if (rorList === null) loadRoR().then(() => rerender());
-    const rorCard = el(`<div class="card"><h2>${icon("star")} Regiments of Renown</h2><div class="btnrow"></div></div>`);
+    app.appendChild(el(`<h2>${icon("star")} Regiments of Renown</h2>`));
+    const rorRegs = army.regiments.filter((r) => r.ror);
+    for (const reg of rorRegs) renderRoR(reg);
+    const rorCard = el(`<div class="card"><div class="btnrow"></div></div>`);
     const rorBtnRow = rorCard.querySelector(".btnrow");
-    if (rorList === null) {
+    if (rorRegs.length) {
+      rorBtnRow.appendChild(el(`<p class="subtitle">Een leger mag maximaal 1 Regiment of Renown hebben.</p>`));
+    } else if (rorList === null) {
       rorBtnRow.appendChild(el(`<p class="empty">Laden…</p>`));
     } else {
       const avail = rorForFaction();
@@ -380,6 +391,7 @@ export function renderSetup(ctx) {
   // RoR die deze faction mag nemen
   const rorForFaction = () => (rorList || []).filter((r) => (r.allowedArmies || []).some((a) => a.toLowerCase() === (army.faction || "").toLowerCase()));
   function addRoR(r) {
+    if (army.regiments.some((x) => x.ror)) { alert("Een leger mag maximaal 1 Regiment of Renown hebben."); return; }
     const rid = uid();
     army.regiments.push({ id: rid, ror: { name: r.name, points: r.points, abilities: r.abilities || [] } });
     for (const u of r.units || []) {
@@ -846,7 +858,7 @@ export function renderSetup(ctx) {
       }
       const entryNames = (lore.entries || []).map((e) => e.name).filter(Boolean).join(" · ");
       const item = el(`<div class="card inner">
-        <div class="card-header"><h3>${esc(lore.name || "(naamloos)")}</h3>${lore.universal ? '<span class="chip tag">Universal</span>' : ""}</div>
+        <div class="card-header"><h3>${esc(lore.name || "(naamloos)")}</h3><span class="subtitle">${lore.universal ? '<span class="chip tag">Universal</span> ' : ""}${lore.points ? (parseInt(lore.points) || 0) + " pts" : ""}</span></div>
         ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
         <div class="btnrow">
           <button class="small" data-pers>${icon("edit")} Personaliseren</button>

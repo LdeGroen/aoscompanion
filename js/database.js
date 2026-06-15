@@ -25,6 +25,9 @@ export function renderDatabase(ctx) {
   let ror = null; // Regiments of Renown (aparte gedeelde blob "regimentsofrenown")
   let dbEditors = []; // namen die de database mogen bewerken (blob "dbeditors")
   let dbEdit = false; // mag de huidige gebruiker de database wijzigen?
+  let search = ""; // zoekterm
+  let searchScope = "faction"; // "faction" = alleen huidige faction, "all" = alle facties
+  let allData = null; // cache van alle faction-blobs voor zoeken in "all"
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   // Pseudo-faction onderaan de keuzelijst: alle RoR bij elkaar (game-breed).
   const ROR_VIEW = "★ Regiments of Renown";
@@ -167,6 +170,20 @@ export function renderDatabase(ctx) {
     });
     app.appendChild(facCard);
 
+    // Zoeken (in deze faction of in alle facties)
+    const searchCard = el(`<div class="card">
+      <label>Zoeken</label>
+      <input type="text" id="db-search" placeholder="naam van warscroll, enhancement, rule, lore of RoR…" value="${esc(search)}" />
+      <div class="btnrow" style="margin-top:6px">
+        <button class="small ${searchScope === "faction" ? "primary" : ""}" data-scope="faction">Alleen ${esc(faction === ROR_VIEW ? "RoR" : faction)}</button>
+        <button class="small ${searchScope === "all" ? "primary" : ""}" data-scope="all">Alle facties</button>
+      </div>
+    </div>`);
+    const searchInput = searchCard.querySelector("#db-search");
+    searchInput.addEventListener("input", (e) => { search = e.target.value; draw(); setTimeout(() => { const s = document.querySelector("#db-search"); if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); } }, 0); });
+    searchCard.querySelectorAll("[data-scope]").forEach((b) => b.addEventListener("click", () => { searchScope = b.dataset.scope; if (searchScope === "all" && !allData) loadAllData(); draw(); }));
+    app.appendChild(searchCard);
+
     if (loadError) {
       app.appendChild(el(`<p class="empty" style="color:var(--red)">Database laden mislukt: ${esc(loadError)}</p>`));
       return;
@@ -182,6 +199,8 @@ export function renderDatabase(ctx) {
       app.appendChild(el(`<p class="subtitle">Je kunt de database bekijken en items naar je leger halen. Alleen beheerders kunnen items toevoegen of wijzigen.</p>`));
     }
 
+    if (search.trim()) { drawSearchResults(); return; }
+
     // Alle Regiments of Renown bij elkaar (eigen keuze onderaan de factionlijst)
     if (faction === ROR_VIEW) { drawRoR(); return; }
 
@@ -194,6 +213,64 @@ export function renderDatabase(ctx) {
     }
     drawBattleplans();
     drawTactics();
+  }
+
+  // ---------- Zoeken ----------
+  async function loadAllData() {
+    const factions = Object.keys(AOS_FACTIONS);
+    const map = {};
+    await Promise.all(factions.map(async (f) => { try { map[f] = (await sharedb.loadFactionDb(f)).db; } catch { map[f] = null; } }));
+    allData = map;
+    draw();
+  }
+
+  function drawSearchResults() {
+    const q = search.trim().toLowerCase();
+    const hit = (s) => String(s || "").toLowerCase().includes(q);
+    // welke faction-blobs doorzoeken
+    const sources = []; // { faction, db }
+    if (searchScope === "all") {
+      if (!allData) { app.appendChild(el(`<p class="empty">Alle facties laden…</p>`)); return; }
+      for (const f of Object.keys(allData)) if (allData[f]) sources.push({ faction: f, db: allData[f] });
+    } else {
+      if (faction !== ROR_VIEW && db && !db.rorView) sources.push({ faction, db });
+    }
+    const arr = (x) => (Array.isArray(x) ? x : []);
+    const results = [];
+    for (const { faction: f, db: fdb } of sources) {
+      for (const m of arr(fdb.models)) if (hit(m.name)) results.push({ faction: f, kind: m.type || "Model", name: m.name });
+      for (const e of arr(fdb.enhancements)) if (hit(e.name) || hit(e.description)) results.push({ faction: f, kind: "Enhancement", name: e.name });
+      for (const l of arr(fdb.lores)) if (hit(l.name) || arr(l.entries).some((x) => hit(x.name))) results.push({ faction: f, kind: "Lore", name: l.name });
+      for (const r of arr(fdb.factionRules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: "Faction rule", name: r.name });
+      for (const [sub, data] of Object.entries(fdb.subfactions || {})) for (const r of arr(data && data.rules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: `Subfaction rule (${sub})`, name: r.name });
+    }
+    // universal manifestations + lores (bij elke faction zichtbaar) en RoR
+    if (searchScope === "all" || faction !== ROR_VIEW) {
+      for (const m of arr(uni?.models)) if (hit(m.name)) results.push({ faction: "Universal", kind: "Manifestation", name: m.name });
+      for (const l of arr(uni?.lores)) if (hit(l.name)) results.push({ faction: "Universal", kind: "Lore", name: l.name });
+    }
+    for (const r of arr(ror?.list)) {
+      const inScope = searchScope === "all" || faction === ROR_VIEW;
+      if (inScope && (hit(r.name) || arr(r.units).some((u) => hit(u.name)))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true });
+    }
+    const card = el(`<div class="card"><h2>Zoekresultaten voor "${esc(search.trim())}"</h2><div data-list></div></div>`);
+    app.appendChild(card);
+    const list = card.querySelector("[data-list]");
+    if (!results.length) { list.appendChild(el(`<p class="empty">Niets gevonden${searchScope === "faction" ? ` in ${esc(faction)}. Kies "Alle facties" om breder te zoeken.` : "."}</p>`)); return; }
+    results.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    for (const r of results) {
+      const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+        <span><strong>${esc(r.name)}</strong> <span class="subtitle">${esc(r.kind)}</span></span>
+        <span class="subtitle">${esc(r.faction)} →</span>
+      </div>`);
+      row.addEventListener("click", () => {
+        search = "";
+        faction = r.ror ? ROR_VIEW : (r.faction === "Universal" ? faction : r.faction);
+        state.dbFaction = faction;
+        load();
+      });
+      list.appendChild(row);
+    }
   }
 
   // ---------- Battleplans (game-breed, niet faction-gebonden) ----------
