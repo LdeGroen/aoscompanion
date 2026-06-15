@@ -3,8 +3,19 @@
 
 const ACCOUNTS_KEY = "aoscomp_accounts";
 const SESSION_KEY = "aoscomp_session";
+const LOCAL_ADMIN_PW_KEY = "aoscomp_local_admin_pw";
 
-export const SUPERADMIN = { name: "Luc", password: "Ludotjek1991" };
+// Geen wachtwoord in de code (zou in de publieke repo staan). Met backend bepaalt de
+// server het admin-wachtwoord; in de lokale modus (zonder backend) staat het per
+// apparaat in localStorage en stel je het zelf in via Accountbeheer.
+export const SUPERADMIN = { name: "Luc" };
+
+export function getLocalAdminPassword() {
+  return localStorage.getItem(LOCAL_ADMIN_PW_KEY) || "";
+}
+export function setLocalAdminPassword(pw) {
+  localStorage.setItem(LOCAL_ADMIN_PW_KEY, pw || "");
+}
 
 export function getAccounts() {
   try {

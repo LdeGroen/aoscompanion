@@ -282,8 +282,13 @@ battleround, dan zet dat de stage op `roundSetup` van die ronde. `renderScoringC
   gaat debounced (800 ms). ⚠️ De debounced push legt het token vast bij het inplannen en
   wordt geannuleerd bij uitloggen — anders kon data van de vorige gebruiker onder het
   account van de volgende belanden (echte bug geweest, niet opnieuw introduceren).
-- `js/storage.js` bevat nog een hardcoded superadmin-wachtwoord voor de lokale modus
-  (zonder backend). Met backend actief wordt dat pad niet gebruikt.
+- **Superadmin-wachtwoord staat NIET in de code.** Met backend bepaalt de server het
+  (als salted hash in `config.json` op de Pi — `admin_password_hash`, zie appsync). Je wijzigt
+  het via **Accountbeheer → "Mijn superadmin-wachtwoord wijzigen"** (`backend.setAdminPassword`
+  → server hasht + schrijft config.json, verwijdert plain `admin_password`). In de **lokale
+  modus** (zonder backend) staat het per apparaat in `localStorage`
+  (`storage.getLocalAdminPassword`/`setLocalAdminPassword`); is het nog niet ingesteld, dan mag
+  de eerste login en stel je het daarna in. `storage.SUPERADMIN` bevat alleen nog de naam.
 
 ## Deploy
 **Pushen naar `main` = deployen.** GitHub Pages serveert de repo-root direct (legacy build,

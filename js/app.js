@@ -164,9 +164,12 @@ function renderLogin() {
       return;
     }
 
-    // Zonder backend: lokale accounts
+    // Zonder backend: lokale accounts. Het admin-wachtwoord staat per apparaat in
+    // localStorage; is het nog niet ingesteld, dan mag de eerste login (stel het
+    // daarna in via Accountbeheer).
     if (isAdminName()) {
-      if (pwInput.value !== store.SUPERADMIN.password) { err.textContent = "Onjuist wachtwoord."; return; }
+      const localPw = store.getLocalAdminPassword();
+      if (localPw && pwInput.value !== localPw) { err.textContent = "Onjuist wachtwoord."; return; }
       await login(store.SUPERADMIN.name, true);
       return;
     }
@@ -276,6 +279,38 @@ function renderAdmin() {
       : "Let op: accounts en legerdata staan lokaal op het apparaat (localStorage). Een account dat je hier aanmaakt bestaat alleen op dit apparaat."}</p>
   </div>`);
   app.appendChild(card);
+
+  // Superadmin-wachtwoord wijzigen (server hasht het; lokaal staat het in localStorage).
+  const pwCard = el(`<div class="card">
+    <h3>Mijn superadmin-wachtwoord wijzigen</h3>
+    <label>Nieuw wachtwoord (min. 6 tekens)</label>
+    <input type="password" id="sa-pw1" autocomplete="new-password" />
+    <label>Herhaal nieuw wachtwoord</label>
+    <input type="password" id="sa-pw2" autocomplete="new-password" />
+    <p id="sa-err" style="color:var(--red);min-height:1.2em;font-size:0.9rem"></p>
+    <button class="primary" id="sa-save">Wachtwoord wijzigen</button>
+    <p class="subtitle" style="margin-top:10px">${backend.hasBackend()
+      ? "Het wachtwoord wordt versleuteld op de server opgeslagen — het staat nergens in de app-code."
+      : "Zonder backend wordt het wachtwoord op dit apparaat opgeslagen (lokale modus)."}</p>
+  </div>`);
+  app.appendChild(pwCard);
+  pwCard.querySelector("#sa-save").addEventListener("click", async () => {
+    const pw1 = pwCard.querySelector("#sa-pw1").value;
+    const pw2 = pwCard.querySelector("#sa-pw2").value;
+    const e = pwCard.querySelector("#sa-err");
+    if (pw1.length < 6) { e.textContent = "Wachtwoord moet minstens 6 tekens zijn."; return; }
+    if (pw1 !== pw2) { e.textContent = "De wachtwoorden komen niet overeen."; return; }
+    try {
+      if (backend.hasBackend()) await backend.setAdminPassword(pw1);
+      else store.setLocalAdminPassword(pw1);
+      e.textContent = "";
+      pwCard.querySelector("#sa-pw1").value = "";
+      pwCard.querySelector("#sa-pw2").value = "";
+      alert("Je superadmin-wachtwoord is gewijzigd. Gebruik het de volgende keer dat je inlogt.");
+    } catch (err) {
+      e.textContent = "Wijzigen mislukt: " + err.message;
+    }
+  });
 
   const list = el(`<div class="card"><h3>Bestaande accounts</h3><div id="acc-list"></div></div>`);
   app.appendChild(list);

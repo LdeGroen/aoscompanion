@@ -84,3 +84,7 @@ export async function createAccount(name, password) {
 export async function deleteAccount(name) {
   await call("deleteAccount", { name });
 }
+
+export async function setAdminPassword(password) {
+  await call("setAdminPassword", { password });
+}
