@@ -141,8 +141,10 @@ laadt dezelfde URL.
   overtreding verschijnt een waarschuwing in `rosterWarnings`. De regiment-opties zijn per
   warscroll bewerkbaar in de model-editor (lijst van keywords/unit-namen + max).
 - **Regiments of Renown in de database**: de `regimentsofrenown`-blob heeft een eigen
-  sectie in het database-scherm (`drawRoR`/`buildRoREditor` in database.js, game-breed net
-  als battleplans). Daar kun je RoR **bekijken, toevoegen, bewerken en verwijderen** (naam,
+  weergave in het database-scherm (`drawRoR`/`buildRoREditor` in database.js). RoR staan
+  niet onder elke faction, maar onder een eigen pseudo-faction `ROR_VIEW` ("★ Regiments of
+  Renown"), als laatste optie in de faction-keuzelijst — daar staan álle RoR bij elkaar.
+  Kies je die optie, dan toont `drawInner` alleen die sectie (geen faction-blob nodig). Daar kun je RoR **bekijken, toevoegen, bewerken en verwijderen** (naam,
   punten, toegestane facties via checkboxes, units met naam+aantal, en de RoR-eigen
   **regels/abilities**). Eigenaarschap via `addedBy` zoals andere entries. De RoR-regels
   zijn uit BSData geïmporteerd (`Regiments of Renown.cat`, profiles met Timing/Declare/

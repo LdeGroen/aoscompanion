@@ -24,6 +24,8 @@ export function renderDatabase(ctx) {
   let gd = null;  // gamedata: battleplans + battle tactics (aparte gedeelde blob)
   let ror = null; // Regiments of Renown (aparte gedeelde blob "regimentsofrenown")
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
+  // Pseudo-faction onderaan de keuzelijst: alle RoR bij elkaar (game-breed).
+  const ROR_VIEW = "★ Regiments of Renown";
   let offline = false;
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
@@ -34,13 +36,18 @@ export function renderDatabase(ctx) {
     db = null;
     loadError = null;
     editing = null;
+    offline = false;
     draw(true);
-    try {
-      const result = await sharedb.loadFactionDb(faction);
-      db = result.db;
-      offline = result.offline;
-    } catch (e) {
-      loadError = e.message;
+    if (faction === ROR_VIEW) {
+      db = { rorView: true }; // geen echte faction-blob nodig
+    } else {
+      try {
+        const result = await sharedb.loadFactionDb(faction);
+        db = result.db;
+        offline = result.offline;
+      } catch (e) {
+        loadError = e.message;
+      }
     }
     try {
       uni = (await sharedb.loadUniversalDb()).db;
@@ -140,7 +147,7 @@ export function renderDatabase(ctx) {
 
     const facCard = el(`<div class="card">
       <label>Faction</label>
-      <select id="db-faction">${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === faction ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>
+      <select id="db-faction">${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === faction ? "selected" : ""}>${esc(f)}</option>`).join("")}<option value="${esc(ROR_VIEW)}" ${faction === ROR_VIEW ? "selected" : ""}>${esc(ROR_VIEW)}</option></select>
       ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren.</p>`}
     </div>`);
     facCard.querySelector("#db-faction").addEventListener("change", (e) => {
@@ -162,6 +169,9 @@ export function renderDatabase(ctx) {
       app.appendChild(el(`<div class="reminder">⚠ Offline — je ziet de lokaal gecachete versie van deze database.</div>`));
     }
 
+    // Alle Regiments of Renown bij elkaar (eigen keuze onderaan de factionlijst)
+    if (faction === ROR_VIEW) { drawRoR(); return; }
+
     drawModels();
     drawEnhancements();
     drawLores();
@@ -171,7 +181,6 @@ export function renderDatabase(ctx) {
     }
     drawBattleplans();
     drawTactics();
-    drawRoR();
   }
 
   // ---------- Battleplans (game-breed, niet faction-gebonden) ----------
