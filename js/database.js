@@ -355,15 +355,19 @@ export function renderDatabase(ctx) {
       uWrap.innerHTML = "";
       if (!rr.units.length) uWrap.appendChild(el(`<p class="empty">Geen units.</p>`));
       rr.units.forEach((u, i) => {
-        const row = el(`<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><input type="text" data-un value="${esc(u.name)}" placeholder="unit-naam" style="flex:3"/><input type="number" data-uc min="1" value="${esc(u.count || 1)}" style="flex:1;min-width:60px"/><button class="danger small">✕</button></div>`);
-        row.querySelector("[data-un]").addEventListener("input", (e) => { u.name = e.target.value; });
+        const row = el(`<div class="card inner" style="margin:4px 0">
+          <div class="card-header"><div><strong>${esc(u.name || "(kies een warscroll)")}</strong>${u.model ? "" : ' <span class="chip tag">geen warscroll gekoppeld</span>'}</div>
+            <span style="display:flex;gap:6px;align-items:center"><label class="subtitle">aantal</label><input type="number" data-uc min="1" value="${esc(u.count || 1)}" style="width:60px"/></span></div>
+          <div class="btnrow"><button class="small" data-pick>${icon("edit")} Warscroll kiezen</button><button class="danger small" data-del>${icon("trash")} Verwijderen</button></div>
+        </div>`);
         row.querySelector("[data-uc]").addEventListener("change", (e) => { u.count = parseInt(e.target.value) || 1; });
-        row.querySelector("button.danger").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); });
+        row.querySelector("[data-pick]").addEventListener("click", () => pickWarscroll((picked) => { u.name = picked.name; u.model = picked.model; drawU(); }));
+        row.querySelector("[data-del]").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); });
         uWrap.appendChild(row);
       });
     };
     drawU();
-    wrap.querySelector("[data-add-unit]").addEventListener("click", () => { rr.units.push({ name: "", count: 1 }); drawU(); });
+    wrap.querySelector("[data-add-unit]").addEventListener("click", () => pickWarscroll((picked) => { rr.units.push({ name: picked.name, count: 1, model: picked.model }); drawU(); }));
 
     rr.abilities = rr.abilities || [];
     const aWrap = wrap.querySelector("[data-abs]");
@@ -392,6 +396,39 @@ export function renderDatabase(ctx) {
     actions.appendChild(saveBtn);
     actions.appendChild(cancelBtn);
     return wrap;
+  }
+
+  // Kies een warscroll uit de database (faction naar keuze) voor een RoR-unit.
+  // Zet zowel de naam als het volledige warscroll-model, zodat de unit met stats
+  // in een leger belandt.
+  function pickWarscroll(onPick) {
+    let pf = (army ? army.faction : null) || (faction !== ROR_VIEW ? faction : Object.keys(AOS_FACTIONS)[0]);
+    const wrap = el(`<div><h2>Warscroll kiezen</h2>
+      <label>Faction</label>
+      <select data-pf>${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === pf ? "selected" : ""}>${esc(f)}</option>`).join("")}</select>
+      <div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    const overlay = openModal(wrap, el);
+    const list = async () => {
+      body.innerHTML = ""; body.appendChild(el(`<p class="empty">Laden…</p>`));
+      let models = [];
+      try {
+        const fdb = (await sharedb.loadFactionDb(pf)).db;
+        const udb = (await sharedb.loadUniversalDb()).db;
+        models = [...(fdb.models || []), ...(udb.models || [])];
+      } catch (e) {
+        body.innerHTML = ""; body.appendChild(el(`<p class="empty" style="color:var(--red)">Niet beschikbaar: ${esc(e.message)}</p>`)); return;
+      }
+      body.innerHTML = "";
+      if (!models.length) { body.appendChild(el(`<p class="empty">Geen warscrolls in de ${esc(pf)}-database.</p>`)); return; }
+      for (const m of models) {
+        const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)"><strong>${esc(m.name)}</strong><span class="subtitle">${m.points != null ? m.points + " pts" : ""}</span></div>`);
+        row.addEventListener("click", () => { onPick({ name: m.name, model: importCopy(m) }); overlay.remove(); });
+        body.appendChild(row);
+      }
+    };
+    wrap.querySelector("[data-pf]").addEventListener("change", (e) => { pf = e.target.value; list(); });
+    list();
   }
 
   // ---------- Models (kaartjes) ----------

@@ -145,8 +145,12 @@ laadt dezelfde URL.
   niet onder elke faction, maar onder een eigen pseudo-faction `ROR_VIEW` ("★ Regiments of
   Renown"), als laatste optie in de faction-keuzelijst — daar staan álle RoR bij elkaar.
   Kies je die optie, dan toont `drawInner` alleen die sectie (geen faction-blob nodig). Daar kun je RoR **bekijken, toevoegen, bewerken en verwijderen** (naam,
-  punten, toegestane facties via checkboxes, units met naam+aantal, en de RoR-eigen
-  **regels/abilities**). Eigenaarschap via `addedBy` zoals andere entries. De RoR-regels
+  punten, toegestane facties via checkboxes, units en de RoR-eigen **regels/abilities**).
+  Units kies je via een **warscroll-picker** (`pickWarscroll` in database.js, faction naar
+  keuze): die zet zowel `unit.name` als het volledige `unit.model` (warscroll met stats),
+  zodat de RoR-units met stats in een leger belanden. Vrij een naam typen kan dus niet meer —
+  een unit is altijd een gekoppelde warscroll. Eigenaarschap via `addedBy` zoals andere
+  entries. De RoR-regels
   zijn uit BSData geïmporteerd (`Regiments of Renown.cat`, profiles met Timing/Declare/
   Effect/Keywords → `ko-import/batch-merge-ror-abilities.mjs`). In de list-builder is de
   RoR-kaart klikbaar (`showRoRRules`): dat opent een popup met de RoR-regel(s) — los van de
