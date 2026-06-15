@@ -438,7 +438,7 @@ export function renderSetup(ctx) {
         const checked = m.enhancements.some((sel) => same(sel, e));
         const line = el(`<div class="checkline" style="align-items:flex-start">
           <input type="checkbox" ${checked ? "checked" : ""} />
-          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${e.points ? " · " + e.points + " pts" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="subtitle">${esc(e.description)}</div>` : ""}</span>
+          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${e.points ? " · " + e.points + " pts" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="muted-list">${esc(e.description)}</div>` : ""}</span>
         </div>`);
         line.querySelector("input").addEventListener("change", (ev) => {
           if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));

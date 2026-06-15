@@ -980,7 +980,7 @@ export function renderCompanion(ctx) {
         const row = el(`<div class="checkline" style="align-items:flex-start">
           <input type="checkbox" ${scoredThis ? "checked" : ""} ${scoredThis || done < 3 ? "" : "disabled"} />
           <span><strong>${esc(t.name)}</strong> <span class="subtitle">(${done}/3)</span><br>${label}
-            ${!scoredThis && done < 3 && step?.description ? `<div class="subtitle">${esc(step.description)}</div>` : ""}
+            ${!scoredThis && done < 3 && step?.description ? `<div class="muted-list">${esc(step.description)}</div>` : ""}
           </span>
         </div>`);
         row.querySelector("input").addEventListener("change", (e) => {
