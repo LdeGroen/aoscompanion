@@ -202,13 +202,34 @@ export function renderSetup(ctx) {
   }
 
   // Regiment of Renown: vaste warband (eigen prijs, units niet bewerkbaar).
+  function showRoRRules(reg) {
+    const ror = reg.ror || {};
+    let abilities = ror.abilities;
+    if ((!abilities || !abilities.length) && rorList) abilities = (rorList.find((r) => r.name === ror.name) || {}).abilities;
+    const inReg = army.models.filter((m) => m.regimentId === reg.id);
+    const wrap = el(`<div>
+      <h2>${icon("star")} ${esc(ror.name)}</h2>
+      <p class="subtitle">${parseInt(ror.points) || 0} pts · ${inReg.map((m) => esc(m.name)).join(", ")}</p>
+      <div data-abs></div>
+    </div>`);
+    const ab = wrap.querySelector("[data-abs]");
+    if (abilities && abilities.length) {
+      for (const a of abilities) ab.appendChild(el(`<div class="card inner"><h3>${esc(a.name || "Regel")}</h3><div class="muted-list">${esc(a.description || "")}</div></div>`));
+    } else {
+      ab.appendChild(el(`<p class="empty">Geen RoR-regels bekend. Je kunt ze toevoegen in de database.</p>`));
+    }
+    openModal(wrap, el);
+  }
+
   function renderRoR(reg) {
     const inReg = army.models.filter((m) => m.regimentId === reg.id);
     const card = el(`<div class="card">
-      <div class="card-header"><h3>${icon("star")} ${esc(reg.ror.name)} <span class="chip tag">RoR</span></h3><span class="subtitle">${parseInt(reg.ror.points) || 0} pts</span></div>
+      <div class="card-header clickable" data-info><h3>${icon("star")} ${esc(reg.ror.name)} <span class="chip tag">RoR</span></h3><span class="subtitle">${parseInt(reg.ror.points) || 0} pts ${icon("book")}</span></div>
+      <p class="subtitle" style="margin-top:0">Klik voor de RoR-regel(s).</p>
       <div data-units></div>
       <div class="btnrow"><button class="small danger" data-del>${icon("trash")} Regiment of Renown verwijderen</button></div>
     </div>`);
+    card.querySelector("[data-info]").addEventListener("click", () => showRoRRules(reg));
     const uwrap = card.querySelector("[data-units]");
     for (const u of inReg) {
       const row = el(`<div class="card inner clickable" style="margin:6px 0"><div class="card-header"><div><strong>${esc(u.name)}</strong><div class="subtitle">vast onderdeel van de RoR</div></div></div></div>`);
@@ -330,7 +351,7 @@ export function renderSetup(ctx) {
   const rorForFaction = () => (rorList || []).filter((r) => (r.allowedArmies || []).some((a) => a.toLowerCase() === (army.faction || "").toLowerCase()));
   function addRoR(r) {
     const rid = uid();
-    army.regiments.push({ id: rid, ror: { name: r.name, points: r.points } });
+    army.regiments.push({ id: rid, ror: { name: r.name, points: r.points, abilities: r.abilities || [] } });
     for (const u of r.units || []) {
       const n = parseInt(u.count) || 1;
       for (let i = 0; i < n; i++) {

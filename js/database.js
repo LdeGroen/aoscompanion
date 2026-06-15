@@ -22,6 +22,8 @@ export function renderDatabase(ctx) {
   let db = null;
   let uni = null; // universal manifestation lores (aparte gedeelde blob)
   let gd = null;  // gamedata: battleplans + battle tactics (aparte gedeelde blob)
+  let ror = null; // Regiments of Renown (aparte gedeelde blob "regimentsofrenown")
+  const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   let offline = false;
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
@@ -49,6 +51,20 @@ export function renderDatabase(ctx) {
       gd = (await loadGamedata()).db;
     } catch {
       gd = null;
+    }
+    try {
+      ror = (await sharedb.loadSharedBlob("regimentsofrenown", normRoR)).db;
+    } catch {
+      ror = { list: [] };
+    }
+    draw();
+  }
+
+  async function persistRoR() {
+    try {
+      await sharedb.saveSharedBlob("regimentsofrenown", ror);
+    } catch (e) {
+      alert("Opslaan in de database mislukt: " + e.message);
     }
     draw();
   }
@@ -155,6 +171,7 @@ export function renderDatabase(ctx) {
     }
     drawBattleplans();
     drawTactics();
+    drawRoR();
   }
 
   // ---------- Battleplans (game-breed, niet faction-gebonden) ----------
@@ -256,6 +273,116 @@ export function renderDatabase(ctx) {
       if (editBtn) editBtn.addEventListener("click", () => startEdit("tactic", t, gd.tactics, false, persistGamedata));
       list.appendChild(item);
     }
+  }
+
+  // ---------- Regiments of Renown (game-breed) ----------
+  function drawRoR() {
+    const card = el(`<div class="card"><h2>${icon("star")} Regiments of Renown</h2>
+      <p class="subtitle">Vaste warbands, kiesbaar in meerdere facties. Klik in de list-builder op de RoR om de regel(s) te zien.</p>
+      <div data-list></div>
+      <button class="small" data-add>${icon("plus")} Regiment of Renown toevoegen</button></div>`);
+    app.appendChild(card);
+    const list = card.querySelector("[data-list]");
+    if (!ror) {
+      list.appendChild(el(`<p class="empty">Regiments of Renown niet beschikbaar (offline zonder cache?).</p>`));
+    } else {
+      if (!ror.list.length) list.appendChild(el(`<p class="empty">Nog geen Regiments of Renown.</p>`));
+      for (const rr of ror.list) {
+        if (editing?.target === rr) { list.appendChild(buildRoREditor(editing.copy, rr)); continue; }
+        const item = el(`<div class="card inner">
+          <div class="card-header"><h3>${esc(rr.name || "(naamloos)")}</h3><span class="subtitle">${parseInt(rr.points) || 0} pts</span></div>
+          <div class="subtitle">Facties: ${(rr.allowedArmies || []).map(esc).join(", ") || "—"}</div>
+          <div class="subtitle">Units: ${(rr.units || []).map((u) => `${u.count > 1 ? u.count + "× " : ""}${esc(u.name)}`).join(", ") || "—"}</div>
+          ${(rr.abilities || []).length ? `<div class="muted-list">${rr.abilities.map((a) => `<strong>${esc(a.name || "(naamloos)")}</strong>${a.description ? "\n" + esc(a.description) : ""}`).join("\n\n")}</div>` : `<div class="subtitle">Nog geen regels.</div>`}
+          <div class="subtitle">${ownerLabel(rr)}</div>
+          <div class="btnrow">
+            ${canEdit(rr) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
+            <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
+          </div>
+        </div>`);
+        const eb = item.querySelector('[data-act="edit"]');
+        if (eb) eb.addEventListener("click", () => startEdit("ror", rr, ror.list, false, persistRoR));
+        const delb = item.querySelector('[data-act="del"]');
+        if (delb) delb.addEventListener("click", async () => {
+          if (!confirm(`"${rr.name}" uit de gedeelde database verwijderen? Dit geldt voor alle accounts.`)) return;
+          const i = ror.list.indexOf(rr); if (i >= 0) ror.list.splice(i, 1);
+          await persistRoR();
+        });
+        list.appendChild(item);
+      }
+    }
+    const addBtn = card.querySelector("[data-add]");
+    if (addBtn) addBtn.addEventListener("click", () => {
+      if (!ror) return;
+      const blank = { name: "", points: 0, allowedArmies: [], units: [], abilities: [], addedBy: user?.name || "" };
+      ror.list.push(blank);
+      startEdit("ror", blank, ror.list, false, persistRoR);
+    });
+  }
+
+  function buildRoREditor(rr, original) {
+    const wrap = el(`<div class="card inner">
+      <label>Naam</label>
+      <input type="text" data-f="name" value="${esc(rr.name)}" />
+      <label>Punten</label>
+      <input type="number" data-f="points" min="0" value="${esc(rr.points || 0)}" />
+      <label>Toegestane facties</label>
+      <div class="chips" data-armies>${Object.keys(AOS_FACTIONS).map((f) => `<label class="chip"><input type="checkbox" value="${esc(f)}" ${(rr.allowedArmies || []).includes(f) ? "checked" : ""}/> ${esc(f)}</label>`).join("")}</div>
+      <label>Units (naam + aantal)</label>
+      <div data-units></div>
+      <button class="small" data-add-unit>${icon("plus")} Unit toevoegen</button>
+      <label>Regels (RoR-eigen abilities)</label>
+      <div data-abs></div>
+      <button class="small" data-add-ab>${icon("plus")} Regel toevoegen</button>
+      <div class="btnrow" data-actions></div>
+    </div>`);
+    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { rr.name = e.target.value; });
+    wrap.querySelector('[data-f="points"]').addEventListener("input", (e) => { rr.points = parseInt(e.target.value) || 0; });
+    wrap.querySelector("[data-armies]").addEventListener("change", () => { rr.allowedArmies = [...wrap.querySelectorAll("[data-armies] input:checked")].map((c) => c.value); });
+
+    rr.units = rr.units || [];
+    const uWrap = wrap.querySelector("[data-units]");
+    const drawU = () => {
+      uWrap.innerHTML = "";
+      if (!rr.units.length) uWrap.appendChild(el(`<p class="empty">Geen units.</p>`));
+      rr.units.forEach((u, i) => {
+        const row = el(`<div style="display:flex;gap:6px;margin:4px 0;align-items:center"><input type="text" data-un value="${esc(u.name)}" placeholder="unit-naam" style="flex:3"/><input type="number" data-uc min="1" value="${esc(u.count || 1)}" style="flex:1;min-width:60px"/><button class="danger small">✕</button></div>`);
+        row.querySelector("[data-un]").addEventListener("input", (e) => { u.name = e.target.value; });
+        row.querySelector("[data-uc]").addEventListener("change", (e) => { u.count = parseInt(e.target.value) || 1; });
+        row.querySelector("button.danger").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); });
+        uWrap.appendChild(row);
+      });
+    };
+    drawU();
+    wrap.querySelector("[data-add-unit]").addEventListener("click", () => { rr.units.push({ name: "", count: 1 }); drawU(); });
+
+    rr.abilities = rr.abilities || [];
+    const aWrap = wrap.querySelector("[data-abs]");
+    const drawA = () => {
+      aWrap.innerHTML = "";
+      if (!rr.abilities.length) aWrap.appendChild(el(`<p class="empty">Geen regels.</p>`));
+      rr.abilities.forEach((a, i) => {
+        const row = el(`<div class="card inner" style="margin:4px 0"><input type="text" data-an value="${esc(a.name)}" placeholder="naam van de regel"/><textarea data-ad placeholder="beschrijving (Timing/Declare/Effect…)">${esc(a.description || "")}</textarea><div class="btnrow"><button class="danger small">${icon("trash")} Verwijderen</button></div></div>`);
+        row.querySelector("[data-an]").addEventListener("input", (e) => { a.name = e.target.value; });
+        row.querySelector("[data-ad]").addEventListener("input", (e) => { a.description = e.target.value; });
+        row.querySelector("button.danger").addEventListener("click", () => { rr.abilities.splice(i, 1); drawA(); });
+        aWrap.appendChild(row);
+      });
+    };
+    drawA();
+    wrap.querySelector("[data-add-ab]").addEventListener("click", () => { rr.abilities.push({ name: "", description: "" }); drawA(); });
+
+    const actions = wrap.querySelector("[data-actions]");
+    const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
+    saveBtn.addEventListener("click", () => { if (!rr.name.trim()) { alert("Geef de Regiment of Renown een naam."); return; } finishEdit(); });
+    const cancelBtn = el(`<button class="small">Annuleren</button>`);
+    cancelBtn.addEventListener("click", () => {
+      if (original && !original.name) { const i = ror.list.indexOf(original); if (i >= 0) ror.list.splice(i, 1); } // verse, lege toevoeging weer weghalen
+      editing = null; draw();
+    });
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+    return wrap;
   }
 
   // ---------- Models (kaartjes) ----------

@@ -140,6 +140,16 @@ laadt dezelfde URL.
   unit-naam matcht (named heroes). Heroes mogen alleen via een named-optie (max 1). Bij een
   overtreding verschijnt een waarschuwing in `rosterWarnings`. De regiment-opties zijn per
   warscroll bewerkbaar in de model-editor (lijst van keywords/unit-namen + max).
+- **Regiments of Renown in de database**: de `regimentsofrenown`-blob heeft een eigen
+  sectie in het database-scherm (`drawRoR`/`buildRoREditor` in database.js, game-breed net
+  als battleplans). Daar kun je RoR **bekijken, toevoegen, bewerken en verwijderen** (naam,
+  punten, toegestane facties via checkboxes, units met naam+aantal, en de RoR-eigen
+  **regels/abilities**). Eigenaarschap via `addedBy` zoals andere entries. De RoR-regels
+  zijn uit BSData geïmporteerd (`Regiments of Renown.cat`, profiles met Timing/Declare/
+  Effect/Keywords → `ko-import/batch-merge-ror-abilities.mjs`). In de list-builder is de
+  RoR-kaart klikbaar (`showRoRRules`): dat opent een popup met de RoR-regel(s) — los van de
+  warscroll-popups van de units. `addRoR` zet de abilities mee op `reg.ror` zodat de popup
+  ook midden in een potje werkt.
 - **Regiments of Renown**: vaste warbands uit BSData (`Regiments of Renown.cat` voor units +
   abilities, `Age of Sigmar 4.0.gst` voor punten + toegestane facties — gekoppeld via de
   forceEntry-id). Opgeslagen in de gedeelde blob **`regimentsofrenown`**
