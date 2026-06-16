@@ -28,7 +28,13 @@ export function renderDatabase(ctx) {
   let search = ""; // zoekterm
   let searchScope = "faction"; // "faction" = alleen huidige faction, "all" = alle facties
   let allData = null; // cache van alle faction-blobs voor zoeken in "all"
+  let aorList = null; // Armies of Renown (gedeelde blob "armiesofrenown")
+  let aor = state.dbAoR || null; // gekozen Army of Renown (naam) binnen de faction, of null = standaard
+  const expanded = new Set(); // welke facties uitgeklapt zijn in de keuzelijst
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
+  const normAoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
+  const aorsFor = (f) => (aorList || []).filter((a) => a.faction === f);
+  const currentAoR = () => (aorList || []).find((a) => a.faction === faction && a.name === aor) || null;
   // Pseudo-faction onderaan de keuzelijst: alle RoR bij elkaar (game-breed).
   const ROR_VIEW = "★ Regiments of Renown";
   let offline = false;
@@ -68,6 +74,11 @@ export function renderDatabase(ctx) {
       ror = (await sharedb.loadSharedBlob("regimentsofrenown", normRoR)).db;
     } catch {
       ror = { list: [] };
+    }
+    try {
+      aorList = (await sharedb.loadSharedBlob("armiesofrenown", normAoR)).db.list;
+    } catch {
+      aorList = [];
     }
     try {
       const ed = (await sharedb.loadSharedBlob("dbeditors", (raw) => (raw && Array.isArray(raw.editors)) ? raw : { editors: [] })).db;
@@ -158,16 +169,48 @@ export function renderDatabase(ctx) {
     });
     app.appendChild(header);
 
+    // Faction-keuze als uitklapbare lijst: klik op een faction = standaard versie;
+    // klik op de chevron = de Armies of Renown van die faction tonen.
     const facCard = el(`<div class="card">
       <label>Faction</label>
-      <select id="db-faction">${Object.keys(AOS_FACTIONS).map((f) => `<option ${f === faction ? "selected" : ""}>${esc(f)}</option>`).join("")}<option value="${esc(ROR_VIEW)}" ${faction === ROR_VIEW ? "selected" : ""}>${esc(ROR_VIEW)}</option></select>
+      <div class="faction-picker" data-list></div>
       ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren.</p>`}
     </div>`);
-    facCard.querySelector("#db-faction").addEventListener("change", (e) => {
-      faction = e.target.value;
-      state.dbFaction = faction;
-      load();
-    });
+    const facList = facCard.querySelector("[data-list]");
+    const selectFaction = (f, aorName) => {
+      const sameFaction = f === faction;
+      faction = f; aor = aorName || null;
+      state.dbFaction = faction; state.dbAoR = aor;
+      if (sameFaction && db) { draw(true); } else { load(); }
+    };
+    for (const f of Object.keys(AOS_FACTIONS)) {
+      const aors = aorsFor(f);
+      const isOpen = expanded.has(f);
+      const active = f === faction && faction !== ROR_VIEW;
+      const row = el(`<div class="faction-row">
+        <button class="faction-name ${active && !aor ? "primary" : ""}" data-pick>${esc(f)}</button>
+        ${aors.length ? `<button class="faction-exp ${isOpen ? "open" : ""}" data-exp title="Armies of Renown">${icon("chevron")}<span class="count">${aors.length}</span></button>` : ""}
+      </div>`);
+      row.querySelector("[data-pick]").addEventListener("click", () => selectFaction(f, null));
+      const expBtn = row.querySelector("[data-exp]");
+      if (expBtn) expBtn.addEventListener("click", () => { if (expanded.has(f)) expanded.delete(f); else expanded.add(f); draw(); });
+      facList.appendChild(row);
+      if (isOpen) {
+        const kids = el(`<div class="faction-children"></div>`);
+        const stdBtn = el(`<button class="faction-child ${active && !aor ? "primary" : ""}" data-std>${icon("shield")} Standaard ${esc(f)}</button>`);
+        stdBtn.addEventListener("click", () => selectFaction(f, null));
+        kids.appendChild(stdBtn);
+        for (const a of aors) {
+          const aBtn = el(`<button class="faction-child ${active && aor === a.name ? "primary" : ""}" data-aor>${icon("star")} ${esc(a.name)}</button>`);
+          aBtn.addEventListener("click", () => selectFaction(f, a.name));
+          kids.appendChild(aBtn);
+        }
+        facList.appendChild(kids);
+      }
+    }
+    const rorRow = el(`<div class="faction-row"><button class="faction-name ${faction === ROR_VIEW ? "primary" : ""}" data-ror>${icon("star")} ${esc(ROR_VIEW)}</button></div>`);
+    rorRow.querySelector("[data-ror]").addEventListener("click", () => { faction = ROR_VIEW; aor = null; state.dbFaction = faction; state.dbAoR = null; load(); });
+    facList.appendChild(rorRow);
     app.appendChild(facCard);
 
     // Zoeken (in deze faction of in alle facties)
@@ -203,6 +246,9 @@ export function renderDatabase(ctx) {
 
     // Alle Regiments of Renown bij elkaar (eigen keuze onderaan de factionlijst)
     if (faction === ROR_VIEW) { drawRoR(); return; }
+
+    // Army of Renown gekozen → toon de AoR-eigen rules/enhancements/lores/units
+    if (aor) { drawAoRView(); return; }
 
     drawModels();
     drawEnhancements();
@@ -271,6 +317,82 @@ export function renderDatabase(ctx) {
       });
       list.appendChild(row);
     }
+  }
+
+  // ---------- Army of Renown (read-only weergave) ----------
+  const normUnit = (s) => String(s || "").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+  function drawAoRView() {
+    const a = currentAoR();
+    if (!a) { app.appendChild(el(`<p class="empty">Deze Army of Renown is niet (meer) beschikbaar.</p>`)); return; }
+
+    const head = el(`<div class="card">
+      <div class="card-header"><h2>${icon("star")} ${esc(a.name)}</h2><span class="chip tag">${esc(a.faction)}</span></div>
+      <p class="subtitle">Army of Renown — andere faction rules, enhancements, lores en een beperkte unit-keuze. Kies hem in de set-up om er een leger mee te bouwen.</p>
+      <button class="small" data-std>${icon("back")} Terug naar standaard ${esc(a.faction)}</button>
+    </div>`);
+    head.querySelector("[data-std]").addEventListener("click", () => { aor = null; state.dbAoR = null; draw(true); });
+    app.appendChild(head);
+
+    // Faction rules (battle traits)
+    const rulesCard = el(`<div class="card"><h2>Faction rules</h2><div data-list></div></div>`);
+    const rl = rulesCard.querySelector("[data-list]");
+    if (!a.rules?.length) rl.appendChild(el(`<p class="empty">Geen aparte faction rules.</p>`));
+    for (const r of a.rules || []) rl.appendChild(el(`<div class="card inner">
+      <div class="card-header"><h3>${esc(r.name)}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
+      ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
+      <div class="muted-list">${esc(r.description)}</div>
+    </div>`));
+    app.appendChild(rulesCard);
+
+    // Enhancements per categorie
+    for (const cat of ENHANCEMENT_CATEGORIES) {
+      const items = (a.enhancements || []).filter((e) => e.category === cat.key);
+      if (!items.length) continue;
+      const card = el(`<div class="card"><h2>${esc(cat.label)}</h2><div data-list></div></div>`);
+      const list = card.querySelector("[data-list]");
+      for (const enh of items) list.appendChild(el(`<div class="card inner">
+        <div class="card-header"><h3>${esc(enh.name)}</h3></div>
+        ${(enh.phases || []).length ? `<div class="subtitle">Phases: ${enh.phases.map((p) => esc(phaseLabel(p))).join(", ")}${enh.oncePerBattle ? " · once per battle" : ""}</div>` : ""}
+        <div class="muted-list">${esc(enh.description)}</div>
+      </div>`));
+      app.appendChild(card);
+    }
+
+    // Lores
+    if ((a.lores || []).length) {
+      const card = el(`<div class="card"><h2>Lores</h2><div data-list></div></div>`);
+      const list = card.querySelector("[data-list]");
+      for (const kindDef of LORE_KINDS) {
+        for (const lore of (a.lores || []).filter((l) => l.kind === kindDef.key)) {
+          const entryNames = (lore.entries || []).map((e) => e.name).filter(Boolean).join(" · ");
+          list.appendChild(el(`<div class="card inner">
+            <div class="card-header"><h3>${esc(lore.name)}</h3><span class="chip tag">${esc(kindDef.label)}</span></div>
+            ${entryNames ? `<div class="muted-list">${esc(entryNames)}</div>` : ""}
+          </div>`));
+        }
+      }
+      app.appendChild(card);
+    }
+
+    // Toegestane units (uit de faction-database, gefilterd op de AoR-lijst)
+    const card = el(`<div class="card"><h2>Toegestane units</h2><div data-list></div></div>`);
+    const list = card.querySelector("[data-list]");
+    const wanted = (a.units || []).map(normUnit).filter(Boolean);
+    if (!wanted.length) {
+      list.appendChild(el(`<p class="empty">Geen specifieke unit-beperking bekend; alle ${esc(a.faction)}-units zijn toegestaan.</p>`));
+    } else {
+      const models = (db?.models || []).filter((m) => wanted.includes(normUnit(m.name)));
+      const found = new Set(models.map((m) => normUnit(m.name)));
+      for (const m of models.sort((x, y) => x.name.localeCompare(y.name))) {
+        const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)"><span><strong>${esc(m.name)}</strong> <span class="subtitle">${esc(m.type || "")}</span></span><span class="subtitle">${m.points != null ? m.points + " pts" : ""}</span></div>`);
+        row.addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
+        list.appendChild(row);
+      }
+      // Units die in de AoR staan maar (nog) niet in de faction-database matchen
+      const missing = (a.units || []).filter((n) => !found.has(normUnit(n)));
+      for (const n of missing) list.appendChild(el(`<div class="card-header" style="padding:8px 0;border-bottom:1px dashed var(--border)"><span><strong>${esc(n)}</strong></span><span class="subtitle">niet in database</span></div>`));
+    }
+    app.appendChild(card);
   }
 
   // ---------- Battleplans (game-breed, niet faction-gebonden) ----------

@@ -190,6 +190,31 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 .chip.tag { cursor: default; background: var(--bg-card-2); color: var(--gold); border-color: var(--gold-dark); }
 .chip.tag.dim { color: var(--text-dim); border-color: var(--border); }
 
+/* Faction-keuze in de database: uitklapbare lijst met Armies of Renown */
+.faction-picker { display: flex; flex-direction: column; gap: 4px; }
+.faction-row { display: flex; gap: 4px; }
+.faction-name {
+  flex: 1; text-align: left; padding: 9px 12px;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); cursor: pointer;
+}
+.faction-name.primary { background: var(--gold-dark); border-color: var(--gold); color: #fff; }
+.faction-exp {
+  display: flex; align-items: center; gap: 4px; padding: 0 11px;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-dim); cursor: pointer;
+}
+.faction-exp svg { transition: transform 0.15s; }
+.faction-exp.open svg { transform: rotate(90deg); }
+.faction-exp .count { font-size: 0.75rem; }
+.faction-children { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 6px 16px; }
+.faction-child {
+  text-align: left; padding: 7px 11px;
+  background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.faction-child.primary { background: var(--gold-dark); border-color: var(--gold); color: #fff; }
+
 /* --- Stat blokjes --- */
 .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .stat {

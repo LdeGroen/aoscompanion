@@ -172,6 +172,31 @@ laadt dezelfde URL.
   volledige warscroll-kopie, opgelost uit de faction-DB's, zodat companion ze gewoon kan
   tonen. In de set-up kies je een RoR (gefilterd op faction); de units komen als een vast,
   niet-bewerkbaar regiment in het leger.
+- **Armies of Renown**: een alternatieve manier om een faction te spelen — eigen faction
+  rules (battle traits), eigen enhancements, eigen spell/prayer/manifestation-lores en een
+  beperkte unit-keuze. Uit BSData: de per-faction extra `.cat`'s (bv. `Daughters of Khaine -
+  Zainthar Kai.cat`), naast `<Faction>.cat` en `<Faction> - Library.cat` (Path to Glory /
+  Big Waaagh! / [LEGENDS] / Allies worden overgeslagen of leveren niets op). Geïmporteerd met
+  `ko-import/driver-aor.mjs` (zelfstandig: factienamen-lijst inline, lores uit de gedeelde
+  `Lores.cat` op naam-suffix `… Lore: <AoR>`) naar de gedeelde blob **`armiesofrenown`**
+  (`{list:[{faction, name, rules, enhancements, lores, units:[namen]}]}`). Battle traits =
+  de Ability-profielen onder `Battle Traits: <naam>`; enhancements = de subgroepen
+  `Artefacts of Power/Heroic Traits/Monstrous Traits: <naam>`; **units** = de entryLinks
+  getagd met de ALL-CAPS army-categorie (substring-match op de AoR-naam, want de categorie
+  mist vaak "The"/bezit-s). Twee Idoneth-AoR's taggen units anders → 0 units = "geen
+  beperking" (alle faction-units toegestaan).
+  - **Database**: de faction-keuze is een **uitklapbare lijst** (`renderDatabase` →
+    `.faction-picker`): klik op een faction = standaard versie; klik op de chevron toont de
+    Armies of Renown (+ "Standaard <faction>"). Een AoR kiezen toont read-only z'n rules,
+    enhancements, lores en toegestane units (`drawAoRView`, units opgelost uit de faction-DB,
+    klikbaar naar de model-popup). RoR staat als pseudo-faction onderaan.
+  - **Set-up**: bij een faction kun je een **Army of Renown** kiezen (`army.aor`,
+    `applyArmyOfRenownDefaults`). Dan worden de faction rules vervangen door de AoR-battle-
+    traits, is de enhancement-pool (`loadFactionEnhancements`) die van de AoR, biedt de
+    lore-picker (`showLorePicker`) de AoR-lores, en is de unit-picker (`pickModel`) **strikt**
+    beperkt tot de AoR-units (universal manifestations blijven kiesbaar). AoR en subfaction
+    sluiten elkaar uit; van faction wisselen wist `army.aor`. Companion leest gewoon
+    `army.factionRules` + `army.models`, dus AoR werkt daar automatisch.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij

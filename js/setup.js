@@ -96,7 +96,15 @@ export function renderSetup(ctx) {
     try {
       const { db } = await sharedb.loadFactionDb(army.faction);
       const { db: uni } = await sharedb.loadUniversalDb();
-      models = [...(db.models || []), ...(uni.models || [])];
+      let factionModels = db.models || [];
+      // Army of Renown: alleen de toegestane faction-units (strikt). Geen units
+      // bekend → geen beperking. Universal manifestations blijven altijd kiesbaar.
+      const a = currentArmyAoR();
+      if (a && (a.units || []).length) {
+        const allowed = new Set((a.units || []).map(normUnit));
+        factionModels = factionModels.filter((m) => allowed.has(normUnit(m.name)));
+      }
+      models = [...factionModels, ...(uni.models || [])];
     } catch (e) {
       body.innerHTML = ""; body.appendChild(el(`<p class="empty" style="color:var(--red)">Database niet beschikbaar: ${esc(e.message)}</p>`));
       return;
@@ -369,6 +377,8 @@ export function renderSetup(ctx) {
   // Async geladen; bij binnenkomst opnieuw renderen.
   let factionEnhancements = null;
   async function loadFactionEnhancements() {
+    const a = currentArmyAoR();
+    if (a) { factionEnhancements = a.enhancements || []; return; }
     try {
       const { db } = await sharedb.loadFactionDb(army.faction);
       factionEnhancements = db.enhancements || [];
@@ -388,6 +398,34 @@ export function renderSetup(ctx) {
       rorList = [];
     }
   }
+  // Armies of Renown uit de gedeelde database (key "armiesofrenown").
+  let aorList = null;
+  async function loadAoR() {
+    try {
+      const { db } = await sharedb.loadSharedBlob("armiesofrenown", (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] });
+      aorList = db.list;
+    } catch {
+      aorList = [];
+    }
+  }
+  const aorForFaction = () => (aorList || []).filter((a) => a.faction === army.faction);
+  const currentArmyAoR = () => (aorList || []).find((a) => a.faction === army.faction && a.name === army.aor) || null;
+  const normUnit = (s) => String(s || "").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+
+  // Een Army of Renown kiezen: faction rules vervangen door de AoR-battle-traits,
+  // de enhancement-pool en lores worden die van de AoR, en de unit-keuze wordt
+  // beperkt tot de toegestane units (afgedwongen in pickModel/de lore-picker).
+  async function applyArmyOfRenownDefaults() {
+    factionEnhancements = null; // pool verandert
+    const a = currentArmyAoR();
+    if (a) {
+      army.factionRules = JSON.parse(JSON.stringify(a.rules || []));
+      army.subfaction = ""; army.subfactionRules = []; army.subfactionPoints = 0;
+    } else {
+      await applyFactionDefaults();
+    }
+  }
+
   // RoR die deze faction mag nemen
   const rorForFaction = () => (rorList || []).filter((r) => (r.allowedArmies || []).some((a) => a.toLowerCase() === (army.faction || "").toLowerCase()));
   function addRoR(r) {
@@ -540,7 +578,9 @@ export function renderSetup(ctx) {
         const { db } = await sharedb.loadFactionDb(army.faction);
         const { db: uni } = await sharedb.loadUniversalDb();
         pool = [...(uni.models || []), ...(db.models || [])];
-        candidates = (db.lores || []).filter((l) => l.kind === kindKey);
+        const aorActive = currentArmyAoR();
+        // Bij een Army of Renown gelden de AoR-lores in plaats van de faction-lores.
+        candidates = (aorActive ? (aorActive.lores || []) : (db.lores || [])).filter((l) => l.kind === kindKey);
         if (kindKey === "manifestation") {
           candidates = candidates.concat((uni.lores || []).filter((l) => l.kind === "manifestation").map((l) => ({ ...l, universal: true })));
         }
@@ -632,10 +672,29 @@ export function renderSetup(ctx) {
           <select id="army-subfaction"></select>
         </div>
       </div>
+      <div data-aor></div>
       <div data-subpts></div>
       <p class="subtitle">Bij het kiezen van een army of subfaction worden de rules en enhancements uit de gedeelde database automatisch in dit leger gezet — daarna kun je ze hier aanpassen.</p>
     </div>`);
     app.appendChild(base);
+
+    // Army of Renown-keuze: een alternatieve manier om de faction te spelen
+    // (eigen faction rules, enhancements, lores en een beperkte unit-keuze).
+    if (aorList === null) loadAoR().then(() => rerender());
+    const aorWrap = base.querySelector("[data-aor]");
+    const aors = aorForFaction();
+    if (aorList === null) {
+      aorWrap.appendChild(el(`<p class="subtitle">Armies of Renown laden…</p>`));
+    } else if (aors.length) {
+      const aw = el(`<div style="margin-top:6px"><label>Army of Renown</label><select id="army-aor"><option value="">— geen (standaard) —</option>${aors.map((a) => `<option value="${esc(a.name)}" ${a.name === army.aor ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>${army.aor ? `<p class="subtitle">Army of Renown actief: eigen faction rules en enhancements, en alleen de toegestane units zijn kiesbaar.</p>` : ""}</div>`);
+      aw.querySelector("#army-aor").addEventListener("change", async (e) => {
+        army.aor = e.target.value || null;
+        await applyArmyOfRenownDefaults();
+        saveData();
+        rerender();
+      });
+      aorWrap.appendChild(aw);
+    }
 
     // Subfaction-punten (battle formations kunnen punten kosten; bewerkbaar voor uitzonderingen)
     const subPtsWrap = base.querySelector("[data-subpts]");
@@ -663,14 +722,17 @@ export function renderSetup(ctx) {
     facSel.addEventListener("change", async () => {
       army.faction = facSel.value;
       army.subfaction = "";
+      army.aor = null; // Army of Renown hoort bij een faction
       await applyFactionDefaults();
       saveData();
       rerender();
     });
     subSel.addEventListener("change", async () => {
       army.subfaction = subSel.value;
-      if (army.subfaction) await applySubfactionDefaults();
-      else { army.subfactionRules = []; army.subfactionPoints = 0; }
+      if (army.subfaction) {
+        if (army.aor) { army.aor = null; await applyFactionDefaults(); } // subfaction en AoR sluiten elkaar uit
+        await applySubfactionDefaults();
+      } else { army.subfactionRules = []; army.subfactionPoints = 0; }
       saveData();
       rerender();
     });
