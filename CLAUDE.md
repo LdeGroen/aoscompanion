@@ -186,8 +186,11 @@ laadt dezelfde URL.
   mist vaak "The"/bezit-s). Twee Idoneth-AoR's taggen units anders → 0 units = "geen
   beperking" (alle faction-units toegestaan).
   - **Database**: de faction-keuze is een **uitklapbare lijst** (`renderDatabase` →
-    `.faction-picker`): klik op een faction = standaard versie; klik op de chevron toont de
-    Armies of Renown (+ "Standaard <faction>"). Een AoR kiezen toont read-only z'n rules,
+    `.faction-picker`, achter een `.faction-toggle`-knop). De lange lijst is **standaard
+    ingeklapt** (`pickerOpen=false`) en toont alleen de huidige keuze; klik op de knop klapt
+    'm uit en na het kiezen van een faction/AoR/RoR klapt 'ie weer dicht. Klik op een faction
+    = standaard versie; klik op de chevron toont de Armies of Renown (+ "Standaard <faction>").
+    Een AoR kiezen toont read-only z'n rules,
     enhancements, lores en toegestane units (`drawAoRView`, units opgelost uit de faction-DB,
     klikbaar naar de model-popup). RoR staat als pseudo-faction onderaan.
   - **Set-up**: bij een faction kun je een **Army of Renown** kiezen (`army.aor`,

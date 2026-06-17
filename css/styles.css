@@ -191,7 +191,16 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 .chip.tag.dim { color: var(--text-dim); border-color: var(--border); }
 
 /* Faction-keuze in de database: uitklapbare lijst met Armies of Renown */
+.faction-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 9px 12px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); cursor: pointer; font-weight: 600;
+}
+.faction-toggle svg { transition: transform 0.15s; flex: none; }
+.faction-toggle.open svg { transform: rotate(90deg); }
+.faction-toggle .subtitle { font-weight: 400; }
 .faction-picker { display: flex; flex-direction: column; gap: 4px; }
+.faction-picker:not(:empty) { margin-top: 6px; }
 .faction-row { display: flex; gap: 4px; }
 .faction-name {
   flex: 1; text-align: left; padding: 9px 12px;

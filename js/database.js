@@ -31,6 +31,7 @@ export function renderDatabase(ctx) {
   let aorList = null; // Armies of Renown (gedeelde blob "armiesofrenown")
   let aor = state.dbAoR || null; // gekozen Army of Renown (naam) binnen de faction, of null = standaard
   const expanded = new Set(); // welke facties uitgeklapt zijn in de keuzelijst
+  let pickerOpen = false; // de (lange) factionlijst is standaard ingeklapt; klap dicht na een keuze
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   const normAoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   const aorsFor = (f) => (aorList || []).filter((a) => a.faction === f);
@@ -171,46 +172,54 @@ export function renderDatabase(ctx) {
 
     // Faction-keuze als uitklapbare lijst: klik op een faction = standaard versie;
     // klik op de chevron = de Armies of Renown van die faction tonen.
+    // Huidige keuze als label op de inklap-knop
+    const currentLabel = faction === ROR_VIEW ? ROR_VIEW : (esc(faction) + (aor ? ` <span class="subtitle">— ${esc(aor)}</span>` : ""));
     const facCard = el(`<div class="card">
       <label>Faction</label>
+      <button class="faction-toggle ${pickerOpen ? "open" : ""}" data-toggle>${icon("chevron")} <span>${currentLabel}</span></button>
       <div class="faction-picker" data-list></div>
       ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren.</p>`}
     </div>`);
     const facList = facCard.querySelector("[data-list]");
+    facCard.querySelector("[data-toggle]").addEventListener("click", () => { pickerOpen = !pickerOpen; draw(); });
+    // Na een keuze klapt de lijst weer dicht
     const selectFaction = (f, aorName) => {
       const sameFaction = f === faction;
       faction = f; aor = aorName || null;
       state.dbFaction = faction; state.dbAoR = aor;
+      pickerOpen = false;
       if (sameFaction && db) { draw(true); } else { load(); }
     };
-    for (const f of Object.keys(AOS_FACTIONS)) {
-      const aors = aorsFor(f);
-      const isOpen = expanded.has(f);
-      const active = f === faction && faction !== ROR_VIEW;
-      const row = el(`<div class="faction-row">
-        <button class="faction-name ${active && !aor ? "primary" : ""}" data-pick>${esc(f)}</button>
-        ${aors.length ? `<button class="faction-exp ${isOpen ? "open" : ""}" data-exp title="Armies of Renown">${icon("chevron")}<span class="count">${aors.length}</span></button>` : ""}
-      </div>`);
-      row.querySelector("[data-pick]").addEventListener("click", () => selectFaction(f, null));
-      const expBtn = row.querySelector("[data-exp]");
-      if (expBtn) expBtn.addEventListener("click", () => { if (expanded.has(f)) expanded.delete(f); else expanded.add(f); draw(); });
-      facList.appendChild(row);
-      if (isOpen) {
-        const kids = el(`<div class="faction-children"></div>`);
-        const stdBtn = el(`<button class="faction-child ${active && !aor ? "primary" : ""}" data-std>${icon("shield")} Standaard ${esc(f)}</button>`);
-        stdBtn.addEventListener("click", () => selectFaction(f, null));
-        kids.appendChild(stdBtn);
-        for (const a of aors) {
-          const aBtn = el(`<button class="faction-child ${active && aor === a.name ? "primary" : ""}" data-aor>${icon("star")} ${esc(a.name)}</button>`);
-          aBtn.addEventListener("click", () => selectFaction(f, a.name));
-          kids.appendChild(aBtn);
+    if (pickerOpen) {
+      for (const f of Object.keys(AOS_FACTIONS)) {
+        const aors = aorsFor(f);
+        const isOpen = expanded.has(f);
+        const active = f === faction && faction !== ROR_VIEW;
+        const row = el(`<div class="faction-row">
+          <button class="faction-name ${active && !aor ? "primary" : ""}" data-pick>${esc(f)}</button>
+          ${aors.length ? `<button class="faction-exp ${isOpen ? "open" : ""}" data-exp title="Armies of Renown">${icon("chevron")}<span class="count">${aors.length}</span></button>` : ""}
+        </div>`);
+        row.querySelector("[data-pick]").addEventListener("click", () => selectFaction(f, null));
+        const expBtn = row.querySelector("[data-exp]");
+        if (expBtn) expBtn.addEventListener("click", () => { if (expanded.has(f)) expanded.delete(f); else expanded.add(f); draw(); });
+        facList.appendChild(row);
+        if (isOpen) {
+          const kids = el(`<div class="faction-children"></div>`);
+          const stdBtn = el(`<button class="faction-child ${active && !aor ? "primary" : ""}" data-std>${icon("shield")} Standaard ${esc(f)}</button>`);
+          stdBtn.addEventListener("click", () => selectFaction(f, null));
+          kids.appendChild(stdBtn);
+          for (const a of aors) {
+            const aBtn = el(`<button class="faction-child ${active && aor === a.name ? "primary" : ""}" data-aor>${icon("star")} ${esc(a.name)}</button>`);
+            aBtn.addEventListener("click", () => selectFaction(f, a.name));
+            kids.appendChild(aBtn);
+          }
+          facList.appendChild(kids);
         }
-        facList.appendChild(kids);
       }
+      const rorRow = el(`<div class="faction-row"><button class="faction-name ${faction === ROR_VIEW ? "primary" : ""}" data-ror>${icon("star")} ${esc(ROR_VIEW)}</button></div>`);
+      rorRow.querySelector("[data-ror]").addEventListener("click", () => { faction = ROR_VIEW; aor = null; state.dbFaction = faction; state.dbAoR = null; pickerOpen = false; load(); });
+      facList.appendChild(rorRow);
     }
-    const rorRow = el(`<div class="faction-row"><button class="faction-name ${faction === ROR_VIEW ? "primary" : ""}" data-ror>${icon("star")} ${esc(ROR_VIEW)}</button></div>`);
-    rorRow.querySelector("[data-ror]").addEventListener("click", () => { faction = ROR_VIEW; aor = null; state.dbFaction = faction; state.dbAoR = null; load(); });
-    facList.appendChild(rorRow);
     app.appendChild(facCard);
 
     // Zoeken (in deze faction of in alle facties)
