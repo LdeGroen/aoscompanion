@@ -296,19 +296,19 @@ export function renderDatabase(ctx) {
     const entryHit = (entries) => { const e = arr(entries).find((x) => hit(x.name) || hit(x.description)); return e ? e.name : null; };
     const results = [];
     const pushModel = (f, kind, m) => {
-      if (hit(m.name)) { results.push({ faction: f, kind, name: m.name }); return; }
-      const via = abHit(m.abilities); if (via) results.push({ faction: f, kind, name: m.name, via });
+      if (hit(m.name)) { results.push({ faction: f, kind, name: m.name, otype: "model", obj: m }); return; }
+      const via = abHit(m.abilities); if (via) results.push({ faction: f, kind, name: m.name, via, otype: "model", obj: m });
     };
     const pushLore = (f, l) => {
-      if (hit(l.name)) { results.push({ faction: f, kind: "Lore", name: l.name }); return; }
-      const via = entryHit(l.entries); if (via) results.push({ faction: f, kind: "Lore", name: l.name, via });
+      if (hit(l.name)) { results.push({ faction: f, kind: "Lore", name: l.name, otype: "lore", obj: l }); return; }
+      const via = entryHit(l.entries); if (via) results.push({ faction: f, kind: "Lore", name: l.name, via, otype: "lore", obj: l });
     };
     for (const { faction: f, db: fdb } of sources) {
       for (const m of arr(fdb.models)) pushModel(f, m.type || "Model", m);
-      for (const e of arr(fdb.enhancements)) if (hit(e.name) || hit(e.description)) results.push({ faction: f, kind: "Enhancement", name: e.name });
+      for (const e of arr(fdb.enhancements)) if (hit(e.name) || hit(e.description)) results.push({ faction: f, kind: "Enhancement", name: e.name, otype: "ability", obj: e });
       for (const l of arr(fdb.lores)) pushLore(f, l);
-      for (const r of arr(fdb.factionRules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: "Faction rule", name: r.name });
-      for (const [sub, data] of Object.entries(fdb.subfactions || {})) for (const r of arr(data && data.rules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: `Subfaction rule (${sub})`, name: r.name });
+      for (const r of arr(fdb.factionRules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: "Faction rule", name: r.name, otype: "ability", obj: r });
+      for (const [sub, data] of Object.entries(fdb.subfactions || {})) for (const r of arr(data && data.rules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: `Subfaction rule (${sub})`, name: r.name, otype: "ability", obj: r });
     }
     // universal manifestations + lores (bij elke faction zichtbaar) en RoR
     if (searchScope === "all" || faction !== ROR_VIEW) {
@@ -318,8 +318,8 @@ export function renderDatabase(ctx) {
     for (const r of arr(ror?.list)) {
       const inScope = searchScope === "all" || faction === ROR_VIEW;
       if (!inScope) continue;
-      if (hit(r.name) || arr(r.units).some((u) => hit(u.name))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true });
-      else { const via = abHit(r.abilities) || arr(r.units).map((u) => abHit(u.model?.abilities)).find(Boolean); if (via) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true, via }); }
+      if (hit(r.name) || arr(r.units).some((u) => hit(u.name))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, otype: "ror", obj: r });
+      else { const via = abHit(r.abilities) || arr(r.units).map((u) => abHit(u.model?.abilities)).find(Boolean); if (via) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, via, otype: "ror", obj: r }); }
     }
     const card = el(`<div class="card"><h2>Zoekresultaten voor "${esc(search.trim())}"</h2><div data-list></div></div>`);
     app.appendChild(card);
@@ -329,16 +329,30 @@ export function renderDatabase(ctx) {
     for (const r of results) {
       const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
         <span><strong>${esc(r.name)}</strong> <span class="subtitle">${esc(r.kind)}${r.via ? ` · ability: ${esc(r.via)}` : ""}</span></span>
-        <span class="subtitle">${esc(r.faction)} →</span>
+        <span class="subtitle">${esc(r.faction)}</span>
       </div>`);
-      row.addEventListener("click", () => {
-        search = "";
-        faction = r.ror ? ROR_VIEW : (r.faction === "Universal" ? faction : r.faction);
-        state.dbFaction = faction;
-        load();
-      });
+      // Klik opent het kaartje zelf (popup); niet meer naar de faction-database springen.
+      row.addEventListener("click", () => openSearchResult(r));
       list.appendChild(row);
     }
+  }
+
+  // Klik op een zoekresultaat → open het kaartje zelf in een popup.
+  function openSearchResult(r) {
+    if (r.otype === "model") { openModal(buildModelPopupContent(r.obj, { el, esc }), el); return; }
+    const o = r.obj || {};
+    const wrap = el(`<div><h2>${esc(r.name)}</h2><div class="subtitle">${esc(r.kind)} · ${esc(r.faction)}</div><div data-body style="margin-top:8px"></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    if (r.otype === "ability") {
+      if ((o.phases || []).length) body.appendChild(el(`<div class="subtitle">Phases: ${o.phases.map((p) => esc(phaseLabel(p))).join(", ")}${o.oncePerBattle ? " · once per battle" : ""}</div>`));
+      body.appendChild(el(`<div class="muted-list">${esc(o.description || "")}</div>`));
+    } else if (r.otype === "lore") {
+      for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? `<div class="muted-list">${esc(e.description)}</div>` : ""}</div>`));
+    } else if (r.otype === "ror") {
+      if ((o.units || []).length) body.appendChild(el(`<div class="subtitle">Units: ${(o.units || []).map((u) => esc(u.name)).join(", ")}${o.points ? ` · ${o.points} pts` : ""}</div>`));
+      for (const ab of (o.abilities || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(ab.name)}</h3></div><div class="muted-list">${esc(ab.description || "")}</div></div>`));
+    }
+    openModal(wrap, el);
   }
 
   // ---------- Army of Renown (read-only weergave) ----------

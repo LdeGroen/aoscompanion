@@ -297,7 +297,9 @@ manifestations/lores en RoR doorzoekt op naam (+ beschrijving/lore-entries). Twe
 in `allData` (`loadAllData`, cache) en zoekt overal. Ook **ability-namen** (en -beschrijvingen)
 tellen mee: een warscroll/RoR wordt gevonden op een van zijn `abilities`, een lore op een van zijn
 `entries` — het resultaat toont dan het item met `· ability: <naam>` erbij (`pushModel`/`pushLore`/
-`abHit`). Resultaten zijn klikbaar en springen naar de juiste faction. ⚠️ Itereren over blob-lijsten gaat via een `arr()`-guard (`Array.isArray`), want niet
+`abHit`). Een resultaat **opent het kaartje zelf** in een popup (`openSearchResult`): warscrolls
+via `buildModelPopupContent`, en enhancement/faction-rule/lore/RoR via een detail-popup (`otype` +
+`obj` worden per resultaat meegegeven). Het springt dus niet meer naar de faction-database. ⚠️ Itereren over blob-lijsten gaat via een `arr()`-guard (`Array.isArray`), want niet
 elke faction-blob heeft elk veld als array (een `factionRules` kan een object zijn → `for…of` crasht
 anders alleen bij "alle facties").
 
