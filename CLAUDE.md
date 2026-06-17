@@ -291,8 +291,10 @@ wordt nooit op een model gezet). Nieuwe content komt nu via het database-scherm.
 database.js) dat models, enhancements, lores, faction- en subfaction-rules, universal
 manifestations/lores en RoR doorzoekt op naam (+ beschrijving/lore-entries). Twee scopes: **"Alleen
 <faction>"** (alleen de huidige blob) of **"Alle facties"** — die laadt alle faction-blobs eenmalig
-in `allData` (`loadAllData`, cache) en zoekt overal. Resultaten zijn klikbaar en springen naar de
-juiste faction. ⚠️ Itereren over blob-lijsten gaat via een `arr()`-guard (`Array.isArray`), want niet
+in `allData` (`loadAllData`, cache) en zoekt overal. Ook **ability-namen** (en -beschrijvingen)
+tellen mee: een warscroll/RoR wordt gevonden op een van zijn `abilities`, een lore op een van zijn
+`entries` — het resultaat toont dan het item met `· ability: <naam>` erbij (`pushModel`/`pushLore`/
+`abHit`). Resultaten zijn klikbaar en springen naar de juiste faction. ⚠️ Itereren over blob-lijsten gaat via een `arr()`-guard (`Array.isArray`), want niet
 elke faction-blob heeft elk veld als array (een `factionRules` kan een object zijn → `for…of` crasht
 anders alleen bij "alle facties").
 

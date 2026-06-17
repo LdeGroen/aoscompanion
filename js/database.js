@@ -282,22 +282,35 @@ export function renderDatabase(ctx) {
       if (faction !== ROR_VIEW && db && !db.rorView) sources.push({ faction, db });
     }
     const arr = (x) => (Array.isArray(x) ? x : []);
+    // Naam van de eerste ability (of lore-entry) die de zoekterm bevat, anders null.
+    const abHit = (abilities) => { const a = arr(abilities).find((x) => hit(x.name) || hit(x.description)); return a ? a.name : null; };
+    const entryHit = (entries) => { const e = arr(entries).find((x) => hit(x.name) || hit(x.description)); return e ? e.name : null; };
     const results = [];
+    const pushModel = (f, kind, m) => {
+      if (hit(m.name)) { results.push({ faction: f, kind, name: m.name }); return; }
+      const via = abHit(m.abilities); if (via) results.push({ faction: f, kind, name: m.name, via });
+    };
+    const pushLore = (f, l) => {
+      if (hit(l.name)) { results.push({ faction: f, kind: "Lore", name: l.name }); return; }
+      const via = entryHit(l.entries); if (via) results.push({ faction: f, kind: "Lore", name: l.name, via });
+    };
     for (const { faction: f, db: fdb } of sources) {
-      for (const m of arr(fdb.models)) if (hit(m.name)) results.push({ faction: f, kind: m.type || "Model", name: m.name });
+      for (const m of arr(fdb.models)) pushModel(f, m.type || "Model", m);
       for (const e of arr(fdb.enhancements)) if (hit(e.name) || hit(e.description)) results.push({ faction: f, kind: "Enhancement", name: e.name });
-      for (const l of arr(fdb.lores)) if (hit(l.name) || arr(l.entries).some((x) => hit(x.name))) results.push({ faction: f, kind: "Lore", name: l.name });
+      for (const l of arr(fdb.lores)) pushLore(f, l);
       for (const r of arr(fdb.factionRules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: "Faction rule", name: r.name });
       for (const [sub, data] of Object.entries(fdb.subfactions || {})) for (const r of arr(data && data.rules)) if (hit(r.name) || hit(r.description)) results.push({ faction: f, kind: `Subfaction rule (${sub})`, name: r.name });
     }
     // universal manifestations + lores (bij elke faction zichtbaar) en RoR
     if (searchScope === "all" || faction !== ROR_VIEW) {
-      for (const m of arr(uni?.models)) if (hit(m.name)) results.push({ faction: "Universal", kind: "Manifestation", name: m.name });
-      for (const l of arr(uni?.lores)) if (hit(l.name)) results.push({ faction: "Universal", kind: "Lore", name: l.name });
+      for (const m of arr(uni?.models)) pushModel("Universal", "Manifestation", m);
+      for (const l of arr(uni?.lores)) pushLore("Universal", l);
     }
     for (const r of arr(ror?.list)) {
       const inScope = searchScope === "all" || faction === ROR_VIEW;
-      if (inScope && (hit(r.name) || arr(r.units).some((u) => hit(u.name)))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true });
+      if (!inScope) continue;
+      if (hit(r.name) || arr(r.units).some((u) => hit(u.name))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true });
+      else { const via = abHit(r.abilities) || arr(r.units).map((u) => abHit(u.model?.abilities)).find(Boolean); if (via) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, ror: true, via }); }
     }
     const card = el(`<div class="card"><h2>Zoekresultaten voor "${esc(search.trim())}"</h2><div data-list></div></div>`);
     app.appendChild(card);
@@ -306,7 +319,7 @@ export function renderDatabase(ctx) {
     results.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
     for (const r of results) {
       const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-        <span><strong>${esc(r.name)}</strong> <span class="subtitle">${esc(r.kind)}</span></span>
+        <span><strong>${esc(r.name)}</strong> <span class="subtitle">${esc(r.kind)}${r.via ? ` · ability: ${esc(r.via)}` : ""}</span></span>
         <span class="subtitle">${esc(r.faction)} →</span>
       </div>`);
       row.addEventListener("click", () => {
