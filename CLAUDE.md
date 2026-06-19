@@ -85,6 +85,8 @@ laadt dezelfde URL.
     in `game.seasonalRules`). In de **deployment**-fase kies je attacker/defender (suggereert fury
     level 1 of 2); bij **start of battleround** een knop "rage dice = fury level"; tijdens een
     **beurt** een compacte ± teller voor fury level (0-7) en rage dice. Alles handmatig te overrulen.
+    Snelknoppen voor de samengestelde aanpassingen: **Ignite Fury** (+2 fury, +2 rage), **Fight
+    Through the Pain** (−1 fury, −1 rage) en **Rage die uitgeven** (−1 rage).
   - De battleplan-editor (`buildBattleplanEditor`) heeft de Opslaan/Annuleer-knoppen nu zowel boven
     als onder, zodat ze ook bij veel abilities altijd bereikbaar zijn.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +

@@ -635,6 +635,19 @@ export function renderCompanion(ctx) {
     };
     stepper("Fury level", "level", 0, 7, role && f.role ? (f.role === "attacker" ? 1 : 2) : null);
     stepper("Rage dice", "rage", 0, 99, roundStart ? f.level : null);
+    // Snelknoppen voor de samengestelde aanpassingen uit de seasonal rules
+    if (!role) {
+      const quick = (label, dLevel, dRage) => {
+        const b = el(`<button class="small">${label}</button>`);
+        b.addEventListener("click", () => { f.level = Math.max(0, Math.min(7, (f.level || 0) + dLevel)); f.rage = Math.max(0, (f.rage || 0) + dRage); saveData(); rerender(); });
+        return b;
+      };
+      const qrow = el(`<div class="btnrow" style="margin-top:6px"></div>`);
+      qrow.appendChild(quick(`${icon("zap")} Ignite Fury (+2 fury, +2 rage)`, 2, 2));
+      qrow.appendChild(quick("Fight Through the Pain (−1 fury, −1 rage)", -1, -1));
+      qrow.appendChild(quick("Rage die uitgeven (−1)", 0, -1));
+      body.appendChild(qrow);
+    }
     if (roundStart) {
       const btn = el(`<button class="small primary" style="margin-top:6px">${icon("zap")} Nieuwe battleround: ${f.level} rage dice (= fury level)</button>`);
       btn.addEventListener("click", () => { f.rage = f.level; saveData(); rerender(); });
