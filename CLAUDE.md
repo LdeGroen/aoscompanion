@@ -394,6 +394,11 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
 - **Battle tactics-knop** in de companion-topbar (naast Tegenstander): `showTacticsMenu` toont jouw
   battle tactics (bovenaan, uit `game.tactics`) en die van de tegenstander (`game.enemyTactics`),
   elk klikbaar voor de stappen (`showTacticSteps`).
+- **Battle tactics kunnen abilities hebben** (`tactic.abilities`, zoals de Hideout-setup van Blazing
+  Onslaught): die worden in de game gesnapshot (`snap` neemt `abilities` mee) en via
+  `collectAbilities` per phase getoond — voor **zowel jouw tactics als die van de tegenstander**
+  (bron "Battle tactic" / "Battle tactic (tegenstander)"). Zo verschijnt de Hideout-ability in de
+  deployment-fase als jij óf je tegenstander Blazing Onslaught heeft.
 - **Enhancement-picker** (`showEnhancementPicker` in setup.js): de passende enhancements zijn
   gesorteerd op categorie — Artefacts of Power, dan Heroic Traits, dan de rest (monstrousTrait,
   other), binnen een categorie op naam. Stale/al-gekozen-maar-niet-passende staan er nog achter.

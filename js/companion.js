@@ -173,6 +173,13 @@ export function renderCompanion(ctx) {
     for (const r of game.seasonalRules || []) {
       if ((r.phases || []).includes(fullKey)) result.push({ ...r, source: "Seasonal rule", type: "faction" });
     }
+    // Battle tactic-abilities (bv. de Hideout-setup): tonen als jij of de tegenstander de tactic heeft.
+    for (const t of game.tactics || []) {
+      for (const ab of t.abilities || []) if ((ab.phases || []).includes(fullKey)) result.push({ ...ab, source: `Battle tactic: ${t.name}`, type: "tactic" });
+    }
+    for (const t of game.enemyTactics || []) {
+      for (const ab of t.abilities || []) if ((ab.phases || []).includes(fullKey)) result.push({ ...ab, source: `Battle tactic (tegenstander): ${t.name}`, type: "tactic" });
+    }
     // Battleplan-abilities: optioneel beperkt tot bepaalde battlerounds en/of
     // alleen actief als jij de underdog bent.
     for (const ab of game.battleplan?.abilities || []) {
@@ -383,7 +390,7 @@ export function renderCompanion(ctx) {
       const bp = (gamedata?.battleplans || []).find((b) => b.id === game.setupBattleplanId);
       if (bp && game.setupEnemyTacticIds.length !== 2
           && !confirm(`Je hebt ${game.setupEnemyTacticIds.length} battle tactics van de tegenstander gekozen in plaats van 2. Toch doorgaan?`)) return;
-      const snap = (t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), scoredRounds: [] });
+      const snap = (t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), abilities: JSON.parse(JSON.stringify(t.abilities || [])), scoredRounds: [] });
       game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
       game.tactics = (army.battleTactics || []).map((n) => (gamedata?.tactics || []).find((t) => t.name === n)).filter(Boolean).map(snap);
       game.enemyTactics = game.setupEnemyTacticIds.map((id) => (gamedata?.tactics || []).find((t) => t.id === id)).filter(Boolean).map(snap);
