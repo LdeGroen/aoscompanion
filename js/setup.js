@@ -507,7 +507,10 @@ export function renderSetup(ctx) {
     const draw = () => {
       body.innerHTML = "";
       const pool = factionEnhancements || [];
-      const fits = pool.filter((e) => enhancementFits(e, m));
+      // Volgorde: Artefacts of Power, dan Heroic Traits, dan de rest (per type gegroepeerd).
+      const catOrder = { artifact: 0, heroicTrait: 1, monstrousTrait: 2, other: 3 };
+      const fits = pool.filter((e) => enhancementFits(e, m))
+        .sort((a, b) => (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9) || String(a.name).localeCompare(String(b.name)));
       const stale = m.enhancements.filter((sel) => !fits.some((e) => same(e, sel)));
       if (factionEnhancements === null) { body.appendChild(el(`<p class="empty">Enhancements laden…</p>`)); return; }
       if (!fits.length && !stale.length) {

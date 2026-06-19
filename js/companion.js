@@ -228,6 +228,24 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Overzicht van jouw battle tactics (boven) en die van de tegenstander; klik voor de stappen.
+  function showTacticsMenu() {
+    const wrap = el(`<div><h2>${icon("flag")} Battle tactics</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    const section = (title, list) => {
+      body.appendChild(el(`<h3 style="margin-top:10px">${esc(title)}</h3>`));
+      if (!list || !list.length) { body.appendChild(el(`<p class="empty">Geen battle tactics.</p>`)); return; }
+      for (const t of list) {
+        const row = el(`<div class="card inner clickable" style="margin:4px 0"><div class="card-header"><strong>${esc(t.name)}</strong><span class="subtitle">stappen ›</span></div></div>`);
+        row.addEventListener("click", () => showTacticSteps(t));
+        body.appendChild(row);
+      }
+    };
+    section("Jouw battle tactics", game.tactics);
+    section(`Battle tactics van ${esc(game.opponent?.name || "de tegenstander")}`, game.enemyTactics);
+    openModal(wrap, el);
+  }
+
   function renderBattleSetup() {
     topbar("Battle set-up");
     if (!gamedataLoaded) {
@@ -586,6 +604,7 @@ export function renderCompanion(ctx) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         ${(game.stage === "roundSetup" || game.stage === "turn") ? `<button class="small ${scoreMode ? "primary" : ""}" id="btn-mode">${icon(scoreMode ? "monitor" : "list")} ${scoreMode ? "Volledig" : "Score-modus"}</button>` : ""}
         <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
+        <button class="small" id="btn-tactics">${icon("flag")} Battle tactics</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
@@ -594,6 +613,7 @@ export function renderCompanion(ctx) {
     const modeBtn = bar.querySelector("#btn-mode");
     if (modeBtn) modeBtn.addEventListener("click", () => setScoreMode(!scoreMode));
     bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
+    bar.querySelector("#btn-tactics").addEventListener("click", showTacticsMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {

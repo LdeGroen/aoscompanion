@@ -390,6 +390,14 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
   (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
+## Companion: topbar-knoppen + enhancement-volgorde
+- **Battle tactics-knop** in de companion-topbar (naast Tegenstander): `showTacticsMenu` toont jouw
+  battle tactics (bovenaan, uit `game.tactics`) en die van de tegenstander (`game.enemyTactics`),
+  elk klikbaar voor de stappen (`showTacticSteps`).
+- **Enhancement-picker** (`showEnhancementPicker` in setup.js): de passende enhancements zijn
+  gesorteerd op categorie — Artefacts of Power, dan Heroic Traits, dan de rest (monstrousTrait,
+  other), binnen een categorie op naam. Stale/al-gekozen-maar-niet-passende staan er nog achter.
+
 ## Companion: volledige modus vs score-modus
 In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het
 was: phases, abilities, commands, CP, scoren) en **score-modus** (`renderScoreMode` in
