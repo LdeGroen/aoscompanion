@@ -676,7 +676,8 @@ export function renderSetup(ctx) {
     if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
     steps.forEach((s, i) => {
       const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());
-      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>Stap ${i + 1}${hasLabel ? ": " + esc(s.name) : ""}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
+      const heading = hasLabel ? esc(s.name) : `Stap ${i + 1}`;
+      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${heading}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
     });
     openModal(wrap, el);
   }

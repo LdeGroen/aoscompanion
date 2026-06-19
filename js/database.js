@@ -36,8 +36,9 @@ export function renderDatabase(ctx) {
   const normAoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   const aorsFor = (f) => (aorList || []).filter((a) => a.faction === f);
   const currentAoR = () => (aorList || []).find((a) => a.faction === faction && a.name === aor) || null;
-  // Pseudo-faction onderaan de keuzelijst: alle RoR bij elkaar (game-breed).
+  // Pseudo-factions onderaan de keuzelijst (game-breed, niet faction-gebonden).
   const ROR_VIEW = "★ Regiments of Renown";
+  const GHB_VIEW = "❖ General's Handbook";
   let offline = false;
   let loadError = null;
   // Bewerken gebeurt op een kopie; pas bij opslaan vervangt die het origineel.
@@ -52,6 +53,8 @@ export function renderDatabase(ctx) {
     draw(true);
     if (faction === ROR_VIEW) {
       db = { rorView: true }; // geen echte faction-blob nodig
+    } else if (faction === GHB_VIEW) {
+      db = { ghbView: true }; // General's Handbook: gebruikt de gamedata-blob, geen faction-blob
     } else {
       try {
         const result = await sharedb.loadFactionDb(faction);
@@ -219,6 +222,9 @@ export function renderDatabase(ctx) {
       const rorRow = el(`<div class="faction-row"><button class="faction-name ${faction === ROR_VIEW ? "primary" : ""}" data-ror>${icon("star")} ${esc(ROR_VIEW)}</button></div>`);
       rorRow.querySelector("[data-ror]").addEventListener("click", () => { faction = ROR_VIEW; aor = null; state.dbFaction = faction; state.dbAoR = null; pickerOpen = false; load(); });
       facList.appendChild(rorRow);
+      const ghbRow = el(`<div class="faction-row"><button class="faction-name ${faction === GHB_VIEW ? "primary" : ""}" data-ghb>${icon("book")} ${esc(GHB_VIEW)}</button></div>`);
+      ghbRow.querySelector("[data-ghb]").addEventListener("click", () => { faction = GHB_VIEW; aor = null; state.dbFaction = faction; state.dbAoR = null; pickerOpen = false; load(); });
+      facList.appendChild(ghbRow);
     }
     app.appendChild(facCard);
 
@@ -256,6 +262,9 @@ export function renderDatabase(ctx) {
     // Alle Regiments of Renown bij elkaar (eigen keuze onderaan de factionlijst)
     if (faction === ROR_VIEW) { drawRoR(); return; }
 
+    // General's Handbook: battle tactics, battleplans en seasonal rules (game-breed)
+    if (faction === GHB_VIEW) { drawGeneralsHandbook(); return; }
+
     // Army of Renown gekozen → toon de AoR-eigen rules/enhancements/lores/units
     if (aor) { drawAoRView(); return; }
 
@@ -266,8 +275,6 @@ export function renderDatabase(ctx) {
     for (const [sub, data] of Object.entries(db.subfactions)) {
       if (data.rules?.length) drawRules(`Subfaction rules — ${sub}`, data.rules);
     }
-    drawBattleplans();
-    drawTactics();
   }
 
   // ---------- Zoeken ----------
@@ -288,7 +295,7 @@ export function renderDatabase(ctx) {
       if (!allData) { app.appendChild(el(`<p class="empty">Alle facties laden…</p>`)); return; }
       for (const f of Object.keys(allData)) if (allData[f]) sources.push({ faction: f, db: allData[f] });
     } else {
-      if (faction !== ROR_VIEW && db && !db.rorView) sources.push({ faction, db });
+      if (faction !== ROR_VIEW && faction !== GHB_VIEW && db && !db.rorView && !db.ghbView) sources.push({ faction, db });
     }
     const arr = (x) => (Array.isArray(x) ? x : []);
     // Naam van de eerste ability (of lore-entry) die de zoekterm bevat, anders null.
@@ -437,6 +444,8 @@ export function renderDatabase(ctx) {
       <p class="subtitle">Gelden voor alle factions. Voeg per battleplan de abilities toe die in companion mode moeten verschijnen; het score-schema zit er al in.</p>
       <div data-list></div></div>`);
     app.appendChild(card);
+    const bAdd = addButton("Battleplan toevoegen", () => { const b = { id: uid(), name: "", abilities: [] }; gd.battleplans.push(b); startEdit("battleplan", b, gd.battleplans, false, persistGamedata); });
+    if (bAdd) card.appendChild(bAdd);
     const list = card.querySelector("[data-list]");
     if (!gd) {
       list.appendChild(el(`<p class="empty">Battleplans niet beschikbaar (offline zonder cache?).</p>`));
@@ -507,6 +516,8 @@ export function renderDatabase(ctx) {
       <p class="subtitle">Je kiest er 3 per game; iedere tactic heeft 3 opvolgende stappen (5 punten per gescoorde stap, max 1 stap per eigen beurt).</p>
       <div data-list></div></div>`);
     app.appendChild(card);
+    const tAdd = addButton("Battle tactic toevoegen", () => { const t = { id: uid(), name: "", steps: [{ name: "Affray", description: "" }, { name: "Strike", description: "" }, { name: "Domination", description: "" }] }; gd.tactics.push(t); startEdit("tactic", t, gd.tactics, false, persistGamedata); });
+    if (tAdd) card.appendChild(tAdd);
     const list = card.querySelector("[data-list]");
     if (!gd) {
       list.appendChild(el(`<p class="empty">Battle tactics niet beschikbaar (offline zonder cache?).</p>`));
@@ -528,6 +539,40 @@ export function renderDatabase(ctx) {
       </div>`);
       const editBtn = item.querySelector('[data-act="edit"]');
       if (editBtn) editBtn.addEventListener("click", () => startEdit("tactic", t, gd.tactics, false, persistGamedata));
+      list.appendChild(item);
+    }
+  }
+
+  // ---------- General's Handbook (game-breed: tactics, battleplans, seasonal rules) ----------
+  function drawGeneralsHandbook() {
+    app.appendChild(el(`<div class="card"><div class="card-header"><h2>${icon("book")} General's Handbook</h2></div>
+      <p class="subtitle">Game-brede regels die voor alle potjes en facties gelden: battle tactics, battleplans en seizoensregels.${dbEdit ? " Pas ze hier aan voor een nieuw seizoen." : ""}</p></div>`));
+    drawTactics();
+    drawBattleplans();
+    drawSeasonalRules();
+  }
+  function drawSeasonalRules() {
+    const card = el(`<div class="card"><h2>Seasonal rules</h2>
+      <p class="subtitle">Regels uit het General's Handbook die het hele seizoen voor elk potje gelden.</p>
+      <div data-list></div></div>`);
+    app.appendChild(card);
+    const rAdd = addButton("Seasonal rule toevoegen", () => { const r = blankRule(); (gd.seasonalRules = gd.seasonalRules || []).push(r); startEdit("seasonalRule", r, gd.seasonalRules, false, persistGamedata); });
+    if (rAdd) card.appendChild(rAdd);
+    const list = card.querySelector("[data-list]");
+    const rules = (gd && gd.seasonalRules) || [];
+    if (!rules.length) { list.appendChild(el(`<p class="empty">Nog geen seasonal rules.</p>`)); return; }
+    for (const r of rules) {
+      if (editing?.target === r) { list.appendChild(buildRuleEditor({ rule: editing.copy, el, esc, actions: editActions() })); continue; }
+      const item = el(`<div class="card inner">
+        <div class="card-header"><h3>${esc(r.name || "(naamloos)")}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
+        ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
+        <div class="muted-list">${esc(r.description)}</div>
+        <div class="btnrow">${dbEdit ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button><button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}</div>
+      </div>`);
+      const editBtn = item.querySelector('[data-act="edit"]');
+      if (editBtn) editBtn.addEventListener("click", () => startEdit("seasonalRule", r, gd.seasonalRules, false, persistGamedata));
+      const delBtn = item.querySelector('[data-act="del"]');
+      if (delBtn) delBtn.addEventListener("click", async () => { if (!confirm(`"${r.name}" verwijderen?`)) return; gd.seasonalRules = gd.seasonalRules.filter((x) => x !== r); await persistGamedata(); });
       list.appendChild(item);
     }
   }

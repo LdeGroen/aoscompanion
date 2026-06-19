@@ -52,10 +52,20 @@ laadt dezelfde URL.
   Een game duurt **altijd 5 battlerounds** (`LAST_ROUND` in companion.js); na battleround 5
   volgt het game-over-scherm (stage `"gameOver"`).
 - **Battleplans & battle tactics** (js/battleplans.js): game-brede gedeelde blob
-  (key `gamedata`), bij eerste laden geseed met de 12 Pitched Battles-battleplans
-  (score-schema's als data: `scoring.variants` per battleround, `liferoot`, `endBonus`)
-  en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database (abilities met
-  `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
+  (key `gamedata` = `{battleplans, tactics, seasonalRules}`), bij eerste laden geseed met de
+  12 Pitched Battles-battleplans (score-schema's als data: `scoring.variants` per battleround,
+  `liferoot`, `endBonus`) en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database
+  (abilities met `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
+  - De **6 General's Handbook battle tactics** (Blazing Onslaught, Seige of Ashes, Flanking
+    Firestorm, Smokescreen, Burning Vengeance, Legend of the Parch) hebben elk 3 stappen met
+    een eigen naam (`Affray: …` / `Strike: …` / `Domination: …`, elk 5 VP) + beschrijving;
+    geïmporteerd met `ko-import/seed-ghb-tactics.mjs` (vervangt `gamedata.tactics`).
+  - **General's Handbook-sectie in de database**: pseudo-faction `GHB_VIEW` ("❖ General's
+    Handbook") onderaan de factionlijst (naast RoR) toont **battle tactics, battleplans en
+    seasonal rules** met bewerk-/toevoeg-knoppen (admin). `drawGeneralsHandbook` →
+    `drawTactics`/`drawBattleplans`/`drawSeasonalRules`; deze staan niet meer onder elke faction.
+    `seasonalRules` = nieuw `gamedata`-veld (rule-vorm: `buildRuleEditor`), seizoensregels die
+    voor alle potjes gelden.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
   faction/subfaction + zijn unieke models uit de database (`game.opponent.models`,
   snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),

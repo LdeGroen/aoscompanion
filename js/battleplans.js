@@ -107,6 +107,7 @@ function normalize(obj) {
   const db = obj || emptyGamedata();
   db.battleplans = db.battleplans || [];
   db.tactics = db.tactics || [];
+  db.seasonalRules = db.seasonalRules || []; // General's Handbook-seizoensregels (gelden voor alle potjes)
   for (const b of db.battleplans) b.abilities = b.abilities || [];
   return db;
 }
