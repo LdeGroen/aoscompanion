@@ -37,6 +37,7 @@ const SHELL = [
   "icons/apple-touch-icon.png",
   "icons/icon-192.png",
   "icons/icon-512.png",
+  ...Array.from({ length: 12 }, (_, i) => `cards/battleplans/${i + 1}.jpg`),
 ];
 
 self.addEventListener("install", (e) => {

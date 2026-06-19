@@ -56,6 +56,16 @@ laadt dezelfde URL.
   12 Pitched Battles-battleplans (score-schema's als data: `scoring.variants` per battleround,
   `liferoot`, `endBonus`) en 6 battle tactics (3 opvolgende stappen). Bewerkbaar in de database
   (abilities met `underdogOnly` en `rounds`); score-schema's bewust niet via de UI.
+  - De **12 General's Handbook 2026-27 battleplans** (Into the Fire t/m Power of the Realms) zijn
+    geïmporteerd met `ko-import/seed-ghb-battleplans.mjs` (vervangt `gamedata.battleplans`). Per
+    battleplan: `twist` (tekst), `abilities` (met timing→phases, `underdogOnly`, `rounds`), een
+    `scoring.variants`-schema (3/3/4 VP per beurt, sommige rondeafhankelijk) en `card` (pad naar het
+    kaartje). De **kaartjes** staan als `cards/battleplans/<1-12>.jpg` (uit de GHB-screenshots
+    gecropt met `ko-import/crop-battleplans.ps1`; let op: de plan-*tekst*bestanden hadden 8/9
+    omgewisseld, de kaart-bestanden niet) en zitten in de `sw.js` SHELL voor offline gebruik.
+  - **Companion deployment-fase** (`renderDeployment`): toont het battleplan-kaartje (klikbaar →
+    schermvullend via `.bp-card`/`.bp-card-full`), de twist en alle battleplan-regels. Tijdens het
+    spel verschijnen de abilities in hun eigen phase (via `collectAbilities`).
   - De **6 General's Handbook battle tactics** (Blazing Onslaught, Seige of Ashes, Flanking
     Firestorm, Smokescreen, Burning Vengeance, Legend of the Parch) hebben elk 3 stappen met
     een eigen naam (`Affray: …` / `Strike: …` / `Domination: …`, elk 5 VP) + beschrijving;

@@ -601,11 +601,24 @@ export function renderCompanion(ctx) {
   function renderDeployment() {
     topbar("Deployment");
     app.appendChild(el(`<h2>Deployment</h2>`));
-    const abs = collectAbilities("deployment");
+    // Battleplan: kaart (klikbaar voor schermvullend) + twist + alle regels
+    const bp = game.battleplan;
+    if (bp) {
+      const card = el(`<div class="card">
+        <div class="card-header"><h3>${esc(bp.name)}</h3></div>
+        ${bp.card ? `<img class="bp-card" src="${esc(bp.card)}" alt="${esc(bp.name)}" loading="lazy" />` : ""}
+        ${bp.twist ? `<div class="muted-list"><strong>Twist:</strong> ${esc(bp.twist)}</div>` : ""}
+      </div>`);
+      const img = card.querySelector(".bp-card");
+      if (img) img.addEventListener("click", () => openModal(el(`<div class="bp-card-full"><img src="${esc(bp.card)}" alt="${esc(bp.name)}" /></div>`), el));
+      app.appendChild(card);
+      for (const ab of bp.abilities || []) app.appendChild(abilityCard({ ...ab, type: "battleplan", source: `Battleplan: ${bp.name}` }));
+    }
+    const abs = collectAbilities("deployment").filter((a) => a.type !== "battleplan");
     if (abs.length) {
       app.appendChild(el(`<h3>Abilities tijdens deployment</h3>`));
       for (const ab of abs) app.appendChild(abilityCard(ab));
-    } else {
+    } else if (!bp) {
       app.appendChild(el(`<p class="empty">Geen abilities voor de deployment.</p>`));
     }
     const nextBtn = el(`<button class="primary bigbtn">${icon("play")} Deployment klaar — naar battleround 1</button>`);
