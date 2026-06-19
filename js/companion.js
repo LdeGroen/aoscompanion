@@ -199,11 +199,25 @@ export function renderCompanion(ctx) {
   }
 
   // ===================== Battle set-up (vóór deployment) =====================
-  // Tegenstander, battleplan en 3 battle tactics kiezen. Battleplan en tactics
-  // worden als snapshot in de spelstatus gezet, zodat database-wijzigingen een
-  // lopend potje niet beïnvloeden.
+  // Tegenstander en battleplan kiezen + de battle tactics van de tegenstander
+  // (de jouwe komen uit je lijst). Battleplan en tactics worden als snapshot in
+  // de spelstatus gezet, zodat database-wijzigingen een lopend potje niet raken.
   let gamedata = null;
   let gamedataLoaded = false;
+
+  // Popup met de opvolgende stappen van een battle tactic.
+  function showTacticSteps(t) {
+    if (!t) return;
+    const steps = t.steps || [];
+    const wrap = el(`<div><h2>${esc(t.name)}</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
+    steps.forEach((s, i) => {
+      const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());
+      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>Stap ${i + 1}${hasLabel ? ": " + esc(s.name) : ""}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
+    });
+    openModal(wrap, el);
+  }
 
   function renderBattleSetup() {
     topbar("Battle set-up");
@@ -289,9 +303,24 @@ export function renderCompanion(ctx) {
     app.appendChild(bpCard);
     bpCard.querySelector("#bp-select").addEventListener("change", (e) => { game.setupBattleplanId = e.target.value; saveData(); });
 
-    // --- Battle tactics: 2 voor jou, 2 van je tegenstander ---
-    game.setupTacticIds = game.setupTacticIds || [];
+    // --- Battle tactics ---
+    // Jouw battle tactics komen uit je lijst (army.battleTactics, gekozen in set-up);
+    // hier kies je alleen die van je tegenstander.
     game.setupEnemyTacticIds = game.setupEnemyTacticIds || [];
+
+    const ownNames = army.battleTactics || [];
+    const ownCard = el(`<div class="card"><h2>Jouw battle tactics</h2>
+      <p class="subtitle">Uit je lijst — aan te passen in set-up mode. Klik voor de stappen.</p>
+      <div data-list></div></div>`);
+    app.appendChild(ownCard);
+    const ownList = ownCard.querySelector("[data-list]");
+    if (!ownNames.length) ownList.appendChild(el(`<p class="empty">Geen battle tactics in je lijst gekozen.</p>`));
+    for (const name of ownNames) {
+      const t = (gamedata?.tactics || []).find((x) => x.name === name);
+      const row = el(`<div class="card inner clickable" style="margin:4px 0"><div class="card-header"><strong>${esc(name)}</strong><span class="subtitle">stappen ›</span></div></div>`);
+      row.addEventListener("click", () => showTacticSteps(t || { name }));
+      ownList.appendChild(row);
+    }
 
     const tacticPicker = (title, hint, ids) => {
       const tCard = el(`<div class="card"><h2>${title}</h2>
@@ -302,9 +331,10 @@ export function renderCompanion(ctx) {
       const tList = tCard.querySelector("[data-list]");
       if (!gamedata?.tactics?.length) { tList.appendChild(el(`<p class="empty">Geen battle tactics beschikbaar.</p>`)); return; }
       for (const t of gamedata.tactics) {
-        const line = el(`<div class="checkline" style="align-items:flex-start">
+        const line = el(`<div class="checkline" style="align-items:center">
           <input type="checkbox" ${ids.includes(t.id) ? "checked" : ""} />
-          <span><strong>${esc(t.name)}</strong><div class="subtitle">${(t.steps || []).map((s, i) => `${i + 1}. ${esc(s.name || "")}`).join(" · ")}</div></span>
+          <span style="flex:1"><strong>${esc(t.name)}</strong></span>
+          <button class="small" data-steps>stappen ›</button>
         </div>`);
         line.querySelector("input").addEventListener("change", (e) => {
           if (e.target.checked) {
@@ -315,24 +345,21 @@ export function renderCompanion(ctx) {
           }
           saveData();
         });
+        line.querySelector("[data-steps]").addEventListener("click", () => showTacticSteps(t));
         tList.appendChild(line);
       }
     };
-    tacticPicker("Jouw battle tactics", `Kies er 2. Iedere tactic heeft 3 opvolgende stappen; je scoort er max 1 per eigen beurt (${TACTIC_STEP_POINTS} punten per stap).`, game.setupTacticIds);
     tacticPicker(`Battle tactics van ${esc(opp.name || "je tegenstander")}`, "Welke 2 heeft je tegenstander gekozen? Die scoor je aan het einde van zijn beurt.", game.setupEnemyTacticIds);
 
     const startBtn = el(`<button class="primary bigbtn">${icon("play")} Naar deployment</button>`);
     startBtn.addEventListener("click", () => {
       const bp = (gamedata?.battleplans || []).find((b) => b.id === game.setupBattleplanId);
-      if (bp && (game.setupTacticIds.length !== 2 || game.setupEnemyTacticIds.length !== 2)
-          && !confirm(`Je hebt ${game.setupTacticIds.length} eigen en ${game.setupEnemyTacticIds.length} vijandelijke battle tactics gekozen in plaats van 2 + 2. Toch doorgaan?`)) return;
-      const snapshot = (ids) => ids
-        .map((id) => (gamedata?.tactics || []).find((t) => t.id === id))
-        .filter(Boolean)
-        .map((t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), scoredRounds: [] }));
+      if (bp && game.setupEnemyTacticIds.length !== 2
+          && !confirm(`Je hebt ${game.setupEnemyTacticIds.length} battle tactics van de tegenstander gekozen in plaats van 2. Toch doorgaan?`)) return;
+      const snap = (t) => ({ name: t.name, steps: JSON.parse(JSON.stringify(t.steps || [])), scoredRounds: [] });
       game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
-      game.tactics = snapshot(game.setupTacticIds);
-      game.enemyTactics = snapshot(game.setupEnemyTacticIds);
+      game.tactics = (army.battleTactics || []).map((n) => (gamedata?.tactics || []).find((t) => t.name === n)).filter(Boolean).map(snap);
+      game.enemyTactics = game.setupEnemyTacticIds.map((id) => (gamedata?.tactics || []).find((t) => t.id === id)).filter(Boolean).map(snap);
       game.stage = "deployment";
       saveData();
       rerender(true);

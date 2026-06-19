@@ -337,8 +337,13 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   `Regiment 1..N` (leider eerst), elke unit als `<naam> (<pointsOf>)` met `•`-bullets voor General /
   Reinforced / enhancements, gevolgd door Auxiliary Units, Regiment of Renown en Faction Terrain.
 - **Battle tactic cards bij de lijst**: `army.battleTactics` (max 2 namen), gekozen via een picker in
-  de set-up (`renderBattleTactics`/`showTacticPicker`, tactics uit `loadGamedata().db.tactics`).
-  Los van de tactics die je per potje in companion mode kiest.
+  de set-up (`renderBattleTactics`/`showTacticPicker`, tactics uit `loadGamedata().db.tactics`),
+  gepositioneerd **direct onder faction/subfaction**. Zowel in de gekozen-weergave als in de picker
+  kun je op een tactic klikken om de opvolgende **stappen** te zien (`showTacticSteps`).
+  Omdat de tactics nu in de lijst zitten, kies je in **companion mode** je eigen tactics niet meer
+  per potje: de battle set-up toont jouw tactics read-only uit `army.battleTactics` (en `game.tactics`
+  wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
+  (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
 ## Companion: volledige modus vs score-modus
 In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het

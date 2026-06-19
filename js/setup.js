@@ -656,24 +656,44 @@ export function renderSetup(ctx) {
     app.appendChild(card);
     const body = card.querySelector("[data-body]");
     if (gdTactics === null) { loadTactics().then(() => rerender()); body.appendChild(el(`<p class="empty">Laden…</p>`)); return; }
-    body.appendChild(el(`<p class="subtitle">${army.battleTactics.length ? esc(army.battleTactics.join(", ")) : "Nog geen battle tactic cards gekozen (kies er 2)."}</p>`));
-    const btn = el(`<button class="small">${icon("plus")} Battle tactic cards kiezen</button>`);
+    if (!army.battleTactics.length) body.appendChild(el(`<p class="empty">Nog geen battle tactic cards gekozen (kies er 2).</p>`));
+    for (const name of army.battleTactics) {
+      const row = el(`<div class="card inner clickable" style="margin:4px 0"><div class="card-header"><strong>${esc(name)}</strong><span class="subtitle">stappen ›</span></div></div>`);
+      row.addEventListener("click", () => showTacticSteps(tacticByName(name)));
+      body.appendChild(row);
+    }
+    const btn = el(`<button class="small" style="margin-top:6px">${icon("plus")} Battle tactic cards kiezen</button>`);
     btn.addEventListener("click", showTacticPicker);
     body.appendChild(btn);
   }
+  const tacticByName = (name) => (gdTactics || []).find((t) => t.name === name);
+  // Popup met de opvolgende stappen van een battle tactic.
+  function showTacticSteps(t) {
+    if (!t) return;
+    const steps = t.steps || [];
+    const wrap = el(`<div><h2>${esc(t.name)}</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
+    steps.forEach((s, i) => {
+      const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());
+      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>Stap ${i + 1}${hasLabel ? ": " + esc(s.name) : ""}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
+    });
+    openModal(wrap, el);
+  }
   function showTacticPicker() {
-    const wrap = el(`<div><h2>Battle tactic cards</h2><p class="subtitle">Kies er maximaal 2 voor deze lijst.</p><div data-body></div></div>`);
+    const wrap = el(`<div><h2>Battle tactic cards</h2><p class="subtitle">Kies er maximaal 2. Klik op "stappen" om de stappen te zien.</p><div data-body></div></div>`);
     const body = wrap.querySelector("[data-body]");
     const draw = () => {
       body.innerHTML = "";
       for (const t of (gdTactics || [])) {
         const checked = army.battleTactics.includes(t.name);
-        const line = el(`<label class="checkline"><input type="checkbox" ${checked ? "checked" : ""} ${!checked && army.battleTactics.length >= 2 ? "disabled" : ""}/> <span><strong>${esc(t.name)}</strong></span></label>`);
+        const line = el(`<div class="checkline" style="align-items:center"><input type="checkbox" ${checked ? "checked" : ""} ${!checked && army.battleTactics.length >= 2 ? "disabled" : ""}/> <span style="flex:1"><strong>${esc(t.name)}</strong></span><button class="small" data-steps>stappen ›</button></div>`);
         line.querySelector("input").addEventListener("change", (e) => {
           if (e.target.checked) { if (army.battleTactics.length < 2) army.battleTactics.push(t.name); }
           else army.battleTactics = army.battleTactics.filter((n) => n !== t.name);
           saveData(); draw();
         });
+        line.querySelector("[data-steps]").addEventListener("click", () => showTacticSteps(t));
         body.appendChild(line);
       }
     };
@@ -848,14 +868,14 @@ export function renderSetup(ctx) {
       rerender();
     });
 
+    // --- Battle tactic cards (bij de lijst) — direct onder faction/subfaction ---
+    renderBattleTactics();
+
     // --- Roster (regiments, punten, auxiliary, terrain) ---
     renderRoster();
 
     // --- Lores ---
     renderLores();
-
-    // --- Battle tactic cards (bij de lijst) ---
-    renderBattleTactics();
 
     // --- Faction & subfaction rules ---
     renderRulesSection("Faction rules", army.factionRules, false);
