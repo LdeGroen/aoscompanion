@@ -111,6 +111,12 @@ export function renderDatabase(ctx) {
     }
     draw();
   }
+  // Stille, debounced save (voor auto-opslaan tijdens het bewerken — geen redraw).
+  let gdSaveTimer = null;
+  function persistGamedataSoon() {
+    clearTimeout(gdSaveTimer);
+    gdSaveTimer = setTimeout(() => saveGamedata(gd).catch(() => {}), 600);
+  }
 
   async function persist() {
     try {
@@ -444,7 +450,7 @@ export function renderDatabase(ctx) {
       <p class="subtitle">Gelden voor alle factions. Voeg per battleplan de abilities toe die in companion mode moeten verschijnen; het score-schema zit er al in.</p>
       <div data-list></div></div>`);
     app.appendChild(card);
-    const bAdd = addButton("Battleplan toevoegen", () => { const b = { id: uid(), name: "", abilities: [] }; gd.battleplans.push(b); startEdit("battleplan", b, gd.battleplans, false, persistGamedata); });
+    const bAdd = addButton("Battleplan toevoegen", () => { const b = { id: uid(), name: "", abilities: [] }; gd.battleplans.push(b); openBattleplanEdit(b); });
     if (bAdd) card.appendChild(bAdd);
     const list = card.querySelector("[data-list]");
     if (!gd) {
@@ -452,8 +458,8 @@ export function renderDatabase(ctx) {
       return;
     }
     for (const b of gd.battleplans) {
-      if (editing?.target === b) {
-        list.appendChild(buildBattleplanEditor(editing.copy));
+      if (editing?.kind === "battleplan" && editing.target === b) {
+        list.appendChild(buildBattleplanEditor(b));
         continue;
       }
       const opts = scoringOptionsFor(b, 1).length ? scoringOptionsFor(b, 1) : scoringOptionsFor(b, 2);
@@ -469,30 +475,44 @@ export function renderDatabase(ctx) {
         </div>
       </div>`);
       const editBtn = item.querySelector('[data-act="edit"]');
-      if (editBtn) editBtn.addEventListener("click", () => startEdit("battleplan", b, gd.battleplans, false, persistGamedata));
+      if (editBtn) editBtn.addEventListener("click", () => openBattleplanEdit(b));
       list.appendChild(item);
     }
   }
 
+  // Battleplan bewerken: in-place op het echte object, auto-opslaan (debounced).
+  // Geen save-knop nodig — sluiten met "Klaar".
+  const openBattleplanEdit = (b) => { editing = { kind: "battleplan", target: b }; draw(); };
+  function closeBattleplanEdit(bp, { remove = false } = {}) {
+    if (remove || (!String(bp.name || "").trim() && !(bp.abilities || []).length)) {
+      gd.battleplans = gd.battleplans.filter((x) => x !== bp);
+    }
+    clearTimeout(gdSaveTimer);
+    editing = null;
+    draw();
+    saveGamedata(gd).catch(() => {}); // definitieve save op de achtergrond
+  }
   function buildBattleplanEditor(bp) {
+    const onChange = () => persistGamedataSoon();
     const wrap = el(`<div class="card inner">
-      <div class="btnrow" data-actions-top></div>
+      <div class="card-header"><h3>${esc(bp.name || "Battleplan")}</h3><button class="small primary" data-close>${icon("check")} Klaar</button></div>
+      <p class="subtitle">Wijzigingen worden automatisch opgeslagen — klik op Klaar om te sluiten.</p>
       <label>Naam battleplan</label>
       <input type="text" data-f="name" value="${esc(bp.name)}" />
       <label>Abilities (verschijnen in companion mode als dit battleplan gekozen is)</label>
       <div data-abs></div>
       <button class="small" data-add>${icon("plus")} Ability toevoegen</button>
-      <div class="btnrow" data-actions></div>
+      <div class="btnrow"><button class="danger small" data-del>${icon("trash")} Battleplan verwijderen</button></div>
     </div>`);
-    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { bp.name = e.target.value; });
+    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { bp.name = e.target.value; onChange(); });
     const absWrap = wrap.querySelector("[data-abs]");
     const drawAbs = () => {
       absWrap.innerHTML = "";
       if (!bp.abilities.length) absWrap.appendChild(el(`<p class="empty">Nog geen abilities.</p>`));
       bp.abilities.forEach((ab, i) => {
         absWrap.appendChild(buildBattleplanAbilityEditor({
-          ab, el, esc,
-          actions: [{ label: `${icon("trash")} Verwijder ability`, danger: true, onClick: () => { bp.abilities.splice(i, 1); drawAbs(); } }],
+          ab, el, esc, onChange,
+          actions: [{ label: `${icon("trash")} Verwijder ability`, danger: true, onClick: () => { bp.abilities.splice(i, 1); drawAbs(); onChange(); } }],
         }));
       });
     };
@@ -500,19 +520,10 @@ export function renderDatabase(ctx) {
     wrap.querySelector("[data-add]").addEventListener("click", () => {
       bp.abilities.push({ name: "", description: "", phases: [], oncePerBattle: false, underdogOnly: false, rounds: [] });
       drawAbs();
+      onChange();
     });
-    // Save/annuleer-knoppen boven én onder, zodat ze ook bij een lange lijst
-    // abilities altijd bereikbaar zijn.
-    const fillActions = (container) => {
-      const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
-      saveBtn.addEventListener("click", () => finishEdit());
-      const cancelBtn = el(`<button class="small">Annuleren</button>`);
-      cancelBtn.addEventListener("click", () => { editing = null; draw(); });
-      container.appendChild(saveBtn);
-      container.appendChild(cancelBtn);
-    };
-    fillActions(wrap.querySelector("[data-actions-top]"));
-    fillActions(wrap.querySelector("[data-actions]"));
+    wrap.querySelector("[data-close]").addEventListener("click", () => closeBattleplanEdit(bp));
+    wrap.querySelector("[data-del]").addEventListener("click", () => { if (confirm(`Battleplan "${bp.name || "(naamloos)"}" verwijderen? Dit geldt voor alle accounts.`)) closeBattleplanEdit(bp, { remove: true }); });
     return wrap;
   }
 

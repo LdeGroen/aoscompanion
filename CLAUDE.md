@@ -87,8 +87,11 @@ laadt dezelfde URL.
     **beurt** een compacte ± teller voor fury level (0-7) en rage dice. Alles handmatig te overrulen.
     Snelknoppen voor de samengestelde aanpassingen: **Ignite Fury** (+2 fury, +2 rage), **Fight
     Through the Pain** (−1 fury, −1 rage) en **Rage die uitgeven** (−1 rage).
-  - De battleplan-editor (`buildBattleplanEditor`) heeft de Opslaan/Annuleer-knoppen nu zowel boven
-    als onder, zodat ze ook bij veel abilities altijd bereikbaar zijn.
+  - De battleplan-editor (`buildBattleplanEditor`) **slaat automatisch op** (debounced
+    `persistGamedataSoon`, geen Opslaan-knop): je bewerkt het echte object in-place
+    (`openBattleplanEdit` zet `editing = {kind:"battleplan", target}`, geen kopie) en sluit met
+    **Klaar** (`closeBattleplanEdit`, definitieve save). Een leeg, nieuw toegevoegd battleplan dat
+    je zonder naam/abilities sluit, wordt weer verwijderd. Verwijderen kan met de knop in de editor.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
   faction/subfaction + zijn unieke models uit de database (`game.opponent.models`,
   snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),
