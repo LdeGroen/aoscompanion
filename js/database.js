@@ -717,13 +717,14 @@ export function renderDatabase(ctx) {
       const itemsWrap = group.querySelector("[data-items]");
       list.appendChild(group);
       for (const { m, list: srcList, isUniversal } of groupItems) {
+      const isParagon = (m.keywords || []).some((k) => String(k).toLowerCase() === "paragon");
       const tags = [m.type, isUniversal ? "Universal" : "", m.fly ? "Fly" : "", m.wizardLevel > 0 ? `Wizard (${m.wizardLevel})` : "", m.priestLevel > 0 ? `Priest (${m.priestLevel})` : ""].filter(Boolean);
       const item = el(`<div class="card inner">
         <div class="card-header">
           <div>
             <h3>${esc(m.name)}</h3>
             <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)} · Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
-            ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+            ${(tags.length || isParagon) ? `<div class="chips">${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
             <div class="muted-list">${(m.rangedAttacks || []).length} ranged · ${(m.meleeAttacks || []).length} melee · ${(m.abilities || []).length} abilities · ${ownerLabel(m)}</div>
           </div>
         </div>

@@ -210,7 +210,15 @@ laadt dezelfde URL.
   manifestations) tabel, wapens uit de RANGED/MELEE WEAPONS-tabel, abilities uit timing-tabel +
   Declare/Effect/KEYWORDS. **Punten staan niet in het battletome** → per naam (tolerant: "of
   slaanesh"/"the" gestript) overgenomen uit de bestaande blob; nieuwe/hernoemde units hebben (nog)
-  geen punten. Bij een nieuw boek voor een andere faction: dezelfde aanpak.
+  geen punten. Bij een nieuw boek voor een andere faction: dezelfde aanpak. De twee Hedonites
+  Armies of Renown (The Decadent Host, Court of the Godlings) en twee Regiments of Renown
+  (Mist-clad Revellers, The Accursed Reflection) uit het boek zijn met `driver-hos-aor.mjs`
+  resp. `driver-hos-ror.mjs` in de `armiesofrenown`/`regimentsofrenown`-blobs gezet (roster-opties
+  → unit-lijst via keywords; RoR-punten staan niet in het boek → 0, handmatig aan te vullen).
+- **Paragon-keyword**: warscrolls met het `Paragon`-keyword (Hedonites of Slaanesh) krijgen op hun
+  kaartjes een opvallende paarse **Paragon-chip** (`.chip.paragon`) — in de model-popup
+  (`modelview.js`), de database-kaart (`drawModels`) en de set-up-roster (`modelRow`). Detectie:
+  `m.keywords` bevat "paragon".
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij

@@ -189,6 +189,9 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 .chip.active { background: var(--gold-dark); border-color: var(--gold); color: #fff; }
 .chip.tag { cursor: default; background: var(--bg-card-2); color: var(--gold); border-color: var(--gold-dark); }
 .chip.tag.dim { color: var(--text-dim); border-color: var(--border); }
+/* Paragon-keyword (Hedonites of Slaanesh) — duidelijk zichtbaar op kaartjes */
+.chip.paragon { cursor: default; background: #6a1f6a; border-color: #c060c0; color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.chip.paragon svg { width: 13px; height: 13px; }
 
 /* Faction-keuze in de database: uitklapbare lijst met Armies of Renown */
 .faction-toggle {

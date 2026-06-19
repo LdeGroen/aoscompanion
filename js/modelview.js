@@ -1,5 +1,6 @@
 import { phaseLabel, enhancementCategoryLabel } from "./factions.js";
 import { effectiveModel, modLabel } from "./enhancements.js";
+import { icon } from "./icons.js";
 
 // Gedeelde model-popup: companion mode én de database tonen hetzelfde overzicht
 // van alle informatie over één model. In companion worden de enhancements van
@@ -63,6 +64,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
   if (m.musician) tags.push("Musician");
   if (m.standardBearer) tags.push("Standard Bearer");
   if (extraTag) tags.push(extraTag);
+  const isParagon = (m.keywords || []).some((k) => String(k).toLowerCase() === "paragon");
 
   const stat = (label, value, mark) =>
     `<span class="stat"><span class="v">${esc(value)}${mark ? "✦" : ""}</span><span class="k">${label}</span></span>`;
@@ -70,7 +72,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
 
   const wrap = el(`<div>
     <h2>${esc(m.name)}</h2>
-    ${tags.length ? `<div class="chips">${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+    ${(tags.length || isParagon) ? `<div class="chips">${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
     <div class="stats">
       ${stat("move", M.move + '"', e.changed.has("move"))}
       ${stat("health", M.health, e.changed.has("health"))}

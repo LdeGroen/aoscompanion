@@ -191,7 +191,7 @@ export function renderSetup(ctx) {
     const isManif = m.type === "Manifestation", isTerrain = m.type === "Faction terrain";
     const card = el(`<div class="card inner clickable" style="margin:6px 0">
       <div class="card-header"><div>
-        <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}
+        <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
         <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}</div>
       </div></div>
       <div class="btnrow" data-actions></div>
