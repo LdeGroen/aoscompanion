@@ -167,10 +167,10 @@ export function buildModelEditor({ container, m, el, esc, onChange = () => {} })
   roWrap.querySelector("#ro-add").addEventListener("click", () => { m.regimentOptions.push({ names: [], max: 0 }); onChange(); drawRO(); });
 
   // Leest de formuliervelden in het model; false als de naam ontbreekt.
-  function commit() {
-    const name = form.querySelector("#m-name").value.trim();
-    if (!name) return false;
-    m.name = name;
+  // Leest alle hoofdvelden live in m (zodat auto-opslaan werkt). Naam niet trimmen
+  // tijdens het typen (anders kun je geen spaties zetten).
+  function syncFromForm() {
+    m.name = form.querySelector("#m-name").value;
     m.type = form.querySelector("#m-type").value;
     m.move = form.querySelector("#m-move").value.trim();
     m.health = parseInt(form.querySelector("#m-health").value) || 1;
@@ -188,15 +188,18 @@ export function buildModelEditor({ container, m, el, esc, onChange = () => {} })
     m.points = ptsVal === "" ? null : parseInt(ptsVal) || 0;
     m.reinforceable = form.querySelector("#m-reinf").checked;
     m.unique = form.querySelector("#m-unique").checked;
-    if (m.type === "Manifestation") {
+    if (form.querySelector("#m-type").value === "Manifestation") {
       m.banishment = (form.querySelector("#m-banish")?.value || "").trim();
       m.universal = !!form.querySelector("#m-universal")?.checked;
     } else {
       m.banishment = "";
       m.universal = false;
     }
-    return true;
   }
+  form.addEventListener("input", () => { syncFromForm(); onChange(); });
+  form.addEventListener("change", () => { syncFromForm(); onChange(); });
+
+  function commit() { syncFromForm(); return !!String(m.name).trim(); }
 
   return { commit };
 }

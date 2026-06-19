@@ -140,20 +140,40 @@ export function renderDatabase(ctx) {
   // De database is alleen door beheerders (superadmin + aangewezen db-editors) te wijzigen.
   const canEdit = () => dbEdit;
 
+  // Alle database-editors bewerken nu in-place op het echte object en slaan
+  // automatisch (debounced) op; je sluit met "Klaar" (closeEdit). Geen kopie meer.
   function startEdit(kind, target, list, isUniversal = false, saver = null) {
-    editing = { kind, target, list, isUniversal, saver, copy: JSON.parse(JSON.stringify(target)) };
+    editing = { kind, target, list, isUniversal, saver, wasBlank: !String(target.name || "").trim() };
     // De model-editor is een eigen scherm (naar boven); inline editors blijven op hun plek
     draw(kind === "model");
   }
 
-  function finishEdit() {
-    const i = editing.list.indexOf(editing.target);
-    if (i >= 0) editing.list[i] = editing.copy;
-    const { isUniversal: wasUniversal, saver } = editing;
+  // Stille save naar de juiste blob, afgeleid uit de editing-context.
+  function rawSaveFor(e) {
+    if (!e) return Promise.resolve();
+    if (e.saver === persistGamedata) return saveGamedata(gd);
+    if (e.saver === persistRoR) return sharedb.saveSharedBlob("regimentsofrenown", ror);
+    if (e.isUniversal) return sharedb.saveUniversalDb(uni);
+    return sharedb.saveFactionDb(faction, db);
+  }
+  let editSaveTimer = null;
+  function editSaveSoon() {
+    const e = editing;
+    clearTimeout(editSaveTimer);
+    editSaveTimer = setTimeout(() => rawSaveFor(e).catch(() => {}), 600);
+  }
+  // Sluit de editor: verse, leeg gebleven entries weer weghalen, dan definitief opslaan.
+  function closeEdit() {
+    const e = editing;
+    if (e && e.wasBlank && e.list && !String(e.target.name || "").trim()) {
+      const i = e.list.indexOf(e.target);
+      if (i >= 0) e.list.splice(i, 1);
+    }
+    clearTimeout(editSaveTimer);
+    const wasModel = e && e.kind === "model";
     editing = null;
-    if (saver) saver();
-    else if (wasUniversal) persistUniversal();
-    else persist();
+    draw(wasModel); // model-editor is een eigen scherm → terug naar boven; inline editors behouden scroll
+    rawSaveFor(e).catch(() => {});
   }
 
   // scrollTop: alleen bij laden/faction-wissel/model-editor naar boven;
@@ -543,7 +563,7 @@ export function renderDatabase(ctx) {
     for (const t of gd.tactics) {
       if (editing?.target === t) {
         const wrap = el(`<div class="card inner"></div>`);
-        wrap.appendChild(buildTacticEditor({ tactic: editing.copy, el, esc, actions: editActions() }));
+        wrap.appendChild(buildTacticEditor({ tactic: editing.target, el, esc, onChange: editSaveSoon, actions: editActions() }));
         list.appendChild(wrap);
         continue;
       }
@@ -579,7 +599,7 @@ export function renderDatabase(ctx) {
     const rules = (gd && gd.seasonalRules) || [];
     if (!rules.length) { list.appendChild(el(`<p class="empty">Nog geen seasonal rules.</p>`)); return; }
     for (const r of rules) {
-      if (editing?.target === r) { list.appendChild(buildRuleEditor({ rule: editing.copy, el, esc, actions: editActions() })); continue; }
+      if (editing?.target === r) { list.appendChild(buildRuleEditor({ rule: editing.target, el, esc, onChange: editSaveSoon, actions: editActions() })); continue; }
       const item = el(`<div class="card inner">
         <div class="card-header"><h3>${esc(r.name || "(naamloos)")}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
         ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
@@ -607,7 +627,7 @@ export function renderDatabase(ctx) {
     } else {
       if (!ror.list.length) list.appendChild(el(`<p class="empty">Nog geen Regiments of Renown.</p>`));
       for (const rr of ror.list) {
-        if (editing?.target === rr) { list.appendChild(buildRoREditor(editing.copy, rr)); continue; }
+        if (editing?.target === rr) { list.appendChild(buildRoREditor(editing.target)); continue; }
         const item = el(`<div class="card inner">
           <div class="card-header"><h3>${esc(rr.name || "(naamloos)")}</h3><span class="subtitle">${parseInt(rr.points) || 0} pts</span></div>
           <div class="subtitle">Facties: ${(rr.allowedArmies || []).map(esc).join(", ") || "—"}</div>
@@ -639,8 +659,10 @@ export function renderDatabase(ctx) {
     });
   }
 
-  function buildRoREditor(rr, original) {
+  function buildRoREditor(rr) {
     const wrap = el(`<div class="card inner">
+      <div class="card-header"><h3>${esc(rr.name || "Regiment of Renown")}</h3><button class="small primary" data-close>${icon("check")} Klaar</button></div>
+      <p class="subtitle">Wijzigingen worden automatisch opgeslagen.</p>
       <label>Naam</label>
       <input type="text" data-f="name" value="${esc(rr.name)}" />
       <label>Punten</label>
@@ -655,9 +677,9 @@ export function renderDatabase(ctx) {
       <button class="small" data-add-ab>${icon("plus")} Regel toevoegen</button>
       <div class="btnrow" data-actions></div>
     </div>`);
-    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { rr.name = e.target.value; });
-    wrap.querySelector('[data-f="points"]').addEventListener("input", (e) => { rr.points = parseInt(e.target.value) || 0; });
-    wrap.querySelector("[data-armies]").addEventListener("change", () => { rr.allowedArmies = [...wrap.querySelectorAll("[data-armies] input:checked")].map((c) => c.value); });
+    wrap.querySelector('[data-f="name"]').addEventListener("input", (e) => { rr.name = e.target.value; editSaveSoon(); });
+    wrap.querySelector('[data-f="points"]').addEventListener("input", (e) => { rr.points = parseInt(e.target.value) || 0; editSaveSoon(); });
+    wrap.querySelector("[data-armies]").addEventListener("change", () => { rr.allowedArmies = [...wrap.querySelectorAll("[data-armies] input:checked")].map((c) => c.value); editSaveSoon(); });
 
     rr.units = rr.units || [];
     const uWrap = wrap.querySelector("[data-units]");
@@ -670,14 +692,14 @@ export function renderDatabase(ctx) {
             <span style="display:flex;gap:6px;align-items:center"><label class="subtitle">aantal</label><input type="number" data-uc min="1" value="${esc(u.count || 1)}" style="width:60px"/></span></div>
           <div class="btnrow"><button class="small" data-pick>${icon("edit")} Warscroll kiezen</button><button class="danger small" data-del>${icon("trash")} Verwijderen</button></div>
         </div>`);
-        row.querySelector("[data-uc]").addEventListener("change", (e) => { u.count = parseInt(e.target.value) || 1; });
-        row.querySelector("[data-pick]").addEventListener("click", () => pickWarscroll((picked) => { u.name = picked.name; u.model = picked.model; drawU(); }));
-        row.querySelector("[data-del]").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); });
+        row.querySelector("[data-uc]").addEventListener("change", (e) => { u.count = parseInt(e.target.value) || 1; editSaveSoon(); });
+        row.querySelector("[data-pick]").addEventListener("click", () => pickWarscroll((picked) => { u.name = picked.name; u.model = picked.model; drawU(); editSaveSoon(); }));
+        row.querySelector("[data-del]").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); editSaveSoon(); });
         uWrap.appendChild(row);
       });
     };
     drawU();
-    wrap.querySelector("[data-add-unit]").addEventListener("click", () => pickWarscroll((picked) => { rr.units.push({ name: picked.name, count: 1, model: picked.model }); drawU(); }));
+    wrap.querySelector("[data-add-unit]").addEventListener("click", () => pickWarscroll((picked) => { rr.units.push({ name: picked.name, count: 1, model: picked.model }); drawU(); editSaveSoon(); }));
 
     rr.abilities = rr.abilities || [];
     const aWrap = wrap.querySelector("[data-abs]");
@@ -686,25 +708,20 @@ export function renderDatabase(ctx) {
       if (!rr.abilities.length) aWrap.appendChild(el(`<p class="empty">Geen regels.</p>`));
       rr.abilities.forEach((a, i) => {
         const row = el(`<div class="card inner" style="margin:4px 0"><input type="text" data-an value="${esc(a.name)}" placeholder="naam van de regel"/><textarea data-ad placeholder="beschrijving (Timing/Declare/Effect…)">${esc(a.description || "")}</textarea><div class="btnrow"><button class="danger small">${icon("trash")} Verwijderen</button></div></div>`);
-        row.querySelector("[data-an]").addEventListener("input", (e) => { a.name = e.target.value; });
-        row.querySelector("[data-ad]").addEventListener("input", (e) => { a.description = e.target.value; });
-        row.querySelector("button.danger").addEventListener("click", () => { rr.abilities.splice(i, 1); drawA(); });
+        row.querySelector("[data-an]").addEventListener("input", (e) => { a.name = e.target.value; editSaveSoon(); });
+        row.querySelector("[data-ad]").addEventListener("input", (e) => { a.description = e.target.value; editSaveSoon(); });
+        row.querySelector("button.danger").addEventListener("click", () => { rr.abilities.splice(i, 1); drawA(); editSaveSoon(); });
         aWrap.appendChild(row);
       });
     };
     drawA();
-    wrap.querySelector("[data-add-ab]").addEventListener("click", () => { rr.abilities.push({ name: "", description: "" }); drawA(); });
+    wrap.querySelector("[data-add-ab]").addEventListener("click", () => { rr.abilities.push({ name: "", description: "" }); drawA(); editSaveSoon(); });
 
+    wrap.querySelector("[data-close]").addEventListener("click", () => closeEdit());
     const actions = wrap.querySelector("[data-actions]");
-    const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
-    saveBtn.addEventListener("click", () => { if (!rr.name.trim()) { alert("Geef de Regiment of Renown een naam."); return; } finishEdit(); });
-    const cancelBtn = el(`<button class="small">Annuleren</button>`);
-    cancelBtn.addEventListener("click", () => {
-      if (original && !original.name) { const i = ror.list.indexOf(original); if (i >= 0) ror.list.splice(i, 1); } // verse, lege toevoeging weer weghalen
-      editing = null; draw();
-    });
-    actions.appendChild(saveBtn);
-    actions.appendChild(cancelBtn);
+    const delBtn = el(`<button class="danger small">${icon("trash")} Verwijderen</button>`);
+    delBtn.addEventListener("click", () => { if (!confirm(`"${rr.name || "(naamloos)"}" verwijderen? Dit geldt voor alle accounts.`)) return; const i = ror.list.indexOf(rr); if (i >= 0) ror.list.splice(i, 1); clearTimeout(editSaveTimer); editing = null; draw(true); sharedb.saveSharedBlob("regimentsofrenown", ror).catch(() => {}); });
+    actions.appendChild(delBtn);
     return wrap;
   }
 
@@ -825,21 +842,19 @@ export function renderDatabase(ctx) {
   }
 
   function drawModelEdit() {
-    const m = editing.copy;
+    const m = editing.target;
     const header = el(`<div class="topbar">
       <span class="title">Database-kaartje bewerken</span>
-      <button class="small" id="btn-cancel">${icon("back")} Annuleren</button>
+      <button class="small" id="btn-cancel">${icon("check")} Klaar</button>
     </div>`);
-    header.querySelector("#btn-cancel").addEventListener("click", () => cancelEdit());
+    header.querySelector("#btn-cancel").addEventListener("click", () => closeEdit());
     app.appendChild(header);
 
-    const editor = buildModelEditor({ container: app, m, el, esc }); // geen army → geen enhancement-sectie
-    const saveBtn = el(`<button class="primary bigbtn">${icon("check")} Opslaan in de database</button>`);
-    saveBtn.addEventListener("click", () => {
-      if (!editor.commit()) { alert("Geef het model een naam."); return; }
-      finishEdit();
-    });
-    app.appendChild(saveBtn);
+    app.appendChild(el(`<p class="subtitle">Wijzigingen worden automatisch opgeslagen.</p>`));
+    buildModelEditor({ container: app, m, el, esc, onChange: editSaveSoon }); // geen army → geen enhancement-sectie
+    const doneBtn = el(`<button class="primary bigbtn">${icon("check")} Klaar</button>`);
+    doneBtn.addEventListener("click", () => closeEdit());
+    app.appendChild(doneBtn);
   }
 
   function importCopy(m) {
@@ -892,7 +907,7 @@ export function renderDatabase(ctx) {
         if (editing?.target === enh) {
           const wrap = el(`<div class="card inner"></div>`);
           wrap.appendChild(buildEnhancementEditor({
-            enh: editing.copy, el, esc,
+            enh: editing.target, el, esc, onChange: editSaveSoon,
             actions: editActions(),
           }));
           list.appendChild(wrap);
@@ -948,7 +963,7 @@ export function renderDatabase(ctx) {
         if (editing?.target === lore) {
           const wrap = el(`<div class="card inner"></div>`);
           wrap.appendChild(buildLoreEditor({
-            lore: editing.copy, kind: kindDef.key, el, esc,
+            lore: editing.target, kind: kindDef.key, el, esc, onChange: editSaveSoon,
             manifestationOptions: (uni?.models || []).filter((x) => x.type === "Manifestation").map((x) => x.name),
             actions: editActions(),
           }));
@@ -1016,7 +1031,7 @@ export function renderDatabase(ctx) {
     for (const r of rules) {
       if (editing?.target === r) {
         list.appendChild(buildRuleEditor({
-          rule: editing.copy, el, esc,
+          rule: editing.target, el, esc, onChange: editSaveSoon,
           actions: editActions(),
         }));
         continue;
@@ -1058,19 +1073,10 @@ export function renderDatabase(ctx) {
   }
 
   // Annuleren: een vers toegevoegde (nog naamloze) entry weer uit de lijst halen.
-  function cancelEdit() {
-    if (editing?.target && editing.list && !editing.target.name) {
-      const i = editing.list.indexOf(editing.target);
-      if (i >= 0) editing.list.splice(i, 1);
-    }
-    editing = null;
-    draw();
-  }
-
+  // Auto-opslaan: alleen nog een "Klaar"-knop om de editor te sluiten.
   function editActions() {
     return [
-      { label: `${icon("check")} Opslaan in de database`, primary: true, onClick: () => finishEdit() },
-      { label: "Annuleren", onClick: () => cancelEdit() },
+      { label: `${icon("check")} Klaar`, primary: true, onClick: () => closeEdit() },
     ];
   }
 

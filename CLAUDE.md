@@ -358,6 +358,15 @@ via `buildModelPopupContent`, en enhancement/faction-rule/lore/RoR via een detai
 elke faction-blob heeft elk veld als array (een `factionRules` kan een object zijn → `for…of` crasht
 anders alleen bij "alle facties").
 
+**Auto-opslaan** (hele database): alle database-editors (warscrolls, enhancements, lores, faction-/
+subfaction-rules, battle tactics, seasonal rules, battleplans, Regiments of Renown) bewerken het
+échte object **in-place** en slaan **automatisch** op (debounced `editSaveSoon` → `rawSaveFor` kiest
+de juiste blob op basis van de editing-context; `closeEdit` doet een definitieve save). Er zijn geen
+"Opslaan in de database"-knoppen meer — je sluit met **Klaar**. `startEdit` maakt geen kopie meer;
+`editing.wasBlank` onthoudt of een vers toegevoegde entry leeg gesloten wordt (dan weer verwijderd).
+De model-velden in `buildModelEditor` zijn nu live (`syncFromForm` op input/change) zodat ook die
+auto-opslaan. (Set-up gebruikt nog steeds zijn eigen `saveData`/Personaliseren-flow.)
+
 **Toevoegen in de database** (alleen db-editors, zie permissies): elk categorie-blok in het
 database-scherm heeft een "+ Toevoegen"-knop (models, de vier enhancement-categorieën, de drie
 lore-soorten, faction- en subfaction-rules; RoR had die al). Toevoegen pusht een blanco entry
