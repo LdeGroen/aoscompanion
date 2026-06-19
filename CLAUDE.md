@@ -80,6 +80,13 @@ laadt dezelfde URL.
     geïmporteerd met `ko-import/seed-ghb-seasonal.mjs`. In **companion** worden ze bij de start van
     een potje in `game.seasonalRules` gesnapshot en via `collectAbilities` per phase getoond (bron
     "Seasonal rule"), net als faction rules.
+  - **Fury-teller** (`renderFuryPanel` in companion.js, `game.fury = {role, level, rage}`): verschijnt
+    alléén als de fury-seasonal-rules in dit potje actief zijn (`furyActive()` checkt op "fury level"
+    in `game.seasonalRules`). In de **deployment**-fase kies je attacker/defender (suggereert fury
+    level 1 of 2); bij **start of battleround** een knop "rage dice = fury level"; tijdens een
+    **beurt** een compacte ± teller voor fury level (0-7) en rage dice. Alles handmatig te overrulen.
+  - De battleplan-editor (`buildBattleplanEditor`) heeft de Opslaan/Annuleer-knoppen nu zowel boven
+    als onder, zodat ze ook bij veel abilities altijd bereikbaar zijn.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
   faction/subfaction + zijn unieke models uit de database (`game.opponent.models`,
   snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),

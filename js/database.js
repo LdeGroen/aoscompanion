@@ -476,6 +476,7 @@ export function renderDatabase(ctx) {
 
   function buildBattleplanEditor(bp) {
     const wrap = el(`<div class="card inner">
+      <div class="btnrow" data-actions-top></div>
       <label>Naam battleplan</label>
       <input type="text" data-f="name" value="${esc(bp.name)}" />
       <label>Abilities (verschijnen in companion mode als dit battleplan gekozen is)</label>
@@ -500,13 +501,18 @@ export function renderDatabase(ctx) {
       bp.abilities.push({ name: "", description: "", phases: [], oncePerBattle: false, underdogOnly: false, rounds: [] });
       drawAbs();
     });
-    const actions = wrap.querySelector("[data-actions]");
-    const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
-    saveBtn.addEventListener("click", () => finishEdit());
-    const cancelBtn = el(`<button class="small">Annuleren</button>`);
-    cancelBtn.addEventListener("click", () => { editing = null; draw(); });
-    actions.appendChild(saveBtn);
-    actions.appendChild(cancelBtn);
+    // Save/annuleer-knoppen boven én onder, zodat ze ook bij een lange lijst
+    // abilities altijd bereikbaar zijn.
+    const fillActions = (container) => {
+      const saveBtn = el(`<button class="small primary">${icon("check")} Opslaan in de database</button>`);
+      saveBtn.addEventListener("click", () => finishEdit());
+      const cancelBtn = el(`<button class="small">Annuleren</button>`);
+      cancelBtn.addEventListener("click", () => { editing = null; draw(); });
+      container.appendChild(saveBtn);
+      container.appendChild(cancelBtn);
+    };
+    fillActions(wrap.querySelector("[data-actions-top]"));
+    fillActions(wrap.querySelector("[data-actions]"));
     return wrap;
   }
 

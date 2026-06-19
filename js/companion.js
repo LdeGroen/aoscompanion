@@ -49,6 +49,7 @@ export function renderCompanion(ctx) {
       tactics: [],         // snapshots van jouw 2 battle tactics + scoredRounds per stap
       enemyTactics: [],    // de 2 battle tactics van je tegenstander
       seasonalRules: [],   // snapshot van de General's Handbook seasonal rules (game-breed)
+      fury: { role: "", level: 0, rage: 0 }, // GHB 2026-27 fury level + rage dice (alleen als die seasonal rules actief zijn)
       scores: { player: {}, enemy: {} }, // [side][round][optKey] = true
       liferoot: { player: 0, enemy: 0 }, // cumulatief (The Liferoots)
       endBonusOwner: "",   // wie de eindbonus pakt (Noxious Nexus)
@@ -65,6 +66,7 @@ export function renderCompanion(ctx) {
   game.tactics = game.tactics || [];
   game.enemyTactics = game.enemyTactics || [];
   game.seasonalRules = game.seasonalRules || [];
+  game.fury = game.fury || { role: "", level: 0, rage: 0 };
   game.scores = game.scores || { player: {}, enemy: {} };
   game.liferoot = game.liferoot || { player: 0, enemy: 0 };
   game.endBonusOwner = game.endBonusOwner || "";
@@ -605,9 +607,47 @@ export function renderCompanion(ctx) {
   }
 
   // ===================== Deployment (alleen vóór battleround 1) =====================
+  // Fury level + rage dice (General's Handbook 2026-27). Alleen tonen als die
+  // seasonal rules in dit potje actief zijn.
+  const furyActive = () => (game.seasonalRules || []).some((r) => /fury level/i.test(r.description || ""));
+  function renderFuryPanel({ role = false, roundStart = false } = {}) {
+    if (!furyActive()) return;
+    game.fury = game.fury || { role: "", level: 0, rage: 0 };
+    const f = game.fury;
+    const card = el(`<div class="card"><div class="card-header"><h3>${icon("zap")} Fury</h3></div><div data-body></div></div>`);
+    const body = card.querySelector("[data-body]");
+    if (role) {
+      body.appendChild(el(`<p class="subtitle">Ben jij de attacker of defender? (suggereert je fury level)</p>`));
+      const row = el(`<div class="btnrow"></div>`);
+      for (const [val, label, lvl] of [["attacker", "Attacker (fury 1)", 1], ["defender", "Defender (fury 2)", 2]]) {
+        const b = el(`<button class="small ${f.role === val ? "primary" : ""}">${label}</button>`);
+        b.addEventListener("click", () => { f.role = val; f.level = lvl; saveData(); rerender(); });
+        row.appendChild(b);
+      }
+      body.appendChild(row);
+    }
+    const stepper = (label, key, min, max, hint) => {
+      const r = el(`<div class="scoreline"><span>${label}${hint != null ? ` <span class="subtitle">(suggestie: ${hint})</span>` : ""}</span>
+        <span style="display:flex;align-items:center;gap:10px"><button class="small" data-dec>−</button><strong style="min-width:1.5em;text-align:center;font-size:1.1rem">${f[key] || 0}</strong><button class="small" data-inc>+</button></span></div>`);
+      r.querySelector("[data-dec]").addEventListener("click", () => { f[key] = Math.max(min, (f[key] || 0) - 1); saveData(); rerender(); });
+      r.querySelector("[data-inc]").addEventListener("click", () => { f[key] = Math.min(max, (f[key] || 0) + 1); saveData(); rerender(); });
+      body.appendChild(r);
+    };
+    stepper("Fury level", "level", 0, 7, role && f.role ? (f.role === "attacker" ? 1 : 2) : null);
+    stepper("Rage dice", "rage", 0, 99, roundStart ? f.level : null);
+    if (roundStart) {
+      const btn = el(`<button class="small primary" style="margin-top:6px">${icon("zap")} Nieuwe battleround: ${f.level} rage dice (= fury level)</button>`);
+      btn.addEventListener("click", () => { f.rage = f.level; saveData(); rerender(); });
+      body.appendChild(btn);
+      body.appendChild(el(`<p class="subtitle">Onbestede rage dice vervallen aan het eind van de battleround.</p>`));
+    }
+    app.appendChild(card);
+  }
+
   function renderDeployment() {
     topbar("Deployment");
     app.appendChild(el(`<h2>Deployment</h2>`));
+    renderFuryPanel({ role: true });
     // Battleplan: kaart (klikbaar voor schermvullend) + twist + alle regels
     const bp = game.battleplan;
     if (bp) {
@@ -649,6 +689,7 @@ export function renderCompanion(ctx) {
       app.appendChild(el(`<h3>Start of Battleround</h3>`));
       for (const ab of abs) app.appendChild(abilityCard(ab));
     }
+    renderFuryPanel({ roundStart: true });
 
     const card = el(`<div class="card">
       <h2>Battleround ${game.round} van ${LAST_ROUND}</h2>
@@ -738,6 +779,8 @@ export function renderCompanion(ctx) {
         <span><strong>${s.enemy.total}</strong> ${esc(game.opponent?.name || "Tegenstander")}</span>
       </div>`));
     }
+
+    renderFuryPanel();
 
     // Phase navigatie
     const nav = el(`<div class="phase-nav"></div>`);
