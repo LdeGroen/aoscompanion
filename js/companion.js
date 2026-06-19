@@ -48,6 +48,7 @@ export function renderCompanion(ctx) {
       battleplan: null,    // snapshot van het gekozen battleplan (naam, scoring, abilities)
       tactics: [],         // snapshots van jouw 2 battle tactics + scoredRounds per stap
       enemyTactics: [],    // de 2 battle tactics van je tegenstander
+      seasonalRules: [],   // snapshot van de General's Handbook seasonal rules (game-breed)
       scores: { player: {}, enemy: {} }, // [side][round][optKey] = true
       liferoot: { player: 0, enemy: 0 }, // cumulatief (The Liferoots)
       endBonusOwner: "",   // wie de eindbonus pakt (Noxious Nexus)
@@ -63,6 +64,7 @@ export function renderCompanion(ctx) {
   game.opponent.models = game.opponent.models || [];
   game.tactics = game.tactics || [];
   game.enemyTactics = game.enemyTactics || [];
+  game.seasonalRules = game.seasonalRules || [];
   game.scores = game.scores || { player: {}, enemy: {} };
   game.liferoot = game.liferoot || { player: 0, enemy: 0 };
   game.endBonusOwner = game.endBonusOwner || "";
@@ -164,6 +166,10 @@ export function renderCompanion(ctx) {
     }
     for (const r of army.subfactionRules) {
       if (r.phases.includes(fullKey)) result.push({ ...r, source: "Subfaction rule", type: "faction" });
+    }
+    // General's Handbook seasonal rules (game-breed, snapshot in game.seasonalRules)
+    for (const r of game.seasonalRules || []) {
+      if ((r.phases || []).includes(fullKey)) result.push({ ...r, source: "Seasonal rule", type: "faction" });
     }
     // Battleplan-abilities: optioneel beperkt tot bepaalde battlerounds en/of
     // alleen actief als jij de underdog bent.
@@ -361,6 +367,7 @@ export function renderCompanion(ctx) {
       game.battleplan = bp ? JSON.parse(JSON.stringify(bp)) : null;
       game.tactics = (army.battleTactics || []).map((n) => (gamedata?.tactics || []).find((t) => t.name === n)).filter(Boolean).map(snap);
       game.enemyTactics = game.setupEnemyTacticIds.map((id) => (gamedata?.tactics || []).find((t) => t.id === id)).filter(Boolean).map(snap);
+      game.seasonalRules = JSON.parse(JSON.stringify(gamedata?.seasonalRules || []));
       game.stage = "deployment";
       saveData();
       rerender(true);

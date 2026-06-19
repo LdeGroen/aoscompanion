@@ -75,7 +75,11 @@ laadt dezelfde URL.
     seasonal rules** met bewerk-/toevoeg-knoppen (admin). `drawGeneralsHandbook` →
     `drawTactics`/`drawBattleplans`/`drawSeasonalRules`; deze staan niet meer onder elke faction.
     `seasonalRules` = nieuw `gamedata`-veld (rule-vorm: `buildRuleEditor`), seizoensregels die
-    voor alle potjes gelden.
+    voor alle potjes gelden. De **5 GHB 2026-27 seasonal rules** (Raising the Heat, Simmering Rage,
+    Active Place of Power, Eruption of Fury, Fight Through the Pain — fury level / rage dice) zijn
+    geïmporteerd met `ko-import/seed-ghb-seasonal.mjs`. In **companion** worden ze bij de start van
+    een potje in `game.seasonalRules` gesnapshot en via `collectAbilities` per phase getoond (bron
+    "Seasonal rule"), net als faction rules.
 - **Battle-flow**: nieuw potje start met stage `"battleSetup"` (tegenstander naam +
   faction/subfaction + zijn unieke models uit de database (`game.opponent.models`,
   snapshots — tijdens de game in te zien via de **Tegenstander-knop** in de topbar),
