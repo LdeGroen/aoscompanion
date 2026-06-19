@@ -200,6 +200,17 @@ laadt dezelfde URL.
     beperkt tot de AoR-units (universal manifestations blijven kiesbaar). AoR en subfaction
     sluiten elkaar uit; van faction wisselen wist `army.aor`. Companion leest gewoon
     `army.factionRules` + `army.models`, dus AoR werkt daar automatisch.
+- **Hedonites of Slaanesh = nieuw battletome (juni 2026)**: deze faction is níét uit BSData
+  geïmporteerd maar uit het nieuwe boek (Word-transcriptie). `ko-import/parse-hos.mjs` bouwt een
+  ordered-block model (paragrafen + tabellen) uit `word/document.xml`; `ko-import/driver-hos.mjs`
+  parst dat naar battle traits (factionRules), battle formations (subfactions: Depraved Carnival,
+  Godseeker Cavalcade, Artisans of Torment, Lurid Dreamers — ook bijgewerkt in `AOS_FACTIONS`),
+  heroic traits + artefacts (enhancements), spell- + manifestation-lore en 28 models (25 warscrolls
+  + 3 faction-manifestations). Stats komen uit de MOVE/HEALTH/SAVE/CONTROL- (of …/BANISHMENT voor
+  manifestations) tabel, wapens uit de RANGED/MELEE WEAPONS-tabel, abilities uit timing-tabel +
+  Declare/Effect/KEYWORDS. **Punten staan niet in het battletome** → per naam (tolerant: "of
+  slaanesh"/"the" gestript) overgenomen uit de bestaande blob; nieuwe/hernoemde units hebben (nog)
+  geen punten. Bij een nieuw boek voor een andere faction: dezelfde aanpak.
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij

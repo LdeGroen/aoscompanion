@@ -17,7 +17,7 @@ export const AOS_FACTIONS = {
   "Blades of Khorne": ["Khornate Legion", "Bloodbound Warhorde", "Brass Stampede", "Murderhost", "Tournament of Skulls", "The Goretide"],
   "Disciples of Tzeentch": ["Fated Blades", "Denizens of the Silver Towers", "Malevolent Schemers", "Mutants and Mad Thingst", "Masters of Fate", "Spellweaver Coven"],
   "Maggotkin of Nurgle": ["Tallyband of Nurgle", "Plague Cyst", "Nurgle's Menagerie", "Affliction Cyst"],
-  "Hedonites of Slaanesh": ["Supreme Sybarites", "Seeker Cavalcade", "Epicurean Revellers", "Depraved Carnival", "Pretenders", "Invaders"],
+  "Hedonites of Slaanesh": ["Depraved Carnival", "Godseeker Cavalcade", "Artisans of Torment", "Lurid Dreamers"],
   "Helsmiths of Hashut": ["Hashutite Host", "The Bullfather's Horns", "Castigation Battery", "Daemonsmith Cabal", "Domination Force", "Industrial Polluters"],
 
   // --- DEATH ---
