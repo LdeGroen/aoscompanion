@@ -327,6 +327,19 @@ database-scherm heeft een "+ Toevoegen"-knop (models, de vier enhancement-catego
 lore-soorten, faction- en subfaction-rules; RoR had die al). Toevoegen pusht een blanco entry
 en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg (`cancelEdit`).
 
+## Set-up: lijst exporteren + battle tactic cards
+- **Exporteren** (knop in de set-up-topbar, `showExport`/`buildExportText` in setup.js): genereert
+  de lijst als platte tekst in GW-app-stijl en toont die in een modal met een **"Kopieer naar
+  klembord"**-knop (`navigator.clipboard.writeText`, met textarea-select + `execCommand`-fallback).
+  Formaat: `"<naam> <punten>/2000 pts"`, dan faction, battle formation (`army.aor || army.subfaction`),
+  `Drops: <n>` (= regiments + RoR + auxiliary units), de spell/prayer/manifestation-lores
+  (`<Soort> Lore - <naam>`), `Battle Tactic Cards: a, b`, dan **General's Regiment** eerst en daarna
+  `Regiment 1..N` (leider eerst), elke unit als `<naam> (<pointsOf>)` met `•`-bullets voor General /
+  Reinforced / enhancements, gevolgd door Auxiliary Units, Regiment of Renown en Faction Terrain.
+- **Battle tactic cards bij de lijst**: `army.battleTactics` (max 2 namen), gekozen via een picker in
+  de set-up (`renderBattleTactics`/`showTacticPicker`, tactics uit `loadGamedata().db.tactics`).
+  Los van de tactics die je per potje in companion mode kiest.
+
 ## Companion: volledige modus vs score-modus
 In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het
 was: phases, abilities, commands, CP, scoren) en **score-modus** (`renderScoreMode` in

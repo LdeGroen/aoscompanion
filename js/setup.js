@@ -2,6 +2,7 @@ import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind, phaseLab
 import { buildModelEditor, buildRuleEditor, buildLoreEditor, buildEnhancementEditor } from "./editors.js";
 import { effectiveModel, migrateModelEnhancements, enhancementFits, modLabel } from "./enhancements.js";
 import { openModal, buildModelPopupContent } from "./modelview.js";
+import { loadGamedata } from "./battleplans.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
@@ -644,17 +645,127 @@ export function renderSetup(ctx) {
     window.scrollTo(0, scrollTop ? 0 : y);
   }
 
+  // ===================== Battle tactic cards (bij de lijst) =====================
+  let gdTactics = null; // gamedata-tactics, async geladen
+  async function loadTactics() {
+    try { gdTactics = (await loadGamedata()).db.tactics || []; } catch { gdTactics = []; }
+  }
+  function renderBattleTactics() {
+    army.battleTactics = army.battleTactics || [];
+    const card = el(`<div class="card"><h2>Battle Tactic Cards</h2><div data-body></div></div>`);
+    app.appendChild(card);
+    const body = card.querySelector("[data-body]");
+    if (gdTactics === null) { loadTactics().then(() => rerender()); body.appendChild(el(`<p class="empty">Laden…</p>`)); return; }
+    body.appendChild(el(`<p class="subtitle">${army.battleTactics.length ? esc(army.battleTactics.join(", ")) : "Nog geen battle tactic cards gekozen (kies er 2)."}</p>`));
+    const btn = el(`<button class="small">${icon("plus")} Battle tactic cards kiezen</button>`);
+    btn.addEventListener("click", showTacticPicker);
+    body.appendChild(btn);
+  }
+  function showTacticPicker() {
+    const wrap = el(`<div><h2>Battle tactic cards</h2><p class="subtitle">Kies er maximaal 2 voor deze lijst.</p><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    const draw = () => {
+      body.innerHTML = "";
+      for (const t of (gdTactics || [])) {
+        const checked = army.battleTactics.includes(t.name);
+        const line = el(`<label class="checkline"><input type="checkbox" ${checked ? "checked" : ""} ${!checked && army.battleTactics.length >= 2 ? "disabled" : ""}/> <span><strong>${esc(t.name)}</strong></span></label>`);
+        line.querySelector("input").addEventListener("change", (e) => {
+          if (e.target.checked) { if (army.battleTactics.length < 2) army.battleTactics.push(t.name); }
+          else army.battleTactics = army.battleTactics.filter((n) => n !== t.name);
+          saveData(); draw();
+        });
+        body.appendChild(line);
+      }
+    };
+    draw();
+    const overlay = openModal(wrap, el);
+    const done = el(`<button class="primary bigbtn">${icon("check")} Klaar</button>`);
+    done.addEventListener("click", () => { overlay.remove(); rerender(); });
+    wrap.appendChild(done);
+  }
+
+  // ===================== Lijst exporteren =====================
+  function dropCount() {
+    const regs = army.regiments.length; // elk regiment + RoR = 1 drop
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type)).length;
+    return regs + aux;
+  }
+  function unitExportLines(m) {
+    const out = [`${m.name} (${pointsOf(m)})`];
+    if (m.isGeneral) out.push(" • General");
+    if (m.reinforced) out.push(" • Reinforced");
+    for (const e of (m.enhancements || [])) out.push(` • ${e.name}`);
+    return out;
+  }
+  function buildExportText() {
+    const L = [];
+    L.push(`${army.name || "(naamloos)"} ${totalPoints()}/${POINTS_LIMIT} pts`);
+    L.push("");
+    if (army.faction) L.push(army.faction);
+    const formation = army.aor || army.subfaction;
+    if (formation) L.push(formation);
+    L.push(`Drops: ${dropCount()}`);
+    if (army.spellLore?.name) L.push(`Spell Lore - ${army.spellLore.name}`);
+    if (army.prayerLore?.name) L.push(`Prayer Lore - ${army.prayerLore.name}`);
+    if (army.manifestationLore?.name) L.push(`Manifestation Lore - ${army.manifestationLore.name}`);
+    if ((army.battleTactics || []).length) { L.push(""); L.push(`Battle Tactic Cards: ${army.battleTactics.join(", ")}`); }
+
+    // Regiments: generals regiment eerst, daarna genummerd
+    const generalRid = (army.models.find((m) => m.isGeneral) || {}).regimentId;
+    const regs = army.regiments.filter((r) => !r.ror).sort((a, b) => (a.id === generalRid ? -1 : 0) - (b.id === generalRid ? -1 : 0));
+    let regNo = 0;
+    for (const reg of regs) {
+      L.push("");
+      L.push(reg.id === generalRid ? "General's Regiment" : `Regiment ${++regNo}`);
+      const inReg = army.models.filter((m) => m.regimentId === reg.id);
+      const ordered = [...inReg.filter((m) => m.isLeader), ...inReg.filter((m) => !m.isLeader)];
+      for (const m of ordered) L.push(...unitExportLines(m));
+    }
+    // Auxiliary units
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type));
+    if (aux.length) { L.push(""); L.push("Auxiliary Units"); for (const m of aux) L.push(...unitExportLines(m)); }
+    // Regiments of Renown
+    for (const reg of army.regiments.filter((r) => r.ror)) {
+      L.push(""); L.push("Regiment of Renown");
+      L.push(`${reg.ror.name} (${parseInt(reg.ror.points) || 0})`);
+      for (const m of army.models.filter((x) => x.regimentId === reg.id)) L.push(` • ${m.name}`);
+    }
+    // Faction terrain
+    const terrain = army.models.filter((m) => m.type === "Faction terrain");
+    if (terrain.length) { L.push(""); L.push("Faction Terrain"); for (const t of terrain) L.push(pointsOf(t) > 0 ? `${t.name} (${pointsOf(t)})` : t.name); }
+    return L.join("\n");
+  }
+  function showExport() {
+    const text = buildExportText();
+    const wrap = el(`<div><h2>${icon("copy")} Lijst exporteren</h2>
+      <p class="subtitle">Kopieer de tekst en plak hem waar je wilt.</p>
+      <textarea readonly style="width:100%;min-height:320px;font-family:monospace;font-size:0.8rem;white-space:pre"></textarea>
+      <div class="btnrow"></div></div>`);
+    const ta = wrap.querySelector("textarea"); ta.value = text;
+    const overlay = openModal(wrap, el);
+    const copyBtn = el(`<button class="primary bigbtn">${icon("copy")} Kopieer naar klembord</button>`);
+    copyBtn.addEventListener("click", async () => {
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch { ta.focus(); ta.select(); try { ok = document.execCommand("copy"); } catch {} }
+      copyBtn.innerHTML = ok ? `${icon("check")} Gekopieerd!` : `${icon("copy")} Kopiëren mislukt — selecteer handmatig`;
+      setTimeout(() => { copyBtn.innerHTML = `${icon("copy")} Kopieer naar klembord`; }, 2000);
+    });
+    wrap.querySelector(".btnrow").appendChild(copyBtn);
+  }
+
   // ===================== Leger-overzicht =====================
   function renderArmyOverview() {
     const header = el(`<div class="topbar">
       <span class="title">Set-up mode</span>
       <div style="display:flex;gap:6px">
+        <button class="small" id="btn-export">${icon("share")} Exporteren</button>
         <button class="small" id="btn-db">${icon("book")} Database</button>
         <button class="small" id="btn-back">${icon("back")} Mijn legers</button>
       </div>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => { saveData(); navigate("home"); });
     header.querySelector("#btn-db").addEventListener("click", () => { saveData(); navigate("database", { armyId: army.id, dbReturn: "setup" }); });
+    header.querySelector("#btn-export").addEventListener("click", showExport);
     app.appendChild(header);
 
     // --- Leger basis ---
@@ -742,6 +853,9 @@ export function renderSetup(ctx) {
 
     // --- Lores ---
     renderLores();
+
+    // --- Battle tactic cards (bij de lijst) ---
+    renderBattleTactics();
 
     // --- Faction & subfaction rules ---
     renderRulesSection("Faction rules", army.factionRules, false);
