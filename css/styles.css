@@ -193,6 +193,12 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 .chip.paragon { cursor: default; background: #6a1f6a; border-color: #c060c0; color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .chip.paragon svg { width: 13px; height: 13px; }
 
+/* Passives & blijvende effecten (uitschuifbaar blad in companion) */
+.passive-sheet { margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card-2); }
+.passive-sheet > summary { padding: 10px 12px; cursor: pointer; font-weight: 600; color: var(--gold); }
+.passive-sheet > [data-body] { padding: 4px 10px 10px; }
+.passive-sheet h4 { margin: 10px 0 4px; color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
 /* Battleplan-kaart in de deployment-fase */
 .bp-card { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in; display: block; margin: 4px 0 8px; }
 .bp-card-full { display: flex; align-items: center; justify-content: center; }

@@ -191,6 +191,36 @@ export function renderCompanion(ctx) {
     return result;
   }
 
+  // ---------- Passives & blijvende effecten (buffs) ----------
+  game.activeBuffs = game.activeBuffs || {}; // key -> { name, source, description, dur }
+  const isPassiveAb = (ab) => /\[passive\]/i.test(ab.description || "");
+  // "rest of the turn" → deze beurt; "until the start of your next turn" → tot je volgende beurt.
+  const buffDuration = (ab) => {
+    const d = ab.description || "";
+    if (/until the start of your next turn/i.test(d)) return "nextTurn";
+    if (/rest of the turn|rest of the battle round/i.test(d)) return "turn";
+    return null;
+  };
+  // Verzamel alle (army-brede) passive abilities, ongeacht phase — voor het uitschuifblad.
+  function collectPassives() {
+    const out = [];
+    const add = (list, source) => { for (const ab of list || []) if (isPassiveAb(ab)) out.push({ ...ab, source }); };
+    add(army.factionRules, "Faction rule");
+    add(army.subfactionRules, "Subfaction rule");
+    add(game.seasonalRules, "Seasonal rule");
+    add(game.battleplan?.abilities, `Battleplan: ${game.battleplan?.name || ""}`);
+    for (const t of game.tactics || []) add(t.abilities, `Battle tactic: ${t.name}`);
+    for (const t of game.enemyTactics || []) add(t.abilities, `Battle tactic (tegenstander): ${t.name}`);
+    return out;
+  }
+  // Verlopen buffs opruimen: "turn" aan het einde van elke beurt, "nextTurn" bij een nieuwe ronde.
+  function pruneBuffs(scope) {
+    for (const k of Object.keys(game.activeBuffs)) {
+      const b = game.activeBuffs[k];
+      if (scope === "round" || (scope === "turn" && b.dur === "turn")) delete game.activeBuffs[k];
+    }
+  }
+
   function minusOneToHit(toHit) {
     const map = { "2+": "3+", "3+": "4+", "4+": "5+", "5+": "6+", "6+": "6+" };
     return map[toHit] || toHit;
@@ -836,8 +866,8 @@ export function renderCompanion(ctx) {
     // Phase-specifieke inhoud
     renderPhaseContent(owner, phase.key);
 
-    // Abilities voor deze phase
-    const abs = abilitiesFor(owner, phase.key);
+    // Abilities voor deze phase (passives niet hier, die staan in het uitschuifblad onderaan)
+    const abs = abilitiesFor(owner, phase.key).filter((ab) => !isPassiveAb(ab));
     if (abs.length) {
       app.appendChild(el(`<h3>Abilities in deze phase</h3>`));
       for (const ab of abs) app.appendChild(abilityCard(ab));
@@ -849,6 +879,9 @@ export function renderCompanion(ctx) {
       app.appendChild(el(`<h3>Universal commands</h3>`));
       for (const c of cmds) app.appendChild(commandRow(c, owner));
     }
+
+    // Passives & blijvende effecten (uitschuifbaar, onderaan)
+    renderPassivePanel();
 
     // Volgende phase / beurt
     const isLastPhase = game.phaseIndex === PHASES.length - 1;
@@ -867,11 +900,13 @@ export function renderCompanion(ctx) {
         game.turnIndex = 1;
         game.phaseIndex = 0;
         game.usedCommands = {};
+        pruneBuffs("turn"); // "rest of the turn"-buffs vervallen aan het einde van de beurt
       } else if (isLastRound) {
         game.stage = "gameOver";
       } else {
         game.round++;
         game.stage = "roundSetup";
+        pruneBuffs("round"); // nieuwe ronde → alle buffs (ook "tot je volgende beurt") vervallen
       }
       saveData();
       rerender(true);
@@ -1305,6 +1340,26 @@ export function renderCompanion(ctx) {
     return card;
   }
 
+  // Buff-knop: abilities die "for the rest of the turn" / "until the start of your next turn"
+  // in hun tekst hebben krijgen een knop "Actief gegaan" → komen in het Passives-blad te staan.
+  function attachBuff(card, ab) {
+    const dur = buffDuration(ab);
+    if (!dur) return;
+    const key = `${ab.source}|${ab.name}`;
+    const active = !!game.activeBuffs[key];
+    const durLabel = dur === "nextTurn" ? "tot je volgende beurt" : "deze beurt";
+    const line = el(`<div class="checkline" style="margin-top:6px">
+      <input type="checkbox" ${active ? "checked" : ""} />
+      <span>Actief gegaan — blijft in het Passives-blad staan (${durLabel})</span>
+    </div>`);
+    line.querySelector("input").addEventListener("change", (e) => {
+      if (e.target.checked) game.activeBuffs[key] = { name: ab.name, source: ab.source, description: ab.description, dur };
+      else delete game.activeBuffs[key];
+      saveData(); rerender();
+    });
+    card.appendChild(line);
+  }
+
   function abilityCard(ab) {
     const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : ab.type === "battleplan" ? "battleplan" : "";
     const cost = parseInt(ab.cpCost) || 0;
@@ -1339,6 +1394,7 @@ export function renderCompanion(ctx) {
         });
         card.querySelector("[data-cp]").appendChild(line);
       }
+      attachBuff(card, ab);
       if (ab.model) makeClickable(card, ab.model);
       return card;
     }
@@ -1366,8 +1422,36 @@ export function renderCompanion(ctx) {
       saveData();
       rerender();
     });
+    attachBuff(card, ab);
     if (ab.model) makeClickable(card, ab.model);
     return card;
+  }
+
+  // Uitschuifbaar blad onderaan: alle passive abilities + actieve buffs (rest of turn / next turn).
+  function renderPassivePanel() {
+    const passives = collectPassives();
+    const buffEntries = Object.entries(game.activeBuffs || {});
+    if (!passives.length && !buffEntries.length) return;
+    const det = el(`<details class="passive-sheet"><summary>${icon("shield")} Passives & blijvende effecten (${passives.length + buffEntries.length})</summary><div data-body></div></details>`);
+    const body = det.querySelector("[data-body]");
+    if (buffEntries.length) {
+      body.appendChild(el(`<h4>Actieve effecten</h4>`));
+      for (const [key, b] of buffEntries) {
+        const card = el(`<div class="ability">
+          <div class="owner">${esc(b.source)} · ${b.dur === "nextTurn" ? "tot je volgende beurt" : "deze beurt"}</div>
+          <span class="aname">${esc(b.name)}</span>
+          <div class="adesc">${esc(b.description)}</div>
+          <div class="btnrow"><button class="small danger">${icon("undo")} Afgelopen</button></div>
+        </div>`);
+        card.querySelector("button").addEventListener("click", () => { delete game.activeBuffs[key]; saveData(); rerender(); });
+        body.appendChild(card);
+      }
+    }
+    if (passives.length) {
+      body.appendChild(el(`<h4>Passives</h4>`));
+      for (const ab of passives) body.appendChild(abilityCard(ab));
+    }
+    app.appendChild(det);
   }
 
   function commandRow(cmd, owner) {

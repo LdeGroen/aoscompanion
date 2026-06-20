@@ -403,6 +403,20 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   gesorteerd op categorie — Artefacts of Power, dan Heroic Traits, dan de rest (monstrousTrait,
   other), binnen een categorie op naam. Stale/al-gekozen-maar-niet-passende staan er nog achter.
 
+## Companion: Passives & blijvende effecten (buffs)
+Onderaan het turn-scherm staat een uitschuifbaar blad **"Passives & blijvende effecten"**
+(`renderPassivePanel`, `.passive-sheet`):
+- **Passives**: alle army-brede passive abilities (faction-/subfaction-rules, seasonal rules,
+  battleplan- en battle-tactic-abilities) waarvan de beschrijving met `[Passive]` begint
+  (`isPassiveAb` → `collectPassives`). Ze worden uit de per-phase abilitylijst gefilterd, zodat ze
+  niet elke fase tussen de rest staan, maar altijd hier te vinden zijn.
+- **Actieve effecten (buffs)**: abilities waarvan de tekst "for the rest of the turn" /
+  "rest of the battle round" / "until the start of your next turn" bevat (`buffDuration`) krijgen op
+  hun kaart een knop **"Actief gegaan"** (`attachBuff`). Aangevinkt komen ze in `game.activeBuffs` en
+  verschijnen ze in dit blad met hun duur + een **"Afgelopen"**-knop. `pruneBuffs` ruimt
+  "deze beurt"-buffs op aan het einde van de beurt en alles bij een nieuwe battleround; handmatig
+  weghalen kan altijd.
+
 ## Companion: volledige modus vs score-modus
 In companion mode kun je via de topbar wisselen tussen **volledige modus** (alles zoals het
 was: phases, abilities, commands, CP, scoren) en **score-modus** (`renderScoreMode` in
