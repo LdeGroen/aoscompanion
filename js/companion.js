@@ -438,7 +438,8 @@ export function renderCompanion(ctx) {
   function makeClickable(node, m) {
     node.classList.add("clickable");
     node.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
+      // Klikken op een knop of een (buff-/CP-)vinkje opent de popup niet.
+      if (e.target.closest("button, input, label, .checkline")) return;
       showModelPopup(m);
     });
     return node;
