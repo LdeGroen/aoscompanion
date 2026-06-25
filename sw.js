@@ -32,6 +32,7 @@ const SHELL = [
   "js/setup.js",
   "js/sharedb.js",
   "js/storage.js",
+  "js/weaponoptions.js",
   "icons/favicon.svg",
   "icons/favicon-32.png",
   "icons/apple-touch-icon.png",

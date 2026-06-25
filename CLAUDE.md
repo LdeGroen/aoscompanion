@@ -255,6 +255,19 @@ laadt dezelfde URL.
   kaartjes een opvallende paarse **Paragon-chip** (`.chip.paragon`) — in de model-popup
   (`modelview.js`), de database-kaart (`drawModels`) en de set-up-roster (`modelRow`). Detectie:
   `m.keywords` bevat "paragon".
+- **Weapon options** (`js/weaponoptions.js`): sommige warscrolls hebben een `m.weaponOptions`-array
+  (uit BSData, geport van Sigdex' `parseModels`): per optie `{ name, type:'optional'|'grouped', max,
+  replaces:[wapennamen], group, modelGroup, groupSize }`. **optional** = los maximum (`max`, ×2 bij
+  reinforced), vervangt een default-wapen; **grouped** = kies binnen een groep (budget = `groupSize`,
+  ×2 reinforced). De keuze van de speler staat op `m.weaponLoadout = { [optienaam]: aantal }`.
+  In **set-up** is er per unit een **Wapenopties**-knop (`showWeaponOptions` in `setup.js`) met
+  +/−-tellers (grouped-keuzes delen één budget). In **companion** + de model-popup filtert
+  `filterWeapons(weapons, m)` (in `modelview.js` + `companion.js`): een optiewapen met aantal 0 wordt
+  verborgen, gekozen opties krijgen een `count` (getoond als "N× wapen"); default/basiswapens blijven
+  altijd staan. Zónder ingestelde loadout blijft alles staan (achterwaarts compatibel).
+  Geïmporteerd met `ko-import/parse-weaponoptions.mjs` + `driver-weaponoptions.mjs` (DRY-validatie) en
+  `batch-merge-weaponoptions.mjs` (match op naam; DRY/LOCAL/prod). 4e editie heeft weinig opties
+  (~34 units over alle facties).
 - **Model types & ward**: `m.type` ∈ Hero/Named hero/Infantry/Cavalry/Beast/Monster/
   Warmachine/Faction terrain/Manifestation; `m.ward` is `""` (geen) of `"6+"`…`"2+"`.
 - **Manifestaties zijn lore-gedreven**: je voegt ze niet los toe aan je leger, maar bij

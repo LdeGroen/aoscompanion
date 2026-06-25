@@ -1,6 +1,7 @@
 import { AOS_FACTIONS, enhancementCategoryLabel, groupByType, loreKind, phaseLabel } from "./factions.js";
 import { buildModelEditor, buildRuleEditor, buildLoreEditor, buildEnhancementEditor } from "./editors.js";
 import { effectiveModel, migrateModelEnhancements, enhancementFits, modLabel } from "./enhancements.js";
+import { hasWeaponOptions, groupKey, effectiveMax, groupBudget, groupUsed, loadoutSummary } from "./weaponoptions.js";
 import { openModal, buildModelPopupContent } from "./modelview.js";
 import { loadGamedata } from "./battleplans.js";
 import * as sharedb from "./sharedb.js";
@@ -193,7 +194,7 @@ export function renderSetup(ctx) {
     const card = el(`<div class="card inner clickable" style="margin:6px 0">
       <div class="card-header"><div>
         <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
-        <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}</div>
+        <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}${hasWeaponOptions(m) && loadoutSummary(m) ? ` · ${esc(loadoutSummary(m))}` : ""}</div>
       </div></div>
       <div class="btnrow" data-actions></div>
     </div>`);
@@ -202,6 +203,7 @@ export function renderSetup(ctx) {
     const addBtn = (label, cls, fn) => { const b = el(`<button class="small ${cls || ""}">${label}</button>`); b.addEventListener("click", fn); act.appendChild(b); };
     if (m.reinforceable) addBtn(`${icon(m.reinforced ? "check" : "plus")} Reinforced`, m.reinforced ? "primary" : "", () => { m.reinforced = !m.reinforced; saveData(); rerender(); });
     if (!isManif && !isTerrain) addBtn(`${icon("plus")} Enhancements${(m.enhancements || []).length ? ` (${m.enhancements.length})` : ""}`, "", () => showEnhancementPicker(m));
+    if (hasWeaponOptions(m)) addBtn(`${icon("sword")} Wapenopties`, "", () => showWeaponOptions(m));
     if (!m.inRoR) addBtn(`${icon("edit")} Personaliseren`, "", () => personalizeModel(m));
     if (leader) addBtn(`★ ${m.isGeneral ? "General" : "Maak general"}`, m.isGeneral ? "primary" : "", () => { army.models.forEach((x) => { x.isGeneral = false; }); m.isGeneral = true; saveData(); rerender(); });
     addBtn(icon("trash"), "danger", () => {
@@ -548,6 +550,62 @@ export function renderSetup(ctx) {
     openModal(wrap, el);
   }
 
+  // Wapenopties: per optie kiezen op hoeveel modellen het wapen wordt gepakt.
+  // Optional = los maximum (×2 bij reinforced); grouped = kies binnen een groep
+  // (totaalbudget = aantal modellen, ×2 reinforced).
+  function showWeaponOptions(m) {
+    m.weaponLoadout = m.weaponLoadout || {};
+    const lo = m.weaponLoadout;
+    const reinf = !!m.reinforced;
+    const wrap = el(`<div><h2>${icon("sword")} Wapenopties — ${esc(m.name)}</h2>
+      <p class="subtitle">Kies op hoeveel modellen je het standaardwapen vervangt.${reinf ? " (Reinforced: dubbele aantallen.)" : ""}</p>
+      <div data-body></div>
+    </div>`);
+    const body = wrap.querySelector("[data-body]");
+    // groeperen: optionals los; grouped per (modelGroup+group)
+    const opts = m.weaponOptions || [];
+    const draw = () => {
+      body.innerHTML = "";
+      // per modelgroep een kopje als er meerdere zijn
+      const modelGroups = [...new Set(opts.map((o) => o.modelGroup || ""))];
+      for (const mg of modelGroups) {
+        const inMg = opts.filter((o) => (o.modelGroup || "") === mg);
+        if (mg) body.appendChild(el(`<h3 style="margin:10px 0 2px">${esc(mg)}</h3>`));
+        // grouped-keuzes per group-naam bundelen
+        const grouped = inMg.filter((o) => o.type === "grouped");
+        const optional = inMg.filter((o) => o.type === "optional");
+        for (const o of optional) row(o, effectiveMax(o, reinf));
+        const byGroup = [...new Set(grouped.map((o) => o.group || ""))];
+        for (const g of byGroup) {
+          const gOpts = grouped.filter((o) => (o.group || "") === g);
+          const budget = groupBudget(gOpts[0], reinf);
+          body.appendChild(el(`<div class="subtitle" style="margin-top:6px">${esc(g || "Keuze")} — kies max ${budget}</div>`));
+          for (const o of gOpts) {
+            const used = groupUsed(m, o, o.name);
+            row(o, Math.min(budget - used, budget));
+          }
+        }
+      }
+    };
+    const row = (o, max) => {
+      const cur = parseInt(lo[o.name]) || 0;
+      const line = el(`<div class="checkline" style="justify-content:space-between;align-items:center">
+        <span><strong>${esc(o.name)}</strong>${o.replaces && o.replaces.length ? ` <span class="subtitle">— vervangt ${esc(o.replaces.join(" / "))}</span>` : ""}</span>
+        <span class="btnrow" style="margin:0">
+          <button class="small" data-dec>−</button>
+          <span data-val style="min-width:2.4em;text-align:center">${cur}</span>
+          <button class="small" data-inc>+</button>
+        </span>
+      </div>`);
+      const set = (v) => { v = Math.max(0, Math.min(max, v)); if (v) lo[o.name] = v; else delete lo[o.name]; saveData(); draw(); rerender(); };
+      line.querySelector("[data-dec]").addEventListener("click", () => set(cur - 1));
+      line.querySelector("[data-inc]").addEventListener("click", () => set(cur + 1));
+      body.appendChild(line);
+    };
+    draw();
+    openModal(wrap, el);
+  }
+
   // Manifestaties op het model zetten op basis van de gekozen manifestation-lore
   // (warscrolls uit faction- + universal-database, gematcht op "Summon X" → "X").
   const normManif = (s) => String(s || "").toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]/g, "");
@@ -719,6 +777,8 @@ export function renderSetup(ctx) {
     if (m.isGeneral) out.push(" • General");
     if (m.reinforced) out.push(" • Reinforced");
     for (const e of (m.enhancements || [])) out.push(` • ${e.name}`);
+    const wl = loadoutSummary(m);
+    if (wl) out.push(` • ${wl}`);
     return out;
   }
   function buildExportText() {

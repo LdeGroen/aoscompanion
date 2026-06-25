@@ -1,5 +1,6 @@
 import { phaseLabel, enhancementCategoryLabel } from "./factions.js";
 import { effectiveModel, modLabel } from "./enhancements.js";
+import { filterWeapons } from "./weaponoptions.js";
 import { icon } from "./icons.js";
 
 // Gedeelde model-popup: companion mode én de database tonen hetzelfde overzicht
@@ -15,8 +16,9 @@ export function weaponTable(weapons, el, esc, toHitTransform) {
   </table>`);
   for (const w of weapons) {
     const hit = toHitTransform ? toHitTransform(w.toHit) : w.toHit;
+    const wname = (w.count ? `${w.count}× ` : "") + w.name;
     table.appendChild(el(`<tr>
-      <td class="name">${esc(w.name)}</td>
+      <td class="name">${esc(wname)}</td>
       ${hasRange ? `<td>${esc(w.range || "")}"</td>` : ""}
       <td>${esc(w.attacks)}</td>
       <td>${esc(hit)}</td>
@@ -85,13 +87,15 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
   </div>`);
   const body = wrap.querySelector("[data-body]");
 
-  if ((M.rangedAttacks || []).length) {
+  const ranged = filterWeapons(M.rangedAttacks || [], m);
+  const melee = filterWeapons(M.meleeAttacks || [], m);
+  if (ranged.length) {
     body.appendChild(el(`<h3>Ranged attacks</h3>`));
-    body.appendChild(weaponTable(M.rangedAttacks, el, esc));
+    body.appendChild(weaponTable(ranged, el, esc));
   }
-  if ((M.meleeAttacks || []).length) {
+  if (melee.length) {
     body.appendChild(el(`<h3>Melee attacks</h3>`));
-    body.appendChild(weaponTable(M.meleeAttacks, el, esc));
+    body.appendChild(weaponTable(melee, el, esc));
   }
   if ((m.abilities || []).length) {
     body.appendChild(el(`<h3>Abilities</h3>`));
