@@ -179,6 +179,17 @@ laadt dezelfde URL.
   afgeleid uit de notes ("This Hero can join an eligible regiment as a X"). Units krijgen
   hun keywords aangevuld met de RELEVANT KEYWORDS + de factienaam. Hierdoor matchen
   hero-specifieke opties ("0-1 Guild Officer") nu de juiste hero's.
+- **Losse faction-update uit een Battle Profiles-xlsx** (bijv. nieuwe GHB-points/regiment-opties
+  voor één faction): `ko-import/parse-hos-excel.mjs` leest een xlsx rechtstreeks (eigen mini
+  zip+XML-parser, cross-platform: `unzip` op Linux/Pi, `Expand-Archive` op Windows) →
+  `{heroes:[{name,points,options,granted}], units:[{name,points,keywords}]}`. `merge-hos-excel.mjs`
+  zet daarmee **points**, **regimentOptions** + **heroKeywords** (heroes) en vult **keywords** aan
+  (units) in de faction-blob. Match op genormaliseerde naam **met pre-komma-alias** (DB gebruikt
+  korte vormen: "Dexcessa" ↔ xlsx "Dexcessa, the Talon of Slaanesh"). Modi: `DRY=1` (alleen parsen),
+  `REPORT=1` (lezen+matchen, niet schrijven), `LOCAL=1` (login op :3100), of op de Pi (token uit
+  db.json, backup `.bak-hosexcel`); `XLSX=<pad>` wijst het bestand aan. "Scourge of Aqshy"-varianten
+  en Warhammer-Legends-units (Hellflayer/Hellstriders/Seeker Chariot) worden niet gematcht — die
+  staan niet in BSData. Voor een andere faction: kopieer en pas de `FACTION`-constante + xlsx aan.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
