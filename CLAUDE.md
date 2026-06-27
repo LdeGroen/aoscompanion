@@ -190,6 +190,13 @@ laadt dezelfde URL.
   db.json, backup `.bak-hosexcel`); `XLSX=<pad>` wijst het bestand aan. "Scourge of Aqshy"-varianten
   en Warhammer-Legends-units (Hellflayer/Hellstriders/Seeker Chariot) worden niet gematcht — die
   staan niet in BSData. Voor een andere faction: kopieer en pas de `FACTION`-constante + xlsx aan.
+- **Scourge of Ghyran (SoG) verwijderd**: met het nieuwe General's Handbook vervielen de SoG-opties.
+  Sigdex flagt SoG via een BSData-conditie (`condition instanceOf … childId="f079-501a-2738-6845"`,
+  zie `parseIsSoG`). In onze DB kwam SoG uitsluitend voor als **warscrolls** met "(Scourge of Ghyran)"
+  in de naam (38 stuks; geverifieerd 1:1 tegen die BSData-flag — géén SoG-enhancements/lores/
+  subfactions geïmporteerd). Verwijderd met `ko-import/remove-sog.mjs` (REPORT/LOCAL/prod, backup
+  `.bak-sog`). `investigate-sog.mjs` + `driver-sog-units.mjs` leiden de autoritatieve SoG-lijst af
+  uit BSData. Bestaande legers behouden hun kopie; de units zijn alleen niet meer toe te voegen.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
