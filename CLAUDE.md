@@ -193,10 +193,17 @@ laadt dezelfde URL.
 - **Scourge of Ghyran (SoG) verwijderd**: met het nieuwe General's Handbook vervielen de SoG-opties.
   Sigdex flagt SoG via een BSData-conditie (`condition instanceOf … childId="f079-501a-2738-6845"`,
   zie `parseIsSoG`). In onze DB kwam SoG uitsluitend voor als **warscrolls** met "(Scourge of Ghyran)"
-  in de naam (38 stuks; geverifieerd 1:1 tegen die BSData-flag — géén SoG-enhancements/lores/
-  subfactions geïmporteerd). Verwijderd met `ko-import/remove-sog.mjs` (REPORT/LOCAL/prod, backup
-  `.bak-sog`). `investigate-sog.mjs` + `driver-sog-units.mjs` leiden de autoritatieve SoG-lijst af
-  uit BSData. Bestaande legers behouden hun kopie; de units zijn alleen niet meer toe te voegen.
+  in de naam (38 stuks; geverifieerd 1:1 tegen die BSData-flag). Verwijderd met
+  `ko-import/remove-sog.mjs` (REPORT/LOCAL/prod, backup `.bak-sog`). `investigate-sog.mjs` +
+  `driver-sog-units.mjs` leiden de autoritatieve SoG-warscroll-lijst af uit BSData.
+  **SoG-enhancements/battle formations/lores** zaten óók in de DB, maar onder hun gewone naam (geen
+  "Ghyran" in de naam). Die zijn geïdentificeerd via de **core Battle Profiles-xlsx** (kolom NOTES =
+  "Scourge of Ghyran" i.p.v. "Faction Pack: X"): `ko-import/parse-sog-enh.mjs` (TYPE=C, NAME=K,
+  NOTES=U; faction uit kolom-A-titel) + `remove-sog-enh.mjs` matchen op genormaliseerde naam in
+  `enhancements` (heroic/monstrous trait, artefact, mark, skyvessel upgrade, big name), `lores`
+  (spell/prayer/manifestation) én `subfactions` (battle formations, gekeyd op naam). 107 entries
+  verwijderd over alle facties, **Hedonites of Slaanesh overgeslagen** (net opnieuw geïmporteerd).
+  Bestaande legers behouden hun kopie; SoG is alleen niet meer toe te voegen.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
