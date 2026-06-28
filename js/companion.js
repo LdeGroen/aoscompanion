@@ -1,5 +1,5 @@
-import { PHASES, AOS_FACTIONS, groupByType, phaseLabel } from "./factions.js";
-import { effectiveModel, enhancementSource, migrateModelEnhancements } from "./enhancements.js";
+import { PHASES, AOS_FACTIONS, groupByType, phaseLabel, enhancementCategoryLabel } from "./factions.js";
+import { effectiveModel, enhancementSource, migrateModelEnhancements, modLabel } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
 import { filterWeapons } from "./weaponoptions.js";
@@ -534,6 +534,32 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Enhancements-menu: alle enhancements op je models, gegroepeerd per model.
+  function showEnhancementsMenu() {
+    const wrap = el(`<div><h2>${icon("star")} Enhancements</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    for (const m of activeModels()) {
+      const enhs = eff(m).enhancements;
+      if (!enhs.length) continue;
+      const card = el(`<div class="card inner"><div class="card-header clickable"><strong>${esc(m.name)}</strong></div><div data-entries></div></div>`);
+      makeClickable(card.querySelector(".card-header"), m);
+      const entries = card.querySelector("[data-entries]");
+      for (const enh of enhs) {
+        const mods = (enh.statMods || []).map(modLabel).join(", ");
+        entries.appendChild(el(`<div class="ability enhancement">
+          <span class="aname">${esc(enh.name)}</span> <span class="asrc">— ${esc(enhancementCategoryLabel(enh.category))}</span>
+          ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
+          <div class="adesc">${esc(enh.description || "")}</div>
+        </div>`));
+      }
+      body.appendChild(card);
+    }
+    if (!body.children.length) {
+      body.appendChild(el(`<p class="empty">Geen enhancements op je models. Ken ze toe in de set-up.</p>`));
+    }
+    openModal(wrap, el);
+  }
+
   // Tegenstander-menu: zijn naam/faction en de kaartjes van zijn unieke models
   // (toegevoegd in de battle set-up), in dezelfde popup als je eigen models.
   function showOpponentMenu() {
@@ -683,6 +709,7 @@ export function renderCompanion(ctx) {
         <button class="small" id="btn-tactics">${icon("flag")} Battle tactics</button>
         <button class="small" id="btn-spells">${icon("zap")} Spells</button>
         <button class="small" id="btn-rules">${icon("book")} Rules</button>
+        <button class="small" id="btn-enh">${icon("star")} Enhancements</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
@@ -694,6 +721,7 @@ export function renderCompanion(ctx) {
     bar.querySelector("#btn-tactics").addEventListener("click", showTacticsMenu);
     bar.querySelector("#btn-spells").addEventListener("click", showSpellsMenu);
     bar.querySelector("#btn-rules").addEventListener("click", showRulesMenu);
+    bar.querySelector("#btn-enh").addEventListener("click", showEnhancementsMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
