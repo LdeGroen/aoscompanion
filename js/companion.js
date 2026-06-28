@@ -257,6 +257,10 @@ export function renderCompanion(ctx) {
     const steps = t.steps || [];
     const wrap = el(`<div><h2>${esc(t.name)}</h2><div data-body></div></div>`);
     const body = wrap.querySelector("[data-body]");
+    // Deployment-ability (bijv. Hideout / Fugitive): geen eigen stap, maar wel belangrijk om in te zien.
+    for (const ab of t.abilities || []) {
+      body.appendChild(el(`<div class="ability faction"><span class="aname">${esc(ab.name)}</span>${(ab.phases || []).includes("deployment") ? ' <span class="chip tag">Deployment</span>' : ""}<div class="adesc">${esc(ab.description || "")}</div></div>`));
+    }
     if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
     steps.forEach((s, i) => {
       const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());

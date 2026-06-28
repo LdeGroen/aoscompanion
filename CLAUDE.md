@@ -443,7 +443,11 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   Onslaught): die worden in de game gesnapshot (`snap` neemt `abilities` mee) en via
   `collectAbilities` per phase getoond — voor **zowel jouw tactics als die van de tegenstander**
   (bron "Battle tactic" / "Battle tactic (tegenstander)"). Zo verschijnt de Hideout-ability in de
-  deployment-fase als jij óf je tegenstander Blazing Onslaught heeft.
+  deployment-fase als jij óf je tegenstander Blazing Onslaught heeft. Twee kaarten hebben zo'n
+  deployment-ability: **Blazing Onslaught** (Hideout) en **Burning Vengeance** (Fugitive). Beide
+  `showTacticSteps` (companion + setup) tonen `tactic.abilities` bovenaan de stappen-popup (met een
+  "Deployment"-chip) — geen eigen scorestap, maar wel zichtbaar op het kaartje. Geseed via
+  `ko-import/seed-ghb-tactics.mjs`.
 - **Enhancement-picker** (`showEnhancementPicker` in setup.js): de passende enhancements zijn
   gesorteerd op categorie — Artefacts of Power, dan Heroic Traits, dan de rest (monstrousTrait,
   other), binnen een categorie op naam. Stale/al-gekozen-maar-niet-passende staan er nog achter.
