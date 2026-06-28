@@ -432,6 +432,10 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
 - **Battle tactics-knop** in de companion-topbar (naast Tegenstander): `showTacticsMenu` toont jouw
   battle tactics (bovenaan, uit `game.tactics`) en die van de tegenstander (`game.enemyTactics`),
   elk klikbaar voor de stappen (`showTacticSteps`).
+- **Spells-knop** (`showSpellsMenu`): toont in een modal altijd je spell-/prayer-/manifestation lore +
+  de spells van je models (hergebruikt `renderLoresDisplay`).
+- **Rules-knop** (`showRulesMenu`): toont je faction rules, subfaction rules (`army.subfactionRules`)
+  en seasonal rules — naam, once-per-battle, phases (`phaseLabel`) en beschrijving.
 - **Battle tactics kunnen abilities hebben** (`tactic.abilities`, zoals de Hideout-setup van Blazing
   Onslaught): die worden in de game gesnapshot (`snap` neemt `abilities` mee) en via
   `collectAbilities` per phase getoond — voor **zowel jouw tactics als die van de tegenstander**

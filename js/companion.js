@@ -1,4 +1,4 @@
-import { PHASES, AOS_FACTIONS, groupByType } from "./factions.js";
+import { PHASES, AOS_FACTIONS, groupByType, phaseLabel } from "./factions.js";
 import { effectiveModel, enhancementSource, migrateModelEnhancements } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
@@ -497,6 +497,43 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Spells-menu: altijd je spell-/prayer-/manifestation lore + de spells van je models.
+  function showSpellsMenu() {
+    const wrap = el(`<div><h2>${icon("zap")} Spells & lores</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    renderLoresDisplay(body);
+    if (!body.children.length) {
+      body.appendChild(el(`<p class="empty">Geen spell-, prayer- of manifestation lore in dit leger (of geen wizards/priests). Kies een lore in de set-up.</p>`));
+    }
+    openModal(wrap, el);
+  }
+
+  // Rules-menu: faction- en subfaction rules/abilities altijd snel inzien.
+  function showRulesMenu() {
+    const wrap = el(`<div><h2>${icon("book")} Rules</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    const addRules = (title, rules) => {
+      if (!rules?.length) return;
+      body.appendChild(el(`<h3>${esc(title)}</h3>`));
+      for (const r of rules) {
+        const phases = (r.phases || []).map((p) => esc(phaseLabel(p))).filter(Boolean).join(" · ");
+        body.appendChild(el(`<div class="ability faction">
+          <span class="aname">${esc(r.name)}</span>
+          ${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}
+          ${phases ? `<div class="subtitle">${phases}</div>` : ""}
+          <div class="adesc">${esc(r.description || "")}</div>
+        </div>`));
+      }
+    };
+    addRules("Faction rules", army.factionRules);
+    addRules(`Subfaction rules${army.subfaction ? " — " + esc(army.subfaction) : ""}`, army.subfactionRules);
+    addRules("Seasonal rules", game.seasonalRules);
+    if (!body.children.length) {
+      body.appendChild(el(`<p class="empty">Geen faction- of subfaction rules in dit leger. Kies een faction/subfaction in de set-up.</p>`));
+    }
+    openModal(wrap, el);
+  }
+
   // Tegenstander-menu: zijn naam/faction en de kaartjes van zijn unieke models
   // (toegevoegd in de battle set-up), in dezelfde popup als je eigen models.
   function showOpponentMenu() {
@@ -644,6 +681,8 @@ export function renderCompanion(ctx) {
         ${(game.stage === "roundSetup" || game.stage === "turn") ? `<button class="small ${scoreMode ? "primary" : ""}" id="btn-mode">${icon(scoreMode ? "monitor" : "list")} ${scoreMode ? "Volledig" : "Score-modus"}</button>` : ""}
         <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
         <button class="small" id="btn-tactics">${icon("flag")} Battle tactics</button>
+        <button class="small" id="btn-spells">${icon("zap")} Spells</button>
+        <button class="small" id="btn-rules">${icon("book")} Rules</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
@@ -653,6 +692,8 @@ export function renderCompanion(ctx) {
     if (modeBtn) modeBtn.addEventListener("click", () => setScoreMode(!scoreMode));
     bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
     bar.querySelector("#btn-tactics").addEventListener("click", showTacticsMenu);
+    bar.querySelector("#btn-spells").addEventListener("click", showSpellsMenu);
+    bar.querySelector("#btn-rules").addEventListener("click", showRulesMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
