@@ -154,6 +154,15 @@ laadt dezelfde URL.
   (bijv. Zontari Endrin Dock 20) en telt dus mee op `m.points`; alleen `Manifestation` (en
   RoR-units, `inRoR`) zijn altijd 0. Geïmporteerd met `ko-import/driver-points.mjs` +
   `batch-merge-points.mjs` (match op naam; battle formations = de subfaction-namen uit factions.js).
+  **Periodieke updates** uit de officiële core Battle Profiles-xlsx (punten + regiment-opties per
+  warscroll) gaan via `ko-import/merge-battleprofiles.mjs` (REPORT/LOCAL/prod, backup
+  `.bak-battleprofiles`): kolommen worden per faction-tabel dynamisch gedetecteerd (naam/points/
+  regiment-opties verschuiven per faction), `✹`/`NEW`-prefixen en mee-gemergede unit-sizes (kale
+  getallen in de naam) worden gestript, en `Scourge of Aqshy`-entries worden overgeslagen (nog geen
+  warscrolls/tekst). Regiment-opties worden geparsed naar `{names,max}` (`0-N`→max N, `Any`→max 0,
+  ` or ` splitst de namen); bij een cel-artefact (gedupliceerde/gemergede cel) wordt die hero's
+  regiment-optie overgeslagen i.p.v. corrupte data te schrijven. Punten = leidende integer (negeert
+  `(-20)`-delta's).
   **Lores kunnen ook punten kosten**: `lore.points` (op een spell/prayer/manifestation-lore, óók
   universal manifestation-lores) telt mee in `totalPoints` via `lorePoints()` (som van
   `army.spellLore/manifestationLore/prayerLore .points`). Geïmporteerd met
