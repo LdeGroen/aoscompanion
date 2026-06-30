@@ -213,6 +213,18 @@ laadt dezelfde URL.
   (spell/prayer/manifestation) én `subfactions` (battle formations, gekeyd op naam). 107 entries
   verwijderd over alle facties, **Hedonites of Slaanesh overgeslagen** (net opnieuw geïmporteerd).
   Bestaande legers behouden hun kopie; SoG is alleen niet meer toe te voegen.
+- **Scourge of Aqshy (SoA)**: de opvolger van SoG (zelfde mechaniek). De eerste 7 faction-PDF's
+  (Cities, Fyreslayers, Idoneth, Kharadron Overlords, Seraphon, Stormcast, Sylvaneth) zijn ingevoerd
+  met `ko-import/seed-soa.mjs` (+ `data-soa/<faction>.json` per faction). Het script hergebruikt de
+  mapping van `parse-faction.mjs` (type/phases/abilities). **14 warscrolls** (2 per faction, naam
+  met suffix " (Scourge of Aqshy)" zodat ze niet botsen met de basis-warscrolls), **39 enhancements**
+  en **1 lore** (Fyreslayers' Vulkyn Gifts, prayer). Alles krijgt `soa: true` (idempotent: een
+  herseed vervangt eerdere SoA-entries). PDF-tekst is uit de PDF gehaald via de Read-tool (die
+  de-columniseert; `pdftotext -layout` interleavet de kolommen); punten uit de June Battle Profiles.
+  De "unique enhancement"-types (Scars of War, Ethersea Companions, Artycle References, Decorations
+  for Valour, Marks of Vulcatrix, Aspects of the Deepwoods) krijgen een `forTypes`-lijst (via
+  `FORTYPE_MATCH` in de seed) zodat `enhancementFits` ze toont bij de juiste model-types/keywords;
+  `forType` blijft het label. Geseed met `node seed-soa.mjs` (backup `.bak-soa-content`).
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
