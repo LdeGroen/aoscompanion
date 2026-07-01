@@ -538,6 +538,37 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Battleplan-menu: het kaartje, de twist en hoe je scoort in dit battleplan.
+  function showBattleplanMenu() {
+    const bp = game.battleplan;
+    const wrap = el(`<div><h2>${icon("map")} Battleplan${bp ? " — " + esc(bp.name) : ""}</h2><div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    if (!bp) {
+      body.appendChild(el(`<p class="empty">Geen battleplan gekozen voor dit potje. Dat doe je in de battle set-up (bij een nieuw potje).</p>`));
+      openModal(wrap, el); return;
+    }
+    if (bp.card) {
+      const img = el(`<img class="bp-card" src="${esc(bp.card)}" alt="${esc(bp.name)}" loading="lazy" />`);
+      img.addEventListener("click", () => openModal(el(`<div class="bp-card-full"><img src="${esc(bp.card)}" alt="${esc(bp.name)}" /></div>`), el));
+      body.appendChild(img);
+    }
+    if (bp.twist) body.appendChild(el(`<div class="card inner"><strong>Twist</strong><div class="muted-list">${esc(bp.twist)}</div></div>`));
+    for (const ab of bp.abilities || []) body.appendChild(el(`<div class="ability battleplan"><span class="aname">${esc(ab.name)}</span><div class="adesc">${esc(ab.description || "")}</div></div>`));
+    // Scoring-overzicht
+    body.appendChild(el(`<h3>Scoren</h3>`));
+    const sc = bp.scoring || {};
+    for (const v of sc.variants || []) {
+      const card = el(`<div class="card inner"><div class="card-header"><strong>Battleround ${(v.rounds || []).join(", ")}</strong></div><div data-opts></div></div>`);
+      const opts = card.querySelector("[data-opts]");
+      for (const o of v.options || []) opts.appendChild(el(`<div class="lore-entry"><span>${esc(o.label)}</span> <span class="lval">+${o.points}</span></div>`));
+      body.appendChild(card);
+    }
+    if (sc.liferoot) body.appendChild(el(`<div class="muted-list">Liferoot points zijn cumulatief; aan het einde van je beurt geef je ze door.</div>`));
+    if (sc.endBonus) body.appendChild(el(`<div class="card inner"><strong>Eindbonus</strong> <span class="lval">+${sc.endBonus.points}</span><div class="muted-list">${esc(sc.endBonus.label)}</div></div>`));
+    if (!(sc.variants || []).length && !sc.endBonus) body.appendChild(el(`<p class="empty">Geen scoreschema bekend voor dit battleplan.</p>`));
+    openModal(wrap, el);
+  }
+
   // Enhancements-menu: alle enhancements op je models, gegroepeerd per model.
   function showEnhancementsMenu() {
     const wrap = el(`<div><h2>${icon("star")} Enhancements</h2><div data-body></div></div>`);
@@ -710,6 +741,7 @@ export function renderCompanion(ctx) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         ${(game.stage === "roundSetup" || game.stage === "turn") ? `<button class="small ${scoreMode ? "primary" : ""}" id="btn-mode">${icon(scoreMode ? "monitor" : "list")} ${scoreMode ? "Volledig" : "Score-modus"}</button>` : ""}
         <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
+        <button class="small" id="btn-battleplan">${icon("map")} Battleplan</button>
         <button class="small" id="btn-tactics">${icon("flag")} Battle tactics</button>
         <button class="small" id="btn-spells">${icon("zap")} Spells</button>
         <button class="small" id="btn-rules">${icon("book")} Rules</button>
@@ -722,6 +754,7 @@ export function renderCompanion(ctx) {
     const modeBtn = bar.querySelector("#btn-mode");
     if (modeBtn) modeBtn.addEventListener("click", () => setScoreMode(!scoreMode));
     bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
+    bar.querySelector("#btn-battleplan").addEventListener("click", showBattleplanMenu);
     bar.querySelector("#btn-tactics").addEventListener("click", showTacticsMenu);
     bar.querySelector("#btn-spells").addEventListener("click", showSpellsMenu);
     bar.querySelector("#btn-rules").addEventListener("click", showRulesMenu);

@@ -460,6 +460,10 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
 - **Enhancements-knop** (`showEnhancementsMenu`): alle enhancements op je actieve models, gegroepeerd
   per model (via `eff(m).enhancements`), met categorie, stat-mods (`modLabel`) en beschrijving; de
   modelkop is klikbaar naar de popup.
+- **Battleplan-knop** (`showBattleplanMenu`, icoon `map`): toont het battleplan-kaartje (klikbaar
+  schermvullend), de twist, de battleplan-abilities en een **scoren-overzicht** (per
+  `scoring.variants`: battlerounds + objective-opties met punten, plus liferoot/eindbonus). Leest
+  `game.battleplan`.
 - **Battle tactics kunnen abilities hebben** (`tactic.abilities`, zoals de Hideout-setup van Blazing
   Onslaught): die worden in de game gesnapshot (`snap` neemt `abilities` mee) en via
   `collectAbilities` per phase getoond — voor **zowel jouw tactics als die van de tegenstander**
