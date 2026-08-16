@@ -37,6 +37,22 @@ export function buildGameRecord(army, game, playerName) {
   };
 }
 
+// Herberekent rec.totals uit de (mogelijk bewerkte) onderdelen van een
+// archief-record: som van de objective-punten per ronde + tactics (5/step) +
+// endBonus. Zelfde formule als calcSide, maar op recordniveau (voor het
+// direct bewerken van een gearchiveerde game).
+export function recomputeTotals(rec) {
+  const sideTotal = (side) => {
+    const obj = (rec.rounds || []).reduce((a, r) => a + (Number(r[side]) || 0), 0);
+    const list = side === "player" ? rec.tactics : rec.enemyTactics;
+    const tac = (list || []).reduce((a, t) => a + (t.scoredRounds || []).length * TACTIC_STEP_POINTS, 0);
+    const eb = rec.endBonus && rec.endBonus.owner === side ? rec.endBonus.points : 0;
+    return obj + tac + eb;
+  };
+  rec.totals = { player: sideTotal("player"), enemy: sideTotal("enemy") };
+  return rec;
+}
+
 export function resultLabel(rec) {
   const d = rec.totals.player - rec.totals.enemy;
   if (d === 0) return { text: "Draw", win: null };

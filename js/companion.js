@@ -26,12 +26,26 @@ export function renderCompanion(ctx) {
   const wizLevel = (m) => parseInt(eff(m).model.wizardLevel) || 0;
   const prsLevel = (m) => parseInt(eff(m).model.priestLevel) || 0;
 
-  // Spelstatus wordt op het leger bewaard zodat je app kunt verversen zonder je spel kwijt te raken.
-  if (!army.game) {
-    army.game = newGame();
+  // Spelstatus wordt normaal op het leger bewaard (army.game). Voor een
+  // toernooi-game staat de spelstatus op het toernooi-game-slot; de "game host"
+  // abstraheert waar de game leeft, zodat de rest van de companion onveranderd blijft.
+  const tref = state.tournamentRef || null;
+  const tournament = tref ? (state.data.tournaments || []).find((t) => t.id === tref.tid) : null;
+  const tgame = tournament ? (tournament.games || []).find((g) => g.id === tref.gid) : null;
+  const isTournament = !!tgame;
+  const host = tgame
+    ? { get: () => tgame.game, set: (g) => { tgame.game = g; }, clear: () => { tgame.game = null; } }
+    : { get: () => army.game, set: (g) => { army.game = g; }, clear: () => { delete army.game; } };
+  // Waar "terug"/"home" naartoe gaat: bij een toernooi-game terug naar het toernooi.
+  const goBack = () => isTournament
+    ? navigate("tournament", { tournamentOpenId: tournament.id, tournamentRef: null })
+    : navigate("home");
+
+  if (!host.get()) {
+    host.set(newGame());
     saveData();
   }
-  const game = army.game;
+  const game = host.get();
 
   function newGame() {
     return {
@@ -760,12 +774,12 @@ export function renderCompanion(ctx) {
     bar.querySelector("#btn-rules").addEventListener("click", showRulesMenu);
     bar.querySelector("#btn-enh").addEventListener("click", showEnhancementsMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
-    bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); navigate("home"); });
+    bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); goBack(); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
       if (confirm("Spel beëindigen? De spelstatus wordt gewist.")) {
-        delete army.game;
+        host.clear();
         saveData();
-        navigate("home");
+        goBack();
       }
     });
     app.appendChild(bar);
@@ -1046,8 +1060,14 @@ export function renderCompanion(ctx) {
       let rec = state.data.gameArchive.find((x) => x.id === game.archivedId);
       if (!rec) {
         rec = buildGameRecord(army, game, state.user.name);
+        if (isTournament) {
+          rec.tournamentId = tournament.id;
+          rec.tournamentName = tournament.name;
+          rec.gameLabel = tgame.name;
+        }
         state.data.gameArchive.push(rec);
         game.archivedId = rec.id;
+        if (isTournament) { tgame.done = true; tgame.archivedId = rec.id; }
         saveData();
       }
       app.appendChild(buildScoreSummary(rec, { el, esc }));
@@ -1060,20 +1080,24 @@ export function renderCompanion(ctx) {
       </div>`));
     }
 
-    const newGameBtn = el(`<button class="primary bigbtn">${icon("play")} Nieuw potje met dit leger</button>`);
-    newGameBtn.addEventListener("click", () => {
-      // renderCompanion maakt een verse game aan als army.game ontbreekt
-      delete army.game;
-      saveData();
-      navigate("companion", { armyId: army.id });
-    });
-    app.appendChild(newGameBtn);
+    if (!isTournament) {
+      const newGameBtn = el(`<button class="primary bigbtn">${icon("play")} Nieuw potje met dit leger</button>`);
+      newGameBtn.addEventListener("click", () => {
+        // renderCompanion maakt een verse game aan als army.game ontbreekt
+        host.clear();
+        saveData();
+        navigate("companion", { armyId: army.id });
+      });
+      app.appendChild(newGameBtn);
+    }
 
-    const homeBtn = el(`<button class="bigbtn">${icon("back")} Terug naar mijn legers</button>`);
+    const homeBtn = el(`<button class="${isTournament ? "primary " : ""}bigbtn">${icon("back")} ${isTournament ? "Terug naar het toernooi" : "Terug naar mijn legers"}</button>`);
     homeBtn.addEventListener("click", () => {
-      delete army.game;
+      // Normaal potje: army.game wissen zodat het leger vrij is voor een nieuw
+      // potje. Toernooi-game: de afgeronde game op het slot laten staan.
+      if (!isTournament) host.clear();
       saveData();
-      navigate("home");
+      goBack();
     });
     app.appendChild(homeBtn);
 
@@ -1084,6 +1108,7 @@ export function renderCompanion(ctx) {
       if (game.archivedId) {
         state.data.gameArchive = (state.data.gameArchive || []).filter((x) => x.id !== game.archivedId);
         delete game.archivedId;
+        if (isTournament) { tgame.done = false; tgame.archivedId = null; }
       }
       game.stage = "turn";
       game.turnIndex = 1;

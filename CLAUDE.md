@@ -35,11 +35,15 @@ laadt dezelfde URL.
   · `js/scorecard.js` (game-record, eindscherm, tekst/PNG-export) · `js/archive.js` (archiefscherm)
   · `js/database.js` (gedeelde-database-scherm) · `js/sharedb.js` (laden/opslaan/delen faction-db)
   · `js/storage.js` (localStorage) · `js/backend.js` (sync-client) · `js/config.js` (API_URL).
-- UI is mobile-first (gebruikt aan de speltafel). **Thema's**: donker (default), licht of
-  systeem — knop op het home-scherm, apparaat-instelling in localStorage (`aoscomp_theme`,
-  synct bewust niet). Licht thema = CSS-variabele-overrides onder `body.theme-light`;
-  gebruik dus nooit hardgecodeerde kleuren in styles.css, alleen de variabelen
-  (incl. `--bg-input` en `--bg-reminder`).
+- UI is mobile-first (gebruikt aan de speltafel). **Eén vast licht thema** (geïnspireerd op de
+  Home Assistant-webapp: lichte achtergrond `--bg #f4f5f7`, witte kaarten met zachte schaduw,
+  ronde hoeken, subtiele dividers) met **gouden accenten** (`--gold`/`--gold-bright`/`--gold-dark`
+  voor koppen, primaire knoppen, chips). De vroegere donker/licht/systeem-schakelaar is
+  verwijderd (geen `aoscomp_theme`, geen `body.theme-light` meer). Alle kleuren staan als
+  CSS-variabelen op `:root` in styles.css — gebruik nooit hardgecodeerde kleuren, alleen de
+  variabelen (incl. `--bg-input`, `--bg-card-2`, `--bg-reminder`, `--border-strong`, `--shadow`).
+  ⚠️ De Android-app zet nog een donkere native achtergrond (tegen witte flits); die zou naar
+  licht moeten bij een volgende APK-build.
 
 ## Datamodel — de dingen die niet voor de hand liggen
 - **Phases bestaan dubbel**: `own-<phase>` en `enemy-<phase>` (bijv. `own-hero` vs `enemy-hero`),
@@ -117,6 +121,25 @@ laadt dezelfde URL.
   tekst-export en PNG-export (handgetekend canvas — geen dependencies). Afgeronde
   games met battleplan worden automatisch in `state.data.gameArchive` gezet
   (synct mee); js/archive.js is het archiefscherm (route `archive`).
+  - **Archief-records zijn bewerkbaar**: in de archief-detail zet 'Scores bewerken' een
+    werkkopie klaar (`editRec`) met per-ronde objective-punten (jij/tegenstander), tactics
+    per ronde (klikbare R1-R5-chips → `scoredRounds`), endBonus-eigenaar en liferoot;
+    `recomputeTotals(rec)` in scorecard.js herberekent `rec.totals` (zelfde formule als
+    `calcSide`: som objectives + tactics×5 + endBonus). Opslaan vervangt het record in
+    `gameArchive`. Liferoot is informatief (telt niet mee in het totaal).
+- **Toernooien** (route `tournament`, js/tournament.js, ★ Toernooi-knop op home):
+  een toernooi is een reeks **volledige companion-games voor één leger**.
+  `state.data.tournaments = [{id,name,armyId,days,rounds,games:[{id,name,game,done,archivedId}]}]`.
+  Aanmaken: naam, formaat (presets 1d/3g · 2d/5g · 3d/8g of aangepast) en een army uit de
+  lijst → genereert N games "`<naam> game i`". Een game speel je via **`state.tournamentRef =
+  {tid,gid}`**: renderCompanion kiest dan een **game-host** die op het toernooi-game-slot werkt
+  i.p.v. `army.game` (zelfde `newGame()`-vorm; `host.get/set/clear`). Bij game-over wordt het
+  record getagd met `tournamentId`/`tournamentName`/`gameLabel`, het slot `done`+`archivedId`
+  gezet, en `goBack()` gaat terug naar het toernooi i.p.v. home. ⚠️ Normaal potje: bij game-over
+  "terug" moet `army.game` gewist worden (host.clear) — toernooi-game niet (afgeronde game blijft
+  op het slot staan). Het archief groepeert getagde games per toernooi achter een uitvouw
+  (`recCard` + `details.type-group`); losse games staan los bovenaan. Voorbije toernooien staan
+  in de Toernooi-tab ook achter een uitvouw. Nieuw icoon `trophy` in icons.js.
 - Models in een army hebben een eigen `id`. Herbruikbare kaartjes komen uit de
   **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
   universal manifestations). `modelLibrary` in de userdata is **legacy** — wordt niet
