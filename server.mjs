@@ -20,6 +20,7 @@ const TYPES = {
   ".json": "application/json; charset=utf-8", ".webmanifest": "application/manifest+json; charset=utf-8",
   ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
   ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff", ".txt": "text/plain; charset=utf-8",
+  ".apk": "application/vnd.android.package-archive",
 };
 
 function resolvePath(urlPath) {

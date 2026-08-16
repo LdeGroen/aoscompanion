@@ -578,9 +578,24 @@ battleround, dan zet dat de stage op `roundSetup` van die ronde. `renderScoringC
   de eerste login en stel je het daarna in. `storage.SUPERADMIN` bevat alleen nog de naam.
 
 ## Deploy
-**Pushen naar `main` = deployen.** GitHub Pages serveert de repo-root direct (legacy build,
-geen Actions, geen build-stap). Live binnen ~1 minuut; check bijv.
-`curl https://ldegroen.github.io/aoscompanion/js/config.js`.
+**Pushen naar `main` = deployen.** Twee hosts serveren dezelfde repo-root (statisch, geen build):
+- **Eigen URL op de Pi: https://aos.lucdegroen.nl** (de canonieke URL). De Pi draait een
+  zero-dependency static server (`server.mjs`, poort 3900, SPA-fallback, `.apk`-MIME, geen auth)
+  als systemd-service `aoscompanion.service`, achter de Cloudflare-tunnel `energie`
+  (`/etc/cloudflared/config.yml` → `aos.lucdegroen.nl` → `localhost:3900`; DNS gemaakt met
+  `cloudflared tunnel route dns energie aos.lucdegroen.nl`). De repo staat als git-clone in
+  `/home/luc/aoscompanion`. **Auto-deploy**: een user-cron (`crontab -l`) doet elke 2 min
+  `git pull --ff-only` (log: `~/aoscompanion-deploy.log`) — een push naar main is dus binnen
+  ~2 min live, zonder handmatige stap. De systemd-service + cloudflared-ingress zijn eenmalig
+  met sudo opgezet (sudo kan niet non-interactief vanaf de pc — die stappen zijn aan Luc gegeven).
+- **GitHub Pages** (https://ldegroen.github.io/aoscompanion/) blijft als fallback bestaan;
+  serveert de repo-root direct, live binnen ~1 min.
+- **App-versie/APK**: `version.json` (repo-root) bevat `versionCode`/`versionName`/`url` en wordt
+  op `aos.lucdegroen.nl/version.json` geserveerd. De APK staat op de Pi in `downloads/`
+  (**gitignored**, dus git pull raakt 'm niet) → `aos.lucdegroen.nl/downloads/aoscompanion.apk`.
+  **Nieuwe app-release**: bump `versionCode` in `android/app/build.gradle.kts` én `version.json`,
+  bouw de APK, scp naar `/home/luc/aoscompanion/downloads/aoscompanion.apk`, commit+push
+  (version.json gaat mee via de cron). Bestaande installs zien dan de update-balk.
 
 ## Lokaal draaien & testen
 ```
@@ -593,8 +608,16 @@ draai appsync lokaal (`node server.mjs` in die repo, poort 3100) en zet API_URL 
 `http://127.0.0.1:3100` — **terugzetten vóór commit**.
 
 ## Android-app (`android/`)
-- Minimaal Kotlin WebView-project: laadt de live-URL, `domStorageEnabled` (localStorage!),
-  donker thema (geen witte flits), offline-foutpagina, terugknop navigeert in de WebView.
+- Minimaal Kotlin WebView-project: laadt de live-URL **`https://aos.lucdegroen.nl/`** (`APP_URL`
+  in MainActivity), `domStorageEnabled` (localStorage!), **licht thema** (`app_background`
+  `#f4f5f7` + `windowLightStatusBar` — geen flits op het lichte web-thema), lichte offline-
+  foutpagina, terugknop navigeert in de WebView.
+- **Updatecheck**: bij het opstarten haalt `checkForUpdate()` `aos.lucdegroen.nl/version.json`
+  op (achtergrond-thread) en vergelijkt `versionCode` met `BuildConfig.VERSION_CODE` (daarvoor
+  staat `buildFeatures { buildConfig = true }` in build.gradle.kts). Is de gepubliceerde versie
+  hoger, dan verschijnt bovenaan een gouden **update-balk** met een "Updaten"-knop die de APK-URL
+  in de browser opent (download + installeer; debug-signed, dus installeert over de bestaande app
+  heen). Zie de Deploy-sectie voor het release-proces (version.json + downloads/apk).
 - ⚠️ De WebView heeft een **WebChromeClient** nodig — zonder die toont Android geen
   JavaScript-dialogen: `confirm()` "annuleert" dan stilletjes (einde spel/verwijderen
   deed niets) en `alert()`-meldingen verdwijnen. Niet weghalen dus.
