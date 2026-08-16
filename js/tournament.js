@@ -20,6 +20,7 @@ export function renderTournament(ctx) {
   state.data.tournaments = state.data.tournaments || [];
   let openId = state.tournamentOpenId || null;
   let creating = false;
+  let editingMeta = false;
 
   const tournaments = () => state.data.tournaments;
   const armyName = (id) => (state.data.armies.find((a) => a.id === id) || {}).name || "onbekend leger";
@@ -77,11 +78,13 @@ export function renderTournament(ctx) {
     const done = (t.games || []).filter((g) => g.done).length;
     const total = (t.games || []).length;
     const st = standing(t);
+    const meta = [t.dates, t.location].filter(Boolean).map(esc).join(" · ");
     const card = el(`<div class="card clickable">
       <div class="card-header">
         <div>
           <h3>${esc(t.name)}</h3>
           <div class="subtitle">${esc(armyName(t.armyId))} · ${t.days} dag${t.days === 1 ? "" : "en"} · ${done}/${total} gespeeld</div>
+          ${meta ? `<div class="subtitle">${meta}</div>` : ""}
         </div>
         <span class="chip tag${done === total ? "" : " dim"}">${st.w}–${st.l}–${st.d}</span>
       </div>
@@ -101,6 +104,12 @@ export function renderTournament(ctx) {
       <h2>Nieuw toernooi</h2>
       <label>Naam van het toernooi</label>
       <input type="text" id="t-name" placeholder="bijv. GT Nijmegen" />
+      <label>Datum / data</label>
+      <input type="text" id="t-dates" placeholder="bijv. 14 & 15 juni 2026" />
+      <div class="row">
+        <div><label>Locatie</label><input type="text" id="t-location" placeholder="bijv. Nijmegen" /></div>
+        <div><label>Organisatie</label><input type="text" id="t-org" placeholder="bijv. Dutch Devastation" /></div>
+      </div>
       <label>Formaat</label>
       <select id="t-fmt">${FORMATS.map((f) => `<option value="${f.key}">${f.label}</option>`).join("")}</select>
       <div class="row" id="t-custom" style="display:none">
@@ -133,6 +142,9 @@ export function renderTournament(ctx) {
       }
       const t = {
         id: uid(), name, armyId, days, rounds, createdAt: Date.now(),
+        dates: wrap.querySelector("#t-dates").value.trim(),
+        location: wrap.querySelector("#t-location").value.trim(),
+        organization: wrap.querySelector("#t-org").value.trim(),
         games: Array.from({ length: rounds }, (_, i) => ({
           id: uid(), name: `${name} game ${i + 1}`, game: null, done: false, archivedId: null,
         })),
@@ -148,17 +160,26 @@ export function renderTournament(ctx) {
 
   // ---------- Detail ----------
   function drawDetail(t) {
+    if (editingMeta) return drawMetaEditor(t);
     const st = standing(t);
-    app.appendChild(el(`<div class="card">
-      <h2>${esc(t.name)}</h2>
+    const metaLine = [t.location, t.organization].filter(Boolean).map(esc).join(" · ");
+    const card = el(`<div class="card">
+      <div class="card-header">
+        <h2 style="margin:0">${esc(t.name)}</h2>
+        <button class="small" id="t-editmeta">${icon("edit")} Gegevens</button>
+      </div>
       <div class="subtitle">${esc(armyName(t.armyId))} · ${t.days} dag${t.days === 1 ? "" : "en"} · ${t.rounds} games</div>
+      ${t.dates ? `<div class="subtitle">${esc(t.dates)}</div>` : ""}
+      ${metaLine ? `<div class="subtitle">${metaLine}</div>` : ""}
       <div class="scoreline" style="justify-content:flex-start;gap:16px;padding-top:10px">
         <span>Gewonnen <strong>${st.w}</strong></span>
         <span>Verloren <strong>${st.l}</strong></span>
         <span>Gelijk <strong>${st.d}</strong></span>
         <span>VP <strong>${st.vp}</strong></span>
       </div>
-    </div>`));
+    </div>`);
+    card.querySelector("#t-editmeta").addEventListener("click", () => { editingMeta = true; draw(); });
+    app.appendChild(card);
 
     for (const g of t.games) app.appendChild(gameRow(t, g));
 
@@ -171,6 +192,44 @@ export function renderTournament(ctx) {
       draw();
     });
     app.appendChild(delWrap);
+  }
+
+  // Toernooi-gegevens bewerken (naam, datum/data, locatie, organisatie).
+  function drawMetaEditor(t) {
+    const wrap = el(`<div class="card">
+      <h2>Toernooi-gegevens</h2>
+      <label>Naam</label>
+      <input type="text" id="m-name" value="${esc(t.name)}" />
+      <label>Datum / data</label>
+      <input type="text" id="m-dates" value="${esc(t.dates || "")}" placeholder="bijv. 14 & 15 juni 2026" />
+      <div class="row">
+        <div><label>Locatie</label><input type="text" id="m-location" value="${esc(t.location || "")}" /></div>
+        <div><label>Organisatie</label><input type="text" id="m-org" value="${esc(t.organization || "")}" /></div>
+      </div>
+      <div class="btnrow">
+        <button class="primary" id="m-save">${icon("check")} Opslaan</button>
+        <button id="m-cancel">Annuleren</button>
+      </div>
+    </div>`);
+    wrap.querySelector("#m-cancel").addEventListener("click", () => { editingMeta = false; draw(); });
+    wrap.querySelector("#m-save").addEventListener("click", () => {
+      const newName = wrap.querySelector("#m-name").value.trim();
+      const oldName = t.name;
+      if (newName) {
+        // Game-namen die nog het standaardpatroon volgen meelaten wijzigen.
+        t.games.forEach((g, i) => {
+          if (g.name === `${oldName} game ${i + 1}`) g.name = `${newName} game ${i + 1}`;
+        });
+        t.name = newName;
+      }
+      t.dates = wrap.querySelector("#m-dates").value.trim();
+      t.location = wrap.querySelector("#m-location").value.trim();
+      t.organization = wrap.querySelector("#m-org").value.trim();
+      saveData();
+      editingMeta = false;
+      draw();
+    });
+    app.appendChild(wrap);
   }
 
   function gameRow(t, g) {
