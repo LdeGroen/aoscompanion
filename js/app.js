@@ -61,38 +61,6 @@ function logout() {
   navigate("login");
 }
 
-// ---------- Thema ----------
-// Apparaat-instelling (localStorage, synct bewust niet mee): donker, licht of
-// meekijken met het systeem.
-const THEME_KEY = "aoscomp_theme"; // "dark" | "light" | "system"
-const lightMedia = window.matchMedia("(prefers-color-scheme: light)");
-
-const getTheme = () => localStorage.getItem(THEME_KEY) || "dark";
-const themeLabel = () => ({
-  dark: `${icon("moon")} Donker`,
-  light: `${icon("sun")} Licht`,
-  system: `${icon("monitor")} Systeem`,
-}[getTheme()]);
-
-function applyTheme() {
-  const mode = getTheme();
-  const light = mode === "light" || (mode === "system" && lightMedia.matches);
-  document.documentElement.classList.toggle("theme-light", light);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = light ? "#f2efe8" : "#15161c";
-}
-
-function cycleTheme() {
-  const order = ["dark", "light", "system"];
-  localStorage.setItem(THEME_KEY, order[(order.indexOf(getTheme()) + 1) % order.length]);
-  applyTheme();
-}
-
-lightMedia.addEventListener("change", () => {
-  if (getTheme() === "system") applyTheme();
-});
-applyTheme();
-
 // ---------- Helpers ----------
 export function el(html) {
   const t = document.createElement("template");
@@ -186,7 +154,6 @@ function renderHome() {
   const header = el(`<div class="topbar">
     <span class="title">${icon("sword", 18)} AoS Companion</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-      <button class="small" id="btn-theme" title="Wissel tussen donker, licht en systeem">${themeLabel()}</button>
       <button class="small" id="btn-archive">${icon("flag")} Archief</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">${icon("users")} Accounts</button>` : ""}
@@ -195,10 +162,6 @@ function renderHome() {
   </div>`);
   app.appendChild(header);
   header.querySelector("#btn-logout").addEventListener("click", logout);
-  header.querySelector("#btn-theme").addEventListener("click", (e) => {
-    cycleTheme();
-    e.currentTarget.innerHTML = themeLabel();
-  });
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
   header.querySelector("#btn-archive").addEventListener("click", () => navigate("archive"));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));

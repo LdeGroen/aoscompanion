@@ -1,40 +1,27 @@
 :root {
-  --bg: #15161c;
-  --bg-card: #1f212b;
-  --bg-card-2: #272a37;
-  --bg-input: #14151b;
-  --bg-reminder: #2c2517;
-  --border: #3a3e50;
-  --text: #e8e6df;
-  --text-dim: #a7a497;
-  --gold: #c9a227;
-  --gold-dark: #8f741d;
-  --red: #b34a4a;
-  --green: #5d9b6c;
-  --blue: #5b7fb3;
-  --radius: 12px;
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --focus-ring: rgba(201, 162, 39, 0.25);
-}
-
-/* Lichte modus: zelfde goud-accenten (iets donkerder voor contrast) op licht perkament.
-   De klasse staat op <html>, zodat ook de achtergrond buiten de body meekleurt. */
-.theme-light {
-  --bg: #f2efe8;
-  --bg-card: #ffffff;
-  --bg-card-2: #f6f3ea;
-  --bg-input: #fbf9f3;
-  --bg-reminder: #f3e9c8;
-  --border: #d4cdba;
-  --text: #2b2a23;
-  --text-dim: #6f6a5a;
-  --gold: #8f741d;
-  --gold-dark: #6e5a16;
-  --red: #a23b3b;
+  /* Eén vast, licht thema — geïnspireerd op de Home Assistant-webapp
+     (heel lichte achtergrond, witte kaarten met zachte schaduw, ronde hoeken,
+     veel witruimte) met gouden accenten als eigen karakter. */
+  --bg: #f4f5f7;          /* pagina-achtergrond */
+  --bg-card: #ffffff;      /* kaarten */
+  --bg-card-2: #f5f6f8;    /* binnenkaarten / secundair oppervlak */
+  --bg-input: #f6f7f9;     /* inputs, zebra-rijen, stat-blokjes */
+  --bg-reminder: #faf3d8;  /* zachte goud-tint voor reminders */
+  --border: #e4e6ea;       /* subtiele rand / divider */
+  --border-strong: #d5d8de; /* iets sterkere rand (inputs, tabellen) */
+  --text: #17181c;         /* primaire tekst */
+  --text-dim: #63666e;     /* secundaire tekst */
+  --gold: #9c7913;         /* accent: koppen, waarden, links */
+  --gold-dark: #786012;    /* randen, hover, gradient-onder */
+  --gold-bright: #c9a227;  /* gradient-boven / highlight */
+  --gold-soft: #f2ead1;    /* zacht goud-vlak (active states) */
+  --red: #c0392b;
   --green: #2e7d44;
-  --blue: #2f5e9e;
-  --shadow: 0 1px 4px rgba(60, 50, 20, 0.10);
-  --focus-ring: rgba(143, 116, 29, 0.22);
+  --blue: #2f6fb0;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(22, 24, 32, 0.04), 0 2px 8px rgba(22, 24, 32, 0.07);
+  --shadow-lg: 0 10px 30px rgba(22, 24, 32, 0.16);
+  --focus-ring: rgba(156, 121, 19, 0.24);
 }
 
 * { box-sizing: border-box; }
@@ -116,10 +103,10 @@ label { display: block; font-size: 0.85rem; color: var(--text-dim); margin: 8px 
 
 input[type="text"], input[type="number"], input[type="password"], select, textarea {
   width: 100%;
-  padding: 9px 10px;
+  padding: 9px 11px;
   background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
   color: var(--text);
   font-size: 1rem;
 }
@@ -157,11 +144,11 @@ button {
 button:hover { border-color: var(--gold-dark); }
 button:active { transform: scale(0.98); }
 button.primary {
-  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   border-color: var(--gold-dark);
   color: #fff;
   font-weight: 600;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
 button.primary:hover { filter: brightness(1.08); }
 button.danger { background: transparent; border-color: var(--red); color: var(--red); }
@@ -263,11 +250,11 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 .phase-nav { display: flex; gap: 5px; overflow-x: auto; padding: 6px 0 10px; }
 .phase-nav button { white-space: nowrap; font-size: 0.8rem; padding: 7px 13px; flex-shrink: 0; border-radius: 999px; }
 .phase-nav button.active {
-  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   border-color: var(--gold-dark);
   color: #fff;
   font-weight: 600;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
 
 .turnbar {
@@ -423,7 +410,7 @@ table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: now
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(22, 24, 32, 0.45);
   z-index: 50;
   display: flex;
   align-items: flex-start;
@@ -438,7 +425,7 @@ table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: now
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-lg);
   padding: 16px;
 }
 .modal h2:first-child, .modal [data-content] > * > h2:first-child { margin-top: 0; }
