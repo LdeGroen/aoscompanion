@@ -30,7 +30,7 @@ export const AOS_FACTIONS = {
   "Ironjawz": ["Ironjawz Brawl", "Weirdfist", "Ironfist", "Grunta Stampede", "Brutefist", "Bigsnikkaz"],
   "Kruleboyz": ["Kruleboyz Klaw", "Light Finga", "Middul Finga", "Trophy Finga", "Swamphorde Bullies", "Badmouthing Baiterz"],
   "Gloomspite Gitz": ["Gloomspite Horde", "Squigalanche", "Troggherd", "Gitmob Pack", "Sunbiter Pack", "Gittish Tide"],
-  "Ogor Mawtribes": ["Heralds of the Everwinter", "Prophets of the Gulping God", "Beast Handlers", "Blackpowder Fanatics", "Mawpath Menaces", "Greedy Eaters"],
+  "Ogor Mawtribes": ["Hunger-Filled Tribe", "Vanguard of the Mawpath", "Hinterland Hunters", "Maw-Cult Fanatics", "Mawpath Menaces", "Greedy Eaters"],
   "Sons of Behemat": ["Stomper Tribe", "Taker Tribe", "Breaker Tribe", "Boss Tribe", "Manskittle Mob", "Big Toes"],
 };
 

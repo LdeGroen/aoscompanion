@@ -213,18 +213,49 @@ laadt dezelfde URL.
   (spell/prayer/manifestation) én `subfactions` (battle formations, gekeyd op naam). 107 entries
   verwijderd over alle facties, **Hedonites of Slaanesh overgeslagen** (net opnieuw geïmporteerd).
   Bestaande legers behouden hun kopie; SoG is alleen niet meer toe te voegen.
-- **Scourge of Aqshy (SoA)**: de opvolger van SoG (zelfde mechaniek). De eerste 7 faction-PDF's
-  (Cities, Fyreslayers, Idoneth, Kharadron Overlords, Seraphon, Stormcast, Sylvaneth) zijn ingevoerd
-  met `ko-import/seed-soa.mjs` (+ `data-soa/<faction>.json` per faction). Het script hergebruikt de
-  mapping van `parse-faction.mjs` (type/phases/abilities). **14 warscrolls** (2 per faction, naam
-  met suffix " (Scourge of Aqshy)" zodat ze niet botsen met de basis-warscrolls), **39 enhancements**
-  en **1 lore** (Fyreslayers' Vulkyn Gifts, prayer). Alles krijgt `soa: true` (idempotent: een
-  herseed vervangt eerdere SoA-entries). PDF-tekst is uit de PDF gehaald via de Read-tool (die
-  de-columniseert; `pdftotext -layout` interleavet de kolommen); punten uit de June Battle Profiles.
-  De "unique enhancement"-types (Scars of War, Ethersea Companions, Artycle References, Decorations
-  for Valour, Marks of Vulcatrix, Aspects of the Deepwoods) krijgen een `forTypes`-lijst (via
-  `FORTYPE_MATCH` in de seed) zodat `enhancementFits` ze toont bij de juiste model-types/keywords;
-  `forType` blijft het label. Geseed met `node seed-soa.mjs` (backup `.bak-soa-content`).
+- **Scourge of Aqshy (SoA)**: de opvolger van SoG (zelfde mechaniek). In **3 batches** zijn nu
+  **alle 23 faction-PDF's** ingevoerd met `ko-import/seed-soa.mjs` (+ `data-soa/<faction>.json` per
+  faction): batch 1 = 7 Order-facties (Cities, Fyreslayers, Idoneth, Kharadron Overlords, Seraphon,
+  Stormcast, Sylvaneth); batch 2 = 7 Chaos-facties (Blades of Khorne, Disciples of Tzeentch,
+  Hedonites of Slaanesh, Helsmiths of Hashut, Maggotkin of Nurgle, Skaven, Slaves to Darkness);
+  batch 3 = 9 Death/Destruction-facties (Flesh-eater Courts, Nighthaunt, Ossiarch Bonereapers,
+  Soulblight Gravelords, Gloomspite Gitz, Ironjawz, Kruleboyz, Ogor Mawtribes, Sons of Behemat).
+  Totaal **46 warscrolls** (2 per faction, naam met suffix " (Scourge of Aqshy)" zodat ze niet
+  botsen met de basis-warscrolls), **123 enhancements** en enkele lores (o.a. Fyreslayers' Vulkyn
+  Gifts, Gloomspite's Lore of the Little Waaagh!, Sons of Behemat's Brodd's Bellows). Het script
+  hergebruikt de mapping van `parse-faction.mjs` (type/phases/abilities). Alles krijgt `soa: true`
+  (idempotent: een herseed vervangt per faction eerdere SoA-entries — `getShared` → filter `!soa`
+  → concat → `setShared`). PDF-tekst is uit de PDF gehaald via de Read-tool (die de-columniseert;
+  `pdftotext -layout` interleavet de kolommen); punten uit de June Battle Profiles-xlsx (SoA-rows
+  daar zijn gegarbled → raw-row lookups op "Scourge of Aqshy … 1 <points>"). De "unique
+  enhancement"-types (bijv. Scars of War, Brazen Mutation, Noble Pursuit, Brutal Beasts) krijgen
+  een `forTypes`-lijst (via `FORTYPE_MATCH` in de seed) zodat `enhancementFits` ze toont bij de
+  juiste model-types/keywords; `forType` blijft het label. **Monster-only monstrous traits**
+  (Ironjawz Brutal Beasts, Kruleboyz Kunnin' Creatures, Ogor Well-Fed Beasts, SoB Cracked Heels)
+  gebruiken category `"other"` + `forType`→`["Monster"]` (matcht zowel non-hero monsters via type
+  als hero-monsters via het MONSTER-keyword; category `"monstrousTrait"` zou non-hero monsters
+  missen). Enkele SoA-units hebben **weaponOptions** (gestructureerde array, niet los tekstveld):
+  Ironjawz Brutes' Gore-choppa (`optional`), Huskard on Thundertusk's 1-of-3 ranged (`grouped`).
+  Modi: `REPORT=1` (dry), `LOCAL=1` (login op :3100), of op de Pi `node seed-soa.mjs` (token uit
+  db.json, backup `.bak-soa-content`). Prod-seed = alleen de batch-json's + `seed-soa.mjs` naar
+  `/tmp/soa3` scp'en, daar draaien, verifiëren via de live API, opruimen.
+- **Nieuw battletome voor een BSData-faction** (bijv. Ogor Mawtribes, Aug 2026): als BSData
+  (`age-of-sigmar-4th`) het nieuwe boek al heeft, ververs je de hele faction-blob met
+  `ko-import/refresh-ogor.mjs` (kopieerbaar sjabloon per faction: zet de `FACTION`-constante).
+  Het herbouwt warscrolls (`parse-faction`, punten/keywords/reinforce/unique/regiment-opties via
+  `parseFactionUnits`, weapon-opties via `parseFactionWeaponOptions`), battle traits + battle
+  formations + enhancements (`parseEnh`) en de lores (`parseLores`+`factionLoreNames`). Het
+  **vervangt** de base-content maar **bewaart `soa:true`-entries** (SoA-warscrolls/enhancements)
+  en sluit de BSData "(Scourge of Aqshy)"/"(Scourge of Ghyran)"-varianten uit. Big Names (de
+  "other"-enhancements onder de Warlord) krijgen `forType`/`forTypes` "Hero". De **battle-formation-
+  namen in `AOS_FACTIONS`** (factions.js) moeten mee bijgewerkt worden (anders matcht de auto-import
+  bij subfaction-keuze niet). De **Armies of Renown** ververs je met `ONLY="<faction>" node
+  driver-aor.mjs` — die filtert op die factie en **merget** in de bestaande `armiesofrenown`-blob
+  (andere facties blijven staan). `loresBySuffix` matcht nu ook de nieuwere BSData-lorenaam-vorm
+  "<Keyword> <Kind> Lore" (bv. "Alfrostun Prayer Lore") naast "<Kind> Lore: <AoR>". Modi/prod-flow
+  als seed-soa (REPORT/LOCAL/Pi; backups `.bak-ogor-refresh` + `.bak-aor`). ⚠️ AoR-enhancements die
+  via universele artefact/heroic-links lopen (geen eigen inline groep) worden niet opgepikt — geldt
+  voor de meeste AoR's, geen boek-specifieke regressie.
 - **Regiment-opties matching** (`canTakeInRegiment` in setup.js): een unit past als de
   optie-naam de hele keyword is (ook met spatie, bijv. `KHARADRON OVERLORDS`), óf — voor een
   compound van losse keywords — als alle woorden los in de keywords zitten, óf de exacte
