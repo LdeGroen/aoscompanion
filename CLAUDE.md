@@ -396,10 +396,19 @@ laadt dezelfde URL.
   ⚠️ **Ward is een vals alarm in de audit**: `parse-faction.mjs` leest ward uit een
   `Ward (X+)`-categoriekeyword, maar BSData modelleert 'm bij veel units anders — Sigdex tóónt de
   ward wel (Shalaxi Helbane: Control 5 · 5+ · Save 4+). Onze ward-waarden zijn dus correct en moeten
-  **niet** naar BSData "gecorrigeerd" worden. Wat wél echt openstaat: ~10 units met een **verouderd
-  warscroll** bij ons (wapens/abilities veranderd in een nieuwer battletome) — o.a. Skaven Gutter
-  Runners, Sylvaneth Drycha Hamadreth, Cities Sorceress/Dreadlord on Black Dragon, Steam Tank,
-  Neave Blacktalon, HoS Myrmidesh Painbringers.
+  **niet** naar BSData "gecorrigeerd" worden.
+  **Verouderde warscrolls** zijn bijgewerkt met `ko-import/fix-warscrolls.mjs` (15 units, expliciete
+  lijst, backup `.bak-warscrolls`): het vervangt alleen wapens + abilities uit BSData en laat stats,
+  punten, keywords, regiment-opties en flags staan. Twee details die dat script bewust doet:
+  (1) bij een gelijke genormaliseerde naam houdt het **onze** schrijfwijze aan — BSData gebruikt
+  rechte apostrofs en Title Case ("Master Of The Revels", "Commander's Rifle"), wat anders als
+  nep-wijziging binnenkomt; (2) abilities in `KEEP_ABILITIES` (nu "Beast", onze eigen conventie voor
+  het Beast-keyword) blijven behouden.
+  Wat ná die ronde nog als verschil binnenkomt is allemaal **verklaard en bewust zo**: BSData-typo's
+  ("Reaper' Blades", "Bestial Onslaughted", "Blissbrew Homonculus"), onze "Beast"-abilities, de
+  SoA-Gatebreaker (Longshanks/Son of Behemat staan bij BSData elders), en twee FEC-abilities
+  ("A Majestic Menagerie", "Banishing Liturgy") die wél in BSData staan maar op een andere entry —
+  `parseFaction` slaat namelijk dubbele unit-namen (loadout-varianten) over.
 - **Paragon-keyword**: warscrolls met het `Paragon`-keyword (Hedonites of Slaanesh) krijgen op hun
   kaartjes een opvallende paarse **Paragon-chip** (`.chip.paragon`) — in de model-popup
   (`modelview.js`), de database-kaart (`drawModels`) en de set-up-roster (`modelRow`). Detectie:
