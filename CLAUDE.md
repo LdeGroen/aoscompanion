@@ -755,6 +755,26 @@ voor "toevoegen aan startscherm". Wijzig je het ontwerp, werk dan al deze varian
 - Het beveiligingsmodel is bewust licht (hobby-app): wie een gebruikersnaam kent, kan bij
   de data van die gebruiker. Geen gevoelige data in legers opslaan dus.
 
+## Sync-conflicten (waarom je data niet meer verdwijnt)
+Elke `pushData` stuurt `baseUpdatedAt` mee: de serverversie waarop deze client
+voortbouwt. Is de server inmiddels verder, dan antwoordt appsync met **409** plus de
+actuele data, en voegt `mergeRemoteData` in app.js samen **op id** (armies, gameArchive,
+tournaments, modelLibrary): alles wat op de server staat maar hier niet, komt erbij.
+Daarnaast synct de app opnieuw bij `visibilitychange` (terug op de voorgrond).
+
+Bewuste keuzes: bij hetzelfde id wint de **lokale** versie (dat zie je op je scherm), en
+een verwijdering op het ene apparaat kan via het andere terugkomen. Data terugkrijgen is
+minder erg dan data kwijtraken.
+
+⚠️ Dit werkt alleen met een appsync die `baseUpdatedAt` kent (commit "optimistic locking").
+Een oudere backend negeert het veld en dan is er geen bescherming — bij het uitrollen dus
+**eerst appsync bijwerken en herstarten**, daarna de app.
+
+Aanleiding (06-09-2026): een Android-app die uren op de achtergrond stond pushte zijn
+verouderde geheugen over de server heen; twee gearchiveerde games en een leger verdwenen.
+Teruggehaald uit `~/backups/pi-backup-*.tar.gz` op de Pi — die dagelijkse tarball bevat
+`appsync/data/db.json`, en appsync zelf houdt géén versiegeschiedenis bij.
+
 ## Statistieken (`js/stats.js`)
 Eigen scherm (`navigate("stats")`, knop in de home-topbar) dat **live** uit
 `state.data.gameArchive` rekent — er wordt niets opgeslagen of gecachet. Toernooigames
