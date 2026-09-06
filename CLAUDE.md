@@ -391,9 +391,14 @@ laadt dezelfde URL.
   terwijl Exalted Chariot en de andere Bladebringers dat wél zijn — dus altijd op de tag afgaan,
   niet op "hoort bij dezelfde modelgroep". Ook: "The Thricefold Discord" (Legends, Infantry) is een
   ándere unit dan "Thricefold Discord" (Hero) — matchen op exacte naam, niet op lidwoord-alias.
-  **Per leger aan/uit**: `army.showLegends` (standaard **false**) met een checkbox in de Leger-kaart
-  van de set-up; `pickModel` filtert Legends-units eruit als die uit staat. Zit er tóch een
-  Legends-unit in het leger, dan geeft `rosterWarnings` een waarschuwing.
+  **Twee schakelaars, bewust met verschillende default:**
+  - **Set-up, per leger**: `army.showLegends` (standaard **false** — je bouwt een legale lijst) via
+    een checkbox in de Leger-kaart; `pickModel` filtert Legends-units eruit als die uit staat. Zit
+    er tóch een Legends-unit in het leger, dan geeft `rosterWarnings` een waarschuwing.
+  - **Database, per apparaat**: `showLegends` uit `localStorage["aoscomp_db_legends"]` (standaard
+    **true** — de database is een naslagwerk, je wilt alles kunnen opzoeken; synct bewust niet, net
+    als de companion-modus-voorkeur). Filtert zowel `drawModels` als de zoekresultaten (`pushModel`).
+    `pickWarscroll` (RoR-samenstelling) filtert bewust **niet**: een RoR mag Legends-units bevatten.
 - **Brede data-audit tegen BSData**: `ko-import/audit-all.mjs` vergelijkt de hele gedeelde database
   met BSData (units, punten, stats, wapens, abilities, keywords, enhancements, faction rules,
   battle formations, Legends) en schrijft `/tmp/audit-all-out.json`; `fix-broad.mjs` voert de

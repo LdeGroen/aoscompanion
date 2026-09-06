@@ -32,6 +32,12 @@ export function renderDatabase(ctx) {
   let aor = state.dbAoR || null; // gekozen Army of Renown (naam) binnen de faction, of null = standaard
   const expanded = new Set(); // welke facties uitgeklapt zijn in de keuzelijst
   let pickerOpen = false; // de (lange) factionlijst is standaard ingeklapt; klap dicht na een keuze
+  // Warhammer Legends tonen? Apparaat-voorkeur (synct bewust niet, net als het
+  // companion-modus-voorkeur). Hier standaard AAN: de database is een naslagwerk,
+  // dus je wilt alles kunnen opzoeken. In de set-up staat het juist standaard uit.
+  const LEGENDS_KEY = "aoscomp_db_legends";
+  let showLegends = (() => { try { return localStorage.getItem(LEGENDS_KEY) !== "0"; } catch { return true; } })();
+  const setShowLegends = (v) => { showLegends = v; try { localStorage.setItem(LEGENDS_KEY, v ? "1" : "0"); } catch {} };
   const normRoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   const normAoR = (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] };
   const aorsFor = (f) => (aorList || []).filter((a) => a.faction === f);
@@ -207,8 +213,13 @@ export function renderDatabase(ctx) {
       <label>Faction</label>
       <button class="faction-toggle ${pickerOpen ? "open" : ""}" data-toggle>${icon("chevron")} <span>${currentLabel}</span></button>
       <div class="faction-picker" data-list></div>
+      <div class="checkline">
+        <input type="checkbox" id="db-legends" ${showLegends ? "checked" : ""} />
+        <span>Toon Warhammer Legends-units <span class="subtitle">(niet legaal in matched play)</span></span>
+      </div>
       ${army ? `<p class="subtitle">Importeren gaat naar je leger "${esc(army.name || "(naamloos)")}".</p>` : `<p class="subtitle">Open de database vanuit set-up om items direct in een leger te importeren.</p>`}
     </div>`);
+    facCard.querySelector("#db-legends").addEventListener("change", (e) => { setShowLegends(e.target.checked); draw(); });
     const facList = facCard.querySelector("[data-list]");
     facCard.querySelector("[data-toggle]").addEventListener("click", () => { pickerOpen = !pickerOpen; draw(); });
     // Na een keuze klapt de lijst weer dicht
@@ -329,6 +340,7 @@ export function renderDatabase(ctx) {
     const entryHit = (entries) => { const e = arr(entries).find((x) => hit(x.name) || hit(x.description)); return e ? e.name : null; };
     const results = [];
     const pushModel = (f, kind, m) => {
+      if (m.legends && !showLegends) return; // Legends alleen als de schakelaar aanstaat
       if (hit(m.name)) { results.push({ faction: f, kind, name: m.name, otype: "model", obj: m }); return; }
       const via = abHit(m.abilities); if (via) results.push({ faction: f, kind, name: m.name, via, otype: "model", obj: m });
     };
@@ -773,7 +785,7 @@ export function renderDatabase(ctx) {
     const items = [
       ...db.models.map((m) => ({ m, list: db.models, isUniversal: false })),
       ...(uni?.models || []).map((m) => ({ m, list: uni.models, isUniversal: true })),
-    ];
+    ].filter(({ m }) => showLegends || !m.legends);
     if (!items.length) {
       list.appendChild(el(`<p class="empty">Nog geen kaartjes in de ${esc(faction)}-database. Deel een kaartje via set-up (knop "Deel in database").</p>`));
       return;
