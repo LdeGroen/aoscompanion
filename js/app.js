@@ -33,6 +33,44 @@ export function saveData() {
   }
 }
 
+// ---------- Samenvoegen in plaats van overschrijven ----------
+// Voegt lijsten samen op id: alles wat op de server staat maar hier niet, komt
+// erbij. Bij hetzelfde id wint de lokale versie (dat is wat je op je scherm ziet).
+// Gevolg: iets wat je op één apparaat verwijdert kan via een ander apparaat
+// terugkomen. Dat is bewust — data terugkrijgen is erger dan een dubbele regel.
+function mergeLists(local, remote) {
+  const out = [...(local || [])];
+  const have = new Set(out.map((x) => x && x.id).filter(Boolean));
+  for (const item of remote || []) {
+    if (item && item.id && !have.has(item.id)) { out.push(item); have.add(item.id); }
+  }
+  return out;
+}
+
+function mergeRemoteData(remote) {
+  if (!remote || !state.data) return false;
+  let changed = false;
+  for (const key of ["armies", "gameArchive", "tournaments", "modelLibrary"]) {
+    const merged = mergeLists(state.data[key], remote[key]);
+    if (merged.length !== (state.data[key] || []).length) changed = true;
+    state.data[key] = merged;
+  }
+  if (changed) {
+    store.saveUserData(state.user.name, state.data);
+    backend.pushData(state.data); // nu op basis van de nieuwe serverversie
+  }
+  return changed;
+}
+
+// De server weigert een push die op een verouderde versie is gebaseerd en stuurt
+// de actuele data mee. Dan voegen we samen en tekenen we opnieuw, zodat je nooit
+// zonder waarschuwing games of legers kwijtraakt.
+backend.setConflictHandler((remote) => {
+  const changed = mergeRemoteData(remote);
+  console.warn("Sync-conflict opgelost; serverdata samengevoegd.", { changed });
+  if (changed) render();
+});
+
 async function login(name, isAdmin) {
   state.user = { name, isAdmin };
   state.data = store.getUserData(name);
@@ -390,6 +428,25 @@ if ("serviceWorker" in navigator) {
     console.warn("Service worker registreren mislukt:", e.message)
   );
 }
+
+// Terug op de voorgrond (Android-app of browsertabblad): serverdata opnieuw
+// ophalen. Een app die uren op de achtergrond stond werkt anders verder met een
+// verouderd geheugen — precies zo kan er data verdwijnen zodra hij weer opslaat.
+let resyncing = false;
+async function resyncFromServer() {
+  if (resyncing || !state.user || !backend.hasBackend() || !backend.getToken()) return;
+  resyncing = true;
+  try {
+    const before = backend.getBaseUpdatedAt();
+    const remote = await backend.fetchData();
+    if (remote && backend.getBaseUpdatedAt() !== before && mergeRemoteData(remote)) render();
+  } catch (e) {
+    console.warn("Hersynchroniseren mislukt:", e.message);
+  } finally {
+    resyncing = false;
+  }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) resyncFromServer(); });
 
 const session = store.getSession();
 if (session) {

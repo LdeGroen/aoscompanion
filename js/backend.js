@@ -22,7 +22,12 @@ async function call(action, body = {}, withToken = true, tokenOverride = null) {
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!json.ok) throw new Error(json.error || `Backend-fout (${res.status})`);
+  if (!json.ok) {
+    const err = new Error(json.error || `Backend-fout (${res.status})`);
+    err.status = res.status;
+    err.payload = json; // bij een conflict (409) zit hier de actuele serverdata in
+    throw err;
+  }
   return json;
 }
 
@@ -39,8 +44,21 @@ export function logout() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// De serverversie waarop onze lokale data is gebaseerd. Die sturen we bij iedere
+// push mee; staat er inmiddels een nieuwere versie op de server (een ander
+// apparaat heeft geschreven), dan weigert de server en krijgen we die versie
+// terug in plaats van dat we hem overschrijven. Zo kan een app die met oude
+// gegevens in het geheugen staat nooit meer je archief wegvagen.
+let baseUpdatedAt = null;
+let onConflict = null; // (remoteData) => void — gezet door app.js
+
+export function setConflictHandler(fn) { onConflict = fn; }
+export function getBaseUpdatedAt() { return baseUpdatedAt; }
+export function markBase(updatedAt) { baseUpdatedAt = updatedAt || null; }
+
 export async function fetchData() {
   const result = await call("getData", { app: APP_KEY });
+  baseUpdatedAt = result.updatedAt || null;
   return result.data; // null als er nog niets staat
 }
 
@@ -52,10 +70,20 @@ export function pushData(data) {
   clearTimeout(pushTimer);
   const snapshot = JSON.stringify(data);
   const token = getToken();
-  pushTimer = setTimeout(() => {
-    call("setData", { app: APP_KEY, data: JSON.parse(snapshot) }, true, token).catch((e) =>
-      console.warn("Sync naar backend mislukt (lokaal wel opgeslagen):", e.message)
-    );
+  pushTimer = setTimeout(async () => {
+    try {
+      const res = await call("setData", { app: APP_KEY, data: JSON.parse(snapshot), baseUpdatedAt }, true, token);
+      baseUpdatedAt = res.updatedAt || baseUpdatedAt;
+    } catch (e) {
+      if (e.status === 409 && e.payload?.conflict) {
+        // Iemand anders (of dit apparaat in een ander tabblad) was ons voor.
+        baseUpdatedAt = e.payload.updatedAt || null;
+        if (onConflict) onConflict(e.payload.data);
+        else console.warn("Sync-conflict: serverdata is nieuwer, lokale wijziging niet gepusht.");
+        return;
+      }
+      console.warn("Sync naar backend mislukt (lokaal wel opgeslagen):", e.message);
+    }
   }, 800);
 }
 
