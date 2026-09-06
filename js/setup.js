@@ -39,6 +39,11 @@ export function renderSetup(ctx) {
   // Mag een unit in het regiment van deze leider? Geport van Sigdex' matchesRegimentOption:
   // keyword-opties gelden voor niet-heroes; heroes mogen alleen via een specifieke named-optie.
   // Geen opties bekend (oude data / ontbreekt) → alles toestaan (pragmatisch).
+  // Namen komen in twee vormen voor: volledig ("Dexcessa, the Talon of Slaanesh")
+  // en kort ("Dexcessa"). Regiment-opties uit het Excel gebruiken vaak de korte
+  // vorm, warscrolls de volledige — dus vergelijken we ook op het deel vóór de komma.
+  const nameAlias = (s) => String(s || "").toLowerCase().split(",")[0].replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
+
   function canTakeInRegiment(leader, unit) {
     const opts = leader && leader.regimentOptions;
     if (!opts || !opts.length) return true;
@@ -49,7 +54,7 @@ export function renderSetup(ctx) {
     for (const opt of opts) {
       for (const o of opt.names || []) {
         const lo = o.toLowerCase();
-        if (nm === lo) return true; // exacte unit/hero-naam
+        if (nm === lo || nameAlias(nm) === nameAlias(lo)) return true; // unit/hero-naam (kort of volledig)
         if (hero) { if (hk.includes(lo)) return true; continue; } // heroes alleen via naam of hero-keyword (niet via brede keywords als "Infantry")
         const nonM = lo.match(/^non-(\S+)\s+(.+)/); // bijv. "non-Monster Skink"
         if (nonM) { if (!kw.includes(nonM[1]) && nonM[2].split(/\s+/).every((p) => kw.includes(p))) return true; continue; }
@@ -167,8 +172,10 @@ export function renderSetup(ctx) {
       // bekend → geen beperking. Universal manifestations blijven altijd kiesbaar.
       const a = currentArmyAoR();
       if (a && (a.units || []).length) {
-        const allowed = new Set((a.units || []).map(normUnit));
-        factionModels = factionModels.filter((m) => allowed.has(normUnit(m.name)));
+        // Ook hier korte én volledige naamvorm toestaan (zie nameAlias).
+        const aliasN = (s) => normUnit(String(s || "").split(",")[0]);
+        const allowed = new Set((a.units || []).flatMap((n) => [normUnit(n), aliasN(n)]));
+        factionModels = factionModels.filter((m) => allowed.has(normUnit(m.name)) || allowed.has(aliasN(m.name)));
       }
       models = [...factionModels, ...(uni.models || [])];
     } catch (e) {

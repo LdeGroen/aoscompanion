@@ -450,8 +450,11 @@ export function renderDatabase(ctx) {
     if (!wanted.length) {
       list.appendChild(el(`<p class="empty">Geen specifieke unit-beperking bekend; alle ${esc(a.faction)}-units zijn toegestaan.</p>`));
     } else {
-      const models = (db?.models || []).filter((m) => wanted.includes(normUnit(m.name)));
-      const found = new Set(models.map((m) => normUnit(m.name)));
+      // Korte én volledige naamvorm ("Dexcessa" ↔ "Dexcessa, the Talon of Slaanesh")
+      const aliasN = (s) => normUnit(String(s || "").split(",")[0]);
+      const wantedAll = new Set([...wanted, ...(a.units || []).map(aliasN)].filter(Boolean));
+      const models = (db?.models || []).filter((m) => wantedAll.has(normUnit(m.name)) || wantedAll.has(aliasN(m.name)));
+      const found = new Set(models.flatMap((m) => [normUnit(m.name), aliasN(m.name)]));
       for (const m of models.sort((x, y) => x.name.localeCompare(y.name))) {
         const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)"><span><strong>${esc(m.name)}</strong> <span class="subtitle">${esc(m.type || "")}</span></span><span class="subtitle">${m.points != null ? m.points + " pts" : ""}</span></div>`);
         row.addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
