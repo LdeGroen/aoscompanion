@@ -6,6 +6,7 @@ import { filterWeapons } from "./weaponoptions.js";
 import * as sharedb from "./sharedb.js";
 import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
+import { openDamageCalculator } from "./damage.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -874,6 +875,7 @@ export function renderCompanion(ctx) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         ${(game.stage === "roundSetup" || game.stage === "turn") ? `<button class="small ${scoreMode ? "primary" : ""}" id="btn-mode">${icon(scoreMode ? "monitor" : "list")} ${scoreMode ? "Volledig" : "Score-modus"}</button>` : ""}
         <button class="small" id="btn-opponent">${icon("shield")} Tegenstander</button>
+        <button class="small" id="btn-damage">${icon("dice")} Schade</button>
         <button class="small" id="btn-battleplan">${icon("map")} Battleplan</button>
         <button class="small" id="btn-tactics">${icon("flag")} Battle tactics</button>
         <button class="small" id="btn-spells">${icon("zap")} Spells</button>
@@ -888,6 +890,7 @@ export function renderCompanion(ctx) {
     const modeBtn = bar.querySelector("#btn-mode");
     if (modeBtn) modeBtn.addEventListener("click", () => setScoreMode(!scoreMode));
     bar.querySelector("#btn-opponent").addEventListener("click", showOpponentMenu);
+    bar.querySelector("#btn-damage").addEventListener("click", () => openDamageCalculator({ army, game, el, esc, saveData }));
     bar.querySelector("#btn-battleplan").addEventListener("click", showBattleplanMenu);
     bar.querySelector("#btn-tactics").addEventListener("click", showTacticsMenu);
     bar.querySelector("#btn-spells").addEventListener("click", showSpellsMenu);

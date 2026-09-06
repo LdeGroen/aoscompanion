@@ -755,6 +755,26 @@ voor "toevoegen aan startscherm". Wijzig je het ontwerp, werk dan al deze varian
 - Het beveiligingsmodel is bewust licht (hobby-app): wie een gebruikersnaam kent, kan bij
   de data van die gebruiker. Geen gevoelige data in legers opslaan dus.
 
+## Schadecalculator (`js/damage.js` + `js/damagemath.js`)
+Knop **Schade** in de companion-topbar. Je koppelt één eigen unit aan één unit van de
+tegenstander (uit `game.opponent.models`), zodat save en ward automatisch uit dat doelwit
+komen; zonder doelwit-kaartje vul je save/ward zelf in. Keuzes staan in `game.dmgCalc` en
+synced dus mee binnen een potje.
+
+`damagemath.js` is bewust DOM-vrij en los te testen met `ko-import/test-damage.mjs`
+(23 tests). Aannames, allemaal AoS 4e:
+- Ongewijzigde **1 mislukt altijd** (hit, wound én save); crit = ongewijzigde **6**.
+- `crit: "hits2"` = extra hit per 6, `"autowound"` = wound-rol overslaan,
+  `"mortal"` = wound én save overslaan (alleen de ward telt nog).
+- Herwerpen vergroot óók de crit-kans: `p + f·p` met `f` = 1/6 (1-en) of 1−p (alles).
+- Rend verslechtert de save, de ward niet.
+- Attacks/damage mogen dobbelnotatie zijn (`2D6`, `D3+3`); een waarde die naar een
+  ability verwijst (`⟝See …⟞`) geeft `unknown: true` — die wapens worden overgeslagen
+  in plaats van geraden.
+
+⚠️ Warscrolls bevatten **geen unitgrootte**, dus attacks zijn per model: in de UI staat per
+wapen een `× modellen`-veld (standaard 1). Zolang dat zo is, is het aan de gebruiker.
+
 ## Sync-conflicten (waarom je data niet meer verdwijnt)
 Elke `pushData` stuurt `baseUpdatedAt` mee: de serverversie waarop deze client
 voortbouwt. Is de server inmiddels verder, dan antwoordt appsync met **409** plus de

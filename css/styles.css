@@ -422,6 +422,51 @@ table.scoregrid td.lbl { color: var(--text-dim); width: 38%; }
 table.scoregrid td.cell { text-align: center; background: var(--bg-input); border: 1px solid var(--border); min-width: 30px; }
 table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: nowrap; padding-left: 8px; }
 
+/* --- Schadecalculator --- */
+.dmg label { display: block; margin-top: 10px; }
+.dmg select { width: 100%; }
+.dmg-row { display: flex; gap: 10px; }
+.dmg-row > span { flex: 1; }
+.dmg-weapon {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+  flex-wrap: wrap;
+}
+.dmg-check { display: flex; align-items: flex-start; gap: 8px; margin: 0 !important; cursor: pointer; }
+.dmg-check input { margin-top: 3px; flex: none; }
+.dmg-count { color: var(--text-dim); font-size: 0.85rem; white-space: nowrap; }
+.dmg-count input { width: 56px; display: inline-block; margin: 0 4px; padding: 4px 6px; }
+.dmg-steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.dmg-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 6px;
+}
+.dmg-step .v { font-weight: bold; color: var(--gold); min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.dmg-step .k { font-size: 0.75rem; color: var(--text-dim); }
+.dmg-step button { padding: 2px 8px; line-height: 1.1; }
+.dmg-pick { display: block; margin: 8px 0; }
+.dmg-pick .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.dmg-total {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-dark);
+  text-align: center;
+}
+.dmg-total .v { display: block; font-size: 2.2rem; font-weight: bold; color: var(--gold-dark); font-family: Georgia, serif; line-height: 1.1; }
+.dmg-total .k { display: block; font-size: 0.85rem; color: var(--text-dim); }
+.dmg-total .sub { display: block; margin-top: 4px; font-size: 0.85rem; color: var(--gold-dark); }
+
 /* --- Statistieken: tabellen en tijdlijn --- */
 /* Brede tabellen mogen zijwaarts scrollen in plaats van de pagina op te rekken. */
 table.statgrid {
