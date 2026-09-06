@@ -523,6 +523,18 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
 - **Enhancements-knop** (`showEnhancementsMenu`): alle enhancements op je actieve models, gegroepeerd
   per model (via `eff(m).enhancements`), met categorie, stat-mods (`modLabel`) en beschrijving; de
   modelkop is klikbaar naar de popup.
+- **Ability-keywords (core actions) + CP-chips**: een ability kan `keywords: ["Core","Move"]` hebben
+  (uit de BSData-characteristic `Keywords`). `abilityTagsHtml()` in factions.js rendert ze als chips
+  onder de ability — **core actions** (`CORE_ACTION_KEYWORDS`: Core, Move, Attack, Charge, Shoot,
+  Fight, Retreat, Deploy) in goud, de rest (Rampage, Spell, Prayer, Unbind, faction-eigen tags als
+  Blood Tithe/Delusion/Tidal) neutraal, plus een chip met `cpCost`. Gebruikt in de model-popup
+  (modelview.js) en in companion mode (`abilityCard`). Zo toont Sigdex het ook.
+  ⚠️ **De importer las `Keywords` nooit en `Cost` verkeerd**: BSData zet in `Cost` een kaal getal
+  ("1"), terwijl de oude regex `(\d+)\s*CP` zocht — daardoor stonden er maar 4 CP-kosten in de hele
+  database (BSData heeft er 36). Beide gefixt in `parse-faction.mjs` (`keywordList`/`cpCostOf`),
+  `parse-enh.mjs` en `driver-aor.mjs`. `ko-import/merge-ability-tags.mjs` zet keywords+cpCost op de
+  bestaande database (REPORT/LOCAL/Pi, backup `.bak-abilitytags`) en migreert een handmatig
+  ingevoerde "Keywords: …"-regel uit de beschrijving (SoA) naar het veld.
 - **Regiments-knop** (`showRegimentsMenu`, icoon `layers`, naast Units/Einde spel): snel overzicht van
   wie in welk regiment zit. Groepeert `army.models` op `regimentId` tegen `army.regiments` — het
   regiment van de general eerst, de leider (`isLeader`) bovenaan met ★ + General-chip, daarna de
