@@ -183,7 +183,10 @@ export function renderSetup(ctx) {
       return;
     }
     const draw = (showAll) => {
-      const filtered = models.filter((m) => filter(m) && !COMPANION_NAMES.has(normNm(m.name)) && (showAll || !restrict || restrict(m)));
+      // Warhammer Legends alleen tonen als dit leger daarvoor gekozen heeft.
+    const filtered = models.filter((m) => filter(m) && !COMPANION_NAMES.has(normNm(m.name))
+      && (army.showLegends || !m.legends)
+      && (showAll || !restrict || restrict(m)));
       body.innerHTML = "";
       if (!filtered.length) { body.appendChild(el(`<p class="empty">${restrict && !showAll ? "Geen units die in dit regiment passen — vink hierboven aan om alles te tonen." : `Niets beschikbaar in de ${esc(army.faction)}-database.`}</p>`)); return; }
       for (const [typeLabel, group] of groupByType(filtered)) {
@@ -210,6 +213,8 @@ export function renderSetup(ctx) {
     const w = [];
     if (totalPoints() > POINTS_LIMIT) w.push(`Boven de ${POINTS_LIMIT} punten.`);
     if (army.models.some(isHero) && !army.models.some((m) => m.isGeneral)) w.push("Nog geen General gekozen.");
+    const legendsInArmy = army.models.filter((m) => m.legends);
+    if (legendsInArmy.length) w.push(`Warhammer Legends (niet legaal in matched play): ${legendsInArmy.map((m) => m.name).join(", ")}.`);
     const uniq = {};
     for (const m of army.models) if (m.unique) uniq[m.name] = (uniq[m.name] || 0) + 1;
     for (const [n, c] of Object.entries(uniq)) if (c > 1) w.push(`Unique unit meer dan 1× in het leger: ${n}.`);
@@ -958,9 +963,19 @@ export function renderSetup(ctx) {
       </div>
       <div data-aor></div>
       <div data-subpts></div>
+      <div class="checkline" style="margin-top:10px">
+        <input type="checkbox" id="army-legends" ${army.showLegends ? "checked" : ""} />
+        <span>Toon Warhammer Legends-units <span class="subtitle">(niet legaal in matched play)</span></span>
+      </div>
       <p class="subtitle">Bij het kiezen van een army of subfaction worden de rules en enhancements uit de gedeelde database automatisch in dit leger gezet — daarna kun je ze hier aanpassen.</p>
     </div>`);
     app.appendChild(base);
+    // Legends aan/uit: filtert de unit-pickers van dit leger.
+    base.querySelector("#army-legends").addEventListener("change", (e) => {
+      army.showLegends = e.target.checked;
+      saveData();
+      rerender();
+    });
 
     // Army of Renown-keuze: een alternatieve manier om de faction te spelen
     // (eigen faction rules, enhancements, lores en een beperkte unit-keuze).

@@ -384,7 +384,16 @@ laadt dezelfde URL.
 - **Warhammer Legends**: units die BSData tagt met de publicatie **`9dee-a6b2-4b42-bfee`**
   ("Warhammer Legends") krijgen `model.legends = true` en een rode **Legends-chip** in de
   model-popup, de database-kaart, de set-up-roster én de unit-picker (zoals Sigdex ze badget).
-  Ze zijn niet legaal in matched play. Gezet door `ko-import/fix-broad.mjs` (54 units).
+  Ze zijn niet legaal in matched play. Gezet door `ko-import/fix-broad.mjs` (54 units);
+  `ko-import/add-legends.mjs` plaatste de ontbrekende units alsnog bij (10 Hedonites).
+  ⚠️ De tagging in BSData is **selectief, niet categorisch**: Hellflayer, Seeker Chariot,
+  Hellstriders en Bladebringer on Exalted Chariot zijn géén Legends (Sigdex badget ze ook niet),
+  terwijl Exalted Chariot en de andere Bladebringers dat wél zijn — dus altijd op de tag afgaan,
+  niet op "hoort bij dezelfde modelgroep". Ook: "The Thricefold Discord" (Legends, Infantry) is een
+  ándere unit dan "Thricefold Discord" (Hero) — matchen op exacte naam, niet op lidwoord-alias.
+  **Per leger aan/uit**: `army.showLegends` (standaard **false**) met een checkbox in de Leger-kaart
+  van de set-up; `pickModel` filtert Legends-units eruit als die uit staat. Zit er tóch een
+  Legends-unit in het leger, dan geeft `rosterWarnings` een waarschuwing.
 - **Brede data-audit tegen BSData**: `ko-import/audit-all.mjs` vergelijkt de hele gedeelde database
   met BSData (units, punten, stats, wapens, abilities, keywords, enhancements, faction rules,
   battle formations, Legends) en schrijft `/tmp/audit-all-out.json`; `fix-broad.mjs` voert de
