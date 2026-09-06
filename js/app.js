@@ -7,6 +7,7 @@ import { renderCompanion } from "./companion.js";
 import { renderDatabase } from "./database.js";
 import { renderArchive } from "./archive.js";
 import { renderTournament } from "./tournament.js";
+import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
 
 const app = document.getElementById("app");
@@ -110,6 +111,7 @@ function render() {
     case "companion": return renderCompanion({ state, app, navigate, saveData, el, esc });
     case "database": return renderDatabase({ state, app, navigate, saveData, el, esc });
     case "archive": return renderArchive({ state, app, navigate, saveData, el, esc });
+    case "stats": return renderStats({ state, app, navigate, saveData, el, esc });
     case "tournament": return renderTournament({ state, app, navigate, saveData, el, esc });
   }
 }
@@ -183,6 +185,7 @@ function renderHome() {
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       <button class="small" id="btn-tournament">${icon("trophy")} Toernooi</button>
       <button class="small" id="btn-archive">${icon("flag")} Archief</button>
+      <button class="small" id="btn-stats">${icon("chart")} Statistieken</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">${icon("users")} Accounts</button>` : ""}
       <button class="small" id="btn-logout">${icon("logout")} ${esc(state.user.name)}</button>
@@ -192,6 +195,7 @@ function renderHome() {
   header.querySelector("#btn-logout").addEventListener("click", logout);
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
   header.querySelector("#btn-archive").addEventListener("click", () => navigate("archive"));
+  header.querySelector("#btn-stats").addEventListener("click", () => navigate("stats"));
   header.querySelector("#btn-tournament").addEventListener("click", () => navigate("tournament", { tournamentOpenId: null }));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 

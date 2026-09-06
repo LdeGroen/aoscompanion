@@ -755,6 +755,23 @@ voor "toevoegen aan startscherm". Wijzig je het ontwerp, werk dan al deze varian
 - Het beveiligingsmodel is bewust licht (hobby-app): wie een gebruikersnaam kent, kan bij
   de data van die gebruiker. Geen gevoelige data in legers opslaan dus.
 
+## Statistieken (`js/stats.js`)
+Eigen scherm (`navigate("stats")`, knop in de home-topbar) dat **live** uit
+`state.data.gameArchive` rekent — er wordt niets opgeslagen of gecachet. Toernooigames
+tellen gewoon mee; je kunt filteren op leger en op toernooi/los.
+
+Wat je uit een archief-record kunt halen staat in `scorecard.buildGameRecord`. Twee
+valkuilen bij het rekenen:
+- `rounds[].player` is **alleen objective control**. Battle-tacticpunten zitten daar niet in
+  maar in `tactics[].scoredRounds` (× `TACTIC_STEP_POINTS` = 5, max 3 stappen per tactic).
+  Optel je die twee plus `endBonus`, dan kom je op `totals.player` uit.
+- `rounds[].firstTurn` is per battleround gevuld (`"player"`/`"enemy"`), dus ronde 1 geeft de
+  eerste-beurt-statistiek en alle rondes samen het "als eerste vs. als tweede"-verschil.
+
+Legers worden gematcht op **`player.army` (de naam)**, want een record bewaart geen `armyId`.
+Hernoem je een leger, dan splitst zijn historie. Records van vóór dit veld vallen onder
+"Onbekend leger".
+
 ## Ververs-knop (vastzittende cache)
 In de database-topbar zit **Ververs** (`forceRefresh` in database.js). Nodig omdat een
 WebView/browser op een oude versie kan blijven hangen zonder dat de gebruiker die eruit krijgt —

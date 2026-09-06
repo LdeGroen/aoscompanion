@@ -422,6 +422,46 @@ table.scoregrid td.lbl { color: var(--text-dim); width: 38%; }
 table.scoregrid td.cell { text-align: center; background: var(--bg-input); border: 1px solid var(--border); min-width: 30px; }
 table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: nowrap; padding-left: 8px; }
 
+/* --- Statistieken: tabellen en tijdlijn --- */
+/* Brede tabellen mogen zijwaarts scrollen in plaats van de pagina op te rekken. */
+table.statgrid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+table.statgrid th {
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--border-strong);
+}
+table.statgrid td { padding: 6px 8px 6px 0; border-bottom: 1px dashed var(--border); }
+table.statgrid tr:last-child td { border-bottom: none; }
+table.statgrid th.num, table.statgrid td.num { text-align: right; }
+table.statgrid td.num { font-variant-numeric: tabular-nums; }
+table.statgrid td:first-child { color: var(--text-dim); white-space: normal; min-width: 120px; }
+table.statgrid tbody tr:hover td { background: var(--bg-input); }
+
+.timeline { margin-top: 8px; }
+.tl-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 0.85rem; }
+.tl-lbl { width: 62px; color: var(--text-dim); flex: none; }
+.tl-bar { flex: 1; height: 10px; background: var(--bg-input); border-radius: 5px; overflow: hidden; }
+.tl-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-bright), var(--gold-dark));
+  border-radius: 5px;
+}
+.tl-val { width: 74px; text-align: right; color: var(--text-dim); flex: none; font-variant-numeric: tabular-nums; }
+
 /* --- Modal (model-popup en units-menu in companion mode) --- */
 .modal-overlay {
   position: fixed;
