@@ -1,4 +1,4 @@
-import { phaseLabel, enhancementCategoryLabel } from "./factions.js";
+import { phaseLabel, enhancementCategoryLabel, abilityTagsHtml } from "./factions.js";
 import { effectiveModel, modLabel } from "./enhancements.js";
 import { filterWeapons } from "./weaponoptions.js";
 import { icon } from "./icons.js";
@@ -104,6 +104,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
         <span class="aname">${esc(ab.name)}</span>
         ${ab.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}
         <div class="subtitle">${(ab.phases || []).map((p) => esc(phaseLabel(p))).join(" · ")}</div>
+        ${abilityTagsHtml(ab, esc)}
         <div class="adesc">${esc(ab.description)}</div>
       </div>`));
     }

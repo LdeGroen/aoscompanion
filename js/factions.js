@@ -86,6 +86,25 @@ export function enhancementCategoryLabel(key) {
   return cat ? cat.label : key;
 }
 
+// --- Ability-keywords (uit BSData, zoals Sigdex ze toont) ---
+// Een ability kan getagd zijn met het soort actie dat het is. De **core actions**
+// (Move, Attack, Charge, Shoot, Fight, Retreat, Deploy — en "Core" zelf) krijgen
+// een eigen accent; de rest (Rampage, Spell, Prayer, Unbind, en faction-eigen tags
+// als Blood Tithe of Delusion) is neutraal. Staat op `ability.keywords` (lijst).
+export const CORE_ACTION_KEYWORDS = new Set([
+  "core", "move", "attack", "charge", "shoot", "fight", "retreat", "deploy", "deploy terrain",
+]);
+export const isCoreActionKeyword = (k) => CORE_ACTION_KEYWORDS.has(String(k || "").toLowerCase());
+
+// Chips voor onder een ability: de keywords + eventuele CP-kosten.
+export function abilityTagsHtml(ab, esc = (s) => s) {
+  const parts = (ab?.keywords || []).map(
+    (k) => `<span class="chip kw${isCoreActionKeyword(k) ? " core" : ""}">${esc(k)}</span>`
+  );
+  if (ab?.cpCost) parts.push(`<span class="chip kw cp">${ab.cpCost} CP</span>`);
+  return parts.length ? `<div class="chips ability-tags">${parts.join("")}</div>` : "";
+}
+
 // Groepeert items (models of wrappers daarvan) per model-type, in de volgorde
 // van MODEL_TYPES; alles zonder (bekend) type komt achteraan onder "Zonder type".
 export function groupByType(items, getType = (x) => x.type) {

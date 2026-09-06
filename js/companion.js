@@ -1,4 +1,4 @@
-import { PHASES, AOS_FACTIONS, groupByType, phaseLabel, enhancementCategoryLabel } from "./factions.js";
+import { PHASES, AOS_FACTIONS, groupByType, phaseLabel, enhancementCategoryLabel, abilityTagsHtml } from "./factions.js";
 import { effectiveModel, enhancementSource, migrateModelEnhancements, modLabel } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
@@ -1622,6 +1622,7 @@ export function renderCompanion(ctx) {
       const card = el(`<div class="ability ${typeClass}">
         <div class="owner">${esc(ab.source)}</div>
         <span class="aname">${esc(ab.name)}</span>${costTag}
+        ${abilityTagsHtml(ab, esc)}
         <div class="adesc">${esc(ab.description)}</div>
         <div data-cp></div>
       </div>`);
@@ -1659,6 +1660,7 @@ export function renderCompanion(ctx) {
       <div class="owner">${esc(ab.source)}</div>
       <span class="aname">${esc(ab.name)}</span>${costTag}
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
+      ${abilityTagsHtml(ab, esc)}
       <div class="adesc">${esc(ab.description)}</div>
       <div class="btnrow">
         <button class="small ${used ? "" : "primary"}">${used ? `${icon("undo")} Toch niet gebruikt` : `${icon("zap")} Gebruik (once per battle)`}</button>
