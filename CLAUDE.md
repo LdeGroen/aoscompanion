@@ -391,7 +391,15 @@ laadt dezelfde URL.
   eenduidige correcties door (backup `.bak-broadfix`). ⚠️ Let op bij het interpreteren: veel
   "ontbrekende" units zijn in werkelijkheid **korte namen bij ons** (DB "Dexcessa" vs BSData
   "Dexcessa, the Talon of Slaanesh"); die niet blind hernoemen, want `canTakeInRegiment` matcht
-  named heroes op de exacte naam. BSData bevat ook echte fouten (OBR "Reaper' Blades").
+  named heroes op de exacte naam. BSData bevat ook echte fouten (OBR "Reaper' Blades",
+  HoS "Bestial Onslaughted"/"Blissbrew Homonculus").
+  ⚠️ **Ward is een vals alarm in de audit**: `parse-faction.mjs` leest ward uit een
+  `Ward (X+)`-categoriekeyword, maar BSData modelleert 'm bij veel units anders — Sigdex tóónt de
+  ward wel (Shalaxi Helbane: Control 5 · 5+ · Save 4+). Onze ward-waarden zijn dus correct en moeten
+  **niet** naar BSData "gecorrigeerd" worden. Wat wél echt openstaat: ~10 units met een **verouderd
+  warscroll** bij ons (wapens/abilities veranderd in een nieuwer battletome) — o.a. Skaven Gutter
+  Runners, Sylvaneth Drycha Hamadreth, Cities Sorceress/Dreadlord on Black Dragon, Steam Tank,
+  Neave Blacktalon, HoS Myrmidesh Painbringers.
 - **Paragon-keyword**: warscrolls met het `Paragon`-keyword (Hedonites of Slaanesh) krijgen op hun
   kaartjes een opvallende paarse **Paragon-chip** (`.chip.paragon`) — in de model-popup
   (`modelview.js`), de database-kaart (`drawModels`) en de set-up-roster (`modelRow`). Detectie:
