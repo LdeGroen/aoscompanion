@@ -62,8 +62,17 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
 
+  // `cache: "reload"` slaat de HTTP-cache van de browser/WebView over. Nodig omdat
+  // Cloudflare de bestanden met `max-age=14400` naar de client stuurt (onze eigen
+  // server zegt `no-cache`): zonder dit bleef de Android-app uren op een oude
+  // versie hangen terwijl de webversie al bijgewerkt was.
+  // Alleen voor code en pagina's: afbeeldingen mogen wél uit de HTTP-cache komen,
+  // die veranderen niet en hoeven niet elk potje opnieuw over de lijn.
+  const isCode = e.request.mode === "navigate" || /\.(js|mjs|css|html|webmanifest)$/i.test(url.pathname);
+  const req = isCode ? new Request(e.request, { cache: "reload" }) : e.request;
+
   e.respondWith(
-    fetch(e.request)
+    fetch(req)
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

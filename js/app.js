@@ -424,7 +424,9 @@ function renderAdmin() {
 // ---------- Init ----------
 // Service worker: laat de app offline opstarten (zie sw.js)
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js").catch((e) =>
+  // updateViaCache: "none" — ook sw.js zelf nooit uit de HTTP-cache halen, anders
+  // blijft een oude service worker (en daarmee een oude app) hangen.
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch((e) =>
     console.warn("Service worker registreren mislukt:", e.message)
   );
 }

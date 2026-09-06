@@ -427,15 +427,16 @@ table.scoregrid td.tot { text-align: right; color: var(--gold); white-space: now
 .dmg select { width: 100%; }
 .dmg-row { display: flex; gap: 10px; }
 .dmg-row > span { flex: 1; }
-.dmg-weapon {
+.dmg-weapon { padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.dmg-weapon-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--border);
   flex-wrap: wrap;
 }
+details.dmg-buffs { margin: 6px 0 0 24px; }
+details.dmg-buffs > summary { font-size: 0.85rem; }
 .dmg-check { display: flex; align-items: flex-start; gap: 8px; margin: 0 !important; cursor: pointer; }
 .dmg-check input { margin-top: 3px; flex: none; }
 .dmg-count { color: var(--text-dim); font-size: 0.85rem; white-space: nowrap; }

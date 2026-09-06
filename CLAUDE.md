@@ -775,6 +775,12 @@ synced dus mee binnen een potje.
 ⚠️ Warscrolls bevatten **geen unitgrootte**, dus attacks zijn per model: in de UI staat per
 wapen een `× modellen`-veld (standaard 1). Zolang dat zo is, is het aan de gebruiker.
 
+Buffs staan **per wapen** (`s.buffs[kind|naam]`) — een charge-bonus geldt zelden voor je boog.
+Met "overnemen voor alle wapens" zet je ze in één klik gelijk; alleen de aanpassingen bij het
+doelwit zijn game-breed. ⚠️ `buffsOf()` **vult het bestaande object aan en vervangt het nooit**:
+de steppers en chips houden een verwijzing naar dat object vast, dus een kopie terugzetten
+laat ze in het niets schrijven (die bug zat er even in).
+
 ## Sync-conflicten (waarom je data niet meer verdwijnt)
 Elke `pushData` stuurt `baseUpdatedAt` mee: de serverversie waarop deze client
 voortbouwt. Is de server inmiddels verder, dan antwoordt appsync met **409** plus de
@@ -811,6 +817,21 @@ valkuilen bij het rekenen:
 Legers worden gematcht op **`player.army` (de naam)**, want een record bewaart geen `armyId`.
 Hernoem je een leger, dan splitst zijn historie. Records van vóór dit veld vallen onder
 "Onbekend leger".
+
+## Waarom de telefoon achterliep op de webversie
+Onze eigen server stuurt `Cache-Control: no-cache` (server.mjs), maar **Cloudflare stuurt er
+`max-age=14400` overheen** naar de client (zone-instelling *Browser Cache TTL*). Een WebView
+mag onze js/css dus 4 uur hergebruiken — vandaar dat aos.lucdegroen.nl in de browser al
+bijgewerkt was terwijl de Android-app nog de oude versie draaide.
+
+Van onze kant dichtgezet:
+- `sw.js` haalt code en pagina's op met `cache: "reload"`, wat de HTTP-cache overslaat
+  (afbeeldingen bewust niet — die veranderen niet en kosten data).
+- De service worker wordt geregistreerd met `updateViaCache: "none"`, anders komt `sw.js`
+  zélf uit die cache en blijft een oude worker hangen.
+
+De echte fix zit in het Cloudflare-dashboard: *Caching → Configuration → Browser Cache TTL*
+op **Respect Existing Headers**. Dat kan alleen Luc doen.
 
 ## Ververs-knop (vastzittende cache)
 In de database-topbar zit **Ververs** (`forceRefresh` in database.js). Nodig omdat een

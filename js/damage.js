@@ -1,16 +1,20 @@
 import { effectiveModel } from "./enhancements.js";
 import { filterWeapons } from "./weaponoptions.js";
 import { openModal } from "./modelview.js";
-import { weaponDamage, avgDice, num } from "./damagemath.js";
+import { weaponDamage, num } from "./damagemath.js";
 import { icon } from "./icons.js";
 
 // Gemiddelde-schadecalculator: koppel één van je eigen units aan één unit van je
 // tegenstander en zie hoeveel schade er gemiddeld doorheen komt. Save en ward
 // komen uit het gekozen doelwit, dus die hoef je niet op te zoeken.
 //
-// Het rekenwerk zit in damagemath.js; hier staat alleen de bediening. Keuzes
-// blijven binnen een potje bewaard (`game.dmgCalc`), zodat je na het sluiten van
-// de popup niet alles opnieuw hoeft te zetten.
+// Buffs staan **per wapen** (`s.buffs[wapensleutel]`): een charge-bonus geldt vaak
+// wel voor je klauwen en niet voor je boog. Met "overnemen voor alle wapens" zet je
+// ze alsnog in één klik gelijk. Aanpassingen bij het doelwit gelden logischerwijs
+// wél voor alles.
+//
+// Het rekenwerk zit in damagemath.js; hier staat alleen de bediening. Keuzes blijven
+// binnen een potje bewaard (`game.dmgCalc`).
 
 const STEPPERS = [
   ["hitBonus", "to hit", -2, 3],
@@ -21,14 +25,18 @@ const STEPPERS = [
 ];
 
 const REROLLS = [["none", "geen"], ["ones", "1-en"], ["fails", "alles"]];
-const CRITS = [
-  ["none", "geen"],
-  ["hits2", "2 hits"],
-  ["autowound", "auto-wound"],
-  ["mortal", "mortal"],
-];
+const CRITS = [["none", "geen"], ["hits2", "2 hits"], ["autowound", "auto-wound"], ["mortal", "mortal"]];
 
 const fmt = (n, dec = 2) => (Number.isFinite(n) ? n.toFixed(dec).replace(".", ",") : "–");
+
+const emptyBuffs = () => ({
+  hitBonus: 0, woundBonus: 0, rendBonus: 0, damageBonus: 0, attacksBonus: 0,
+  rerollHits: "none", rerollWounds: "none", crit: "none",
+});
+
+const buffCount = (b) =>
+  STEPPERS.filter(([k]) => b[k] !== 0).length +
+  (b.rerollHits !== "none" ? 1 : 0) + (b.rerollWounds !== "none" ? 1 : 0) + (b.crit !== "none" ? 1 : 0);
 
 function defaults() {
   return {
@@ -36,11 +44,10 @@ function defaults() {
     targetName: "",
     manualSave: "4+",
     manualWard: "",
-    scope: "both",        // ranged | melee | both
-    off: {},              // wapennaam -> uitgezet (true) — standaard staat alles aan
-    counts: {},           // wapennaam -> aantal modellen
-    hitBonus: 0, woundBonus: 0, rendBonus: 0, damageBonus: 0, attacksBonus: 0,
-    rerollHits: "none", rerollWounds: "none", crit: "none",
+    scope: "both",   // ranged | melee | both
+    off: {},         // wapensleutel -> uitgezet (true); standaard staat alles aan
+    counts: {},      // wapensleutel -> aantal modellen
+    buffs: {},       // wapensleutel -> buffs
     saveMod: 0, rerollSaves: "none", noSave: false, wardOverride: "",
   };
 }
@@ -48,9 +55,10 @@ function defaults() {
 export function openDamageCalculator({ army, game, el, esc, saveData }) {
   game.dmgCalc = { ...defaults(), ...(game.dmgCalc || {}) };
   const s = game.dmgCalc;
+  s.buffs = s.buffs || {};
 
-  const myModels = (army.models || []).filter((m) => m.type !== "Manifestation" || true);
-  const enemies = (game.opponent?.models || []);
+  const myModels = army.models || [];
+  const enemies = game.opponent?.models || [];
 
   if (!myModels.length) {
     openModal(el(`<div><h2>Gemiddelde schade</h2><p class="empty">Dit leger heeft nog geen units.</p></div>`), el);
@@ -79,11 +87,6 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
     <label>Wat telt mee</label>
     <div class="chips" data-scope></div>
     <div data-weapons></div>
-
-    <details class="type-group" data-buffs>
-      <summary>Buffs op je unit <span class="count" data-buffcount></span></summary>
-      <div data-buffbody></div>
-    </details>
 
     <details class="type-group" data-def>
       <summary>Aanpassingen bij het doelwit <span class="count" data-defcount></span></summary>
@@ -126,35 +129,47 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
     const M = effectiveModel(army, m).model;
     const ranged = filterWeapons(M.rangedAttacks || [], m).map((w) => ({ ...w, kind: "ranged" }));
     const melee = filterWeapons(M.meleeAttacks || [], m).map((w) => ({ ...w, kind: "melee" }));
-    const all = s.scope === "ranged" ? ranged : s.scope === "melee" ? melee : [...ranged, ...melee];
-    return all;
+    return s.scope === "ranged" ? ranged : s.scope === "melee" ? melee : [...ranged, ...melee];
   }
-  const isOn = (w) => !s.off[w.kind + "|" + w.name];
-  const countOf = (w) => Math.max(1, Number(s.counts[w.kind + "|" + w.name]) || 1);
+  const keyOf = (w) => w.kind + "|" + w.name;
+  const isOn = (w) => !s.off[keyOf(w)];
+  const countOf = (w) => Math.max(1, Number(s.counts[keyOf(w)]) || 1);
+  // Let op: het bestaande object wordt aangevuld, niet vervangen. De steppers en
+  // chips houden een verwijzing naar dít object vast; zetten we er een kopie voor
+  // in de plaats, dan schrijven ze in een losgeraakt object en verandert er niets.
+  const buffsOf = (w) => {
+    const k = keyOf(w);
+    if (!s.buffs[k]) s.buffs[k] = emptyBuffs();
+    else for (const [key, val] of Object.entries(emptyBuffs())) {
+      if (s.buffs[k][key] === undefined) s.buffs[k][key] = val;
+    }
+    return s.buffs[k];
+  };
 
   const persist = () => { try { saveData && saveData(); } catch { /* niet kritiek */ } };
 
   // ---------- bouwstenen ----------
-  function stepper(key, label, min, max, onChange) {
+  function stepper(obj, key, label, min, max, onChange) {
     const box = el(`<span class="dmg-step">
       <button class="small" data-m>−</button>
-      <span class="v" data-v>${s[key] > 0 ? "+" : ""}${s[key]}</span>
+      <span class="v" data-v></span>
       <span class="k">${esc(label)}</span>
       <button class="small" data-p>+</button>
     </span>`);
-    const paint = () => { box.querySelector("[data-v]").textContent = (s[key] > 0 ? "+" : "") + s[key]; };
-    box.querySelector("[data-m]").addEventListener("click", () => { s[key] = Math.max(min, s[key] - 1); paint(); onChange(); });
-    box.querySelector("[data-p]").addEventListener("click", () => { s[key] = Math.min(max, s[key] + 1); paint(); onChange(); });
+    const paint = () => { box.querySelector("[data-v]").textContent = (obj[key] > 0 ? "+" : "") + obj[key]; };
+    paint();
+    box.querySelector("[data-m]").addEventListener("click", () => { obj[key] = Math.max(min, obj[key] - 1); paint(); onChange(); });
+    box.querySelector("[data-p]").addEventListener("click", () => { obj[key] = Math.min(max, obj[key] + 1); paint(); onChange(); });
     return box;
   }
 
-  function picker(key, label, options, onChange) {
+  function picker(obj, key, label, options, onChange) {
     const box = el(`<span class="dmg-pick"><span class="k">${esc(label)}</span><span class="chips" data-opts></span></span>`);
     const opts = box.querySelector("[data-opts]");
     for (const [value, text] of options) {
-      const chip = el(`<button class="chip${s[key] === value ? " active" : ""}">${esc(text)}</button>`);
+      const chip = el(`<button class="chip${obj[key] === value ? " active" : ""}">${esc(text)}</button>`);
       chip.addEventListener("click", () => {
-        s[key] = value;
+        obj[key] = value;
         opts.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
         chip.classList.add("active");
         onChange();
@@ -187,18 +202,26 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
       return;
     }
     for (const w of list) {
-      const key = w.kind + "|" + w.name;
+      const key = keyOf(w);
+      const b = buffsOf(w);
       const row = el(`<div class="dmg-weapon">
-        <label class="dmg-check">
-          <input type="checkbox"${isOn(w) ? " checked" : ""} />
-          <span>
-            <strong>${esc(w.name)}</strong>
-            <span class="chip tag">${w.kind === "ranged" ? "shooting" : "combat"}</span>
-            <div class="subtitle">${esc(w.attacks)} attacks · ${esc(w.toHit)} hit · ${esc(w.toWound)} wound · rend ${esc(String(w.rend ?? 0))} · ${esc(w.damage)} damage</div>
-          </span>
-        </label>
-        <span class="dmg-count">×<input type="number" min="1" max="60" value="${countOf(w)}" /> modellen</span>
+        <div class="dmg-weapon-top">
+          <label class="dmg-check">
+            <input type="checkbox"${isOn(w) ? " checked" : ""} />
+            <span>
+              <strong>${esc(w.name)}</strong>
+              <span class="chip tag">${w.kind === "ranged" ? "shooting" : "combat"}</span>
+              <div class="subtitle">${esc(w.attacks)} attacks · ${esc(w.toHit)} hit · ${esc(w.toWound)} wound · rend ${esc(String(w.rend ?? 0))} · ${esc(w.damage)} damage</div>
+            </span>
+          </label>
+          <span class="dmg-count">×<input type="number" min="1" max="60" value="${countOf(w)}" /> modellen</span>
+        </div>
+        <details class="type-group dmg-buffs">
+          <summary>Buffs op dit wapen <span class="count" data-bc></span></summary>
+          <div data-bb></div>
+        </details>
       </div>`);
+
       row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
         if (e.currentTarget.checked) delete s.off[key]; else s.off[key] = true;
         recalc();
@@ -207,36 +230,38 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
         s.counts[key] = Math.max(1, Number(e.currentTarget.value) || 1);
         recalc();
       });
+
+      const bc = row.querySelector("[data-bc]");
+      const paintCount = () => { bc.textContent = buffCount(b) ? `(${buffCount(b)} aan)` : ""; };
+      paintCount();
+      const onChange = () => { paintCount(); recalc(); };
+
+      const bb = row.querySelector("[data-bb]");
+      const steps = el(`<div class="dmg-steps"></div>`);
+      for (const [k, label, min, max] of STEPPERS) steps.appendChild(stepper(b, k, label, min, max, onChange));
+      bb.appendChild(steps);
+      bb.appendChild(picker(b, "rerollHits", "Hits herwerpen", REROLLS, onChange));
+      bb.appendChild(picker(b, "rerollWounds", "Wounds herwerpen", REROLLS, onChange));
+      bb.appendChild(picker(b, "crit", "Critical hits (ongewijzigde 6)", CRITS, onChange));
+      const copyBtn = el(`<button class="small">${icon("copy")} Overnemen voor alle wapens</button>`);
+      copyBtn.addEventListener("click", () => {
+        for (const other of weapons()) s.buffs[keyOf(other)] = { ...b };
+        drawWeapons();
+        recalc();
+      });
+      bb.appendChild(el(`<div class="btnrow"></div>`)).appendChild(copyBtn);
+
       weaponBox.appendChild(row);
     }
   }
 
-  const buffBody = wrap.querySelector("[data-buffbody]");
-  const stepRow = el(`<div class="dmg-steps"></div>`);
-  for (const [key, label, min, max] of STEPPERS) stepRow.appendChild(stepper(key, label, min, max, () => recalc()));
-  buffBody.appendChild(stepRow);
-  buffBody.appendChild(picker("rerollHits", "Hits herwerpen", REROLLS, () => recalc()));
-  buffBody.appendChild(picker("rerollWounds", "Wounds herwerpen", REROLLS, () => recalc()));
-  buffBody.appendChild(picker("crit", "Critical hits (ongewijzigde 6)", CRITS, () => recalc()));
-  buffBody.appendChild(el(`<p class="subtitle">Crit (2 hits) geeft per 6 een extra hit; crit (mortal) slaat wound én save over, alleen een ward houdt die schade nog tegen.</p>`));
-
   const defBody = wrap.querySelector("[data-defbody]");
   const defSteps = el(`<div class="dmg-steps"></div>`);
-  defSteps.appendChild(stepper("saveMod", "save van het doelwit", -2, 2, () => recalc()));
+  defSteps.appendChild(stepper(s, "saveMod", "save van het doelwit", -2, 2, () => recalc()));
   defBody.appendChild(defSteps);
-  defBody.appendChild(picker("rerollSaves", "Doelwit herwerpt saves", REROLLS, () => recalc()));
-  const wardBox = el(`<span class="dmg-pick"><span class="k">Ward overschrijven</span><span class="chips" data-w></span></span>`);
-  for (const [value, text] of [["", "uit het kaartje"], ["6+", "6+"], ["5+", "5+"], ["4+", "4+"]]) {
-    const chip = el(`<button class="chip${s.wardOverride === value ? " active" : ""}">${esc(text)}</button>`);
-    chip.addEventListener("click", () => {
-      s.wardOverride = value;
-      wardBox.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-      recalc();
-    });
-    wardBox.querySelector("[data-w]").appendChild(chip);
-  }
-  defBody.appendChild(wardBox);
+  defBody.appendChild(picker(s, "rerollSaves", "Doelwit herwerpt saves", REROLLS, () => recalc()));
+  defBody.appendChild(picker(s, "wardOverride", "Ward overschrijven",
+    [["", "uit het kaartje"], ["6+", "6+"], ["5+", "5+"], ["4+", "4+"]], () => recalc()));
   const noSave = el(`<label class="dmg-check"><input type="checkbox"${s.noSave ? " checked" : ""} /><span>Doelwit mag geen save gooien</span></label>`);
   noSave.querySelector("input").addEventListener("change", (e) => { s.noSave = e.currentTarget.checked; recalc(); });
   defBody.appendChild(noSave);
@@ -254,21 +279,12 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
       infoBox.appendChild(el(`<span class="chip tag">Ward ${esc(t.ward || "geen")}</span>`));
       if (t.health) infoBox.appendChild(el(`<span class="chip tag">Health ${esc(String(t.health))}</span>`));
     }
-  }
-
-  // Aantal actieve buffs in de samenvatting van de uitklap, zodat je ziet dat er
-  // iets aanstaat als het paneel dicht is.
-  function paintCounts() {
-    const buffs = STEPPERS.filter(([k]) => s[k] !== 0).length
-      + (s.rerollHits !== "none" ? 1 : 0) + (s.rerollWounds !== "none" ? 1 : 0) + (s.crit !== "none" ? 1 : 0);
     const defs = (s.saveMod !== 0 ? 1 : 0) + (s.rerollSaves !== "none" ? 1 : 0) + (s.noSave ? 1 : 0) + (s.wardOverride ? 1 : 0);
-    wrap.querySelector("[data-buffcount]").textContent = buffs ? `(${buffs} aan)` : "";
     wrap.querySelector("[data-defcount]").textContent = defs ? `(${defs} aan)` : "";
   }
 
   function recalc() {
     drawTargetInfo();
-    paintCounts();
     persist();
 
     const t = target();
@@ -276,15 +292,8 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
     const rows = list.map((w) => ({
       w,
       r: weaponDamage(w, t, {
+        ...buffsOf(w),
         models: countOf(w),
-        attacksBonus: s.attacksBonus,
-        hitBonus: s.hitBonus,
-        woundBonus: s.woundBonus,
-        rendBonus: s.rendBonus,
-        damageBonus: s.damageBonus,
-        rerollHits: s.rerollHits,
-        rerollWounds: s.rerollWounds,
-        crit: s.crit,
         saveMod: s.saveMod,
         rerollSaves: s.rerollSaves,
         noSave: s.noSave,
@@ -317,8 +326,9 @@ export function openDamageCalculator({ army, game, el, esc, saveData }) {
         tb.appendChild(el(`<tr><td>${esc(w.name)}</td><td class="num" colspan="5">staat als tekst op het kaartje — niet te berekenen</td></tr>`));
         continue;
       }
+      const b = buffsOf(w);
       tb.appendChild(el(`<tr>
-        <td>${esc(w.name)}${countOf(w) > 1 ? ` <span class="subtitle">×${countOf(w)}</span>` : ""}</td>
+        <td>${esc(w.name)}${countOf(w) > 1 ? ` <span class="subtitle">×${countOf(w)}</span>` : ""}${buffCount(b) ? ` <span class="chip tag">${buffCount(b)} buff${buffCount(b) === 1 ? "" : "s"}</span>` : ""}</td>
         <td class="num">${fmt(r.attacks, 1)}</td>
         <td class="num">${fmt(r.hits)}</td>
         <td class="num">${fmt(r.wounds)}</td>
