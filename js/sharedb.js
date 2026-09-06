@@ -44,6 +44,21 @@ function saveLocal(faction, db) {
   localStorage.setItem(LOCAL_PREFIX + factionKey(faction), JSON.stringify(db));
 }
 
+// Wist álle lokaal gecachete gedeelde blobs (faction-databases, universal,
+// gamedata, RoR, AoR…). Legerdata blijft staan: die hangt onder een ander
+// prefix (`aoscomp_data_`). Gebruikt door de Ververs-knop in de database.
+export function clearCache() {
+  const keys = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(LOCAL_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+  } catch { /* private mode e.d. */ }
+  return keys.length;
+}
+
 // Laadt de database van een faction. Gooit alleen een Error als er
 // óók geen lokale cache is.
 export async function loadFactionDb(faction) {

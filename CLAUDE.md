@@ -755,6 +755,18 @@ voor "toevoegen aan startscherm". Wijzig je het ontwerp, werk dan al deze varian
 - Het beveiligingsmodel is bewust licht (hobby-app): wie een gebruikersnaam kent, kan bij
   de data van die gebruiker. Geen gevoelige data in legers opslaan dus.
 
+## Ververs-knop (vastzittende cache)
+In de database-topbar zit **Ververs** (`forceRefresh` in database.js). Nodig omdat een
+WebView/browser op een oude versie kan blijven hangen zonder dat de gebruiker die eruit krijgt —
+dat gebeurde in de Android-app na een update (alleen "cache wissen" in de Android-instellingen
+hielp). De knop doet alles in één keer: `saveData()`, `sharedb.clearCache()` (wist alle
+`aoscomp_shared_*`-blobs; legerdata onder `aoscomp_data_*` blijft staan), alle `caches` van de
+service worker legen, `registration.update()`, en dan herladen met een **cache-buster in de URL**
+(`?fresh=<timestamp>`) zodat ook de HTTP-cache van de WebView eraan moet. De sessie blijft staan.
+⚠️ De database-cache zelf is niet het probleem bij normaal gebruik: `loadFactionDb` haalt altijd
+vers op zolang er een backend-token is en valt alleen bij een fout terug op localStorage — dan
+toont het database-scherm ook de "⚠ Offline"-melding.
+
 ## PWA / offline
 `sw.js` (root) cachet de app-shell: **network-first met cache-fallback** voor same-origin
 GET — online dus altijd vers (push = deploy blijft direct zichtbaar), offline start de

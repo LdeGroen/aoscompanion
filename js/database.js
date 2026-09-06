@@ -190,6 +190,29 @@ export function renderDatabase(ctx) {
     window.scrollTo(0, scrollTop ? 0 : y);
   }
 
+  // Alles verversen: de lokaal gecachete databases wissen én de app-shell van de
+  // service worker, daarna herladen. Nodig omdat een WebView/browser anders op een
+  // oude versie kan blijven hangen zonder dat je die eruit krijgt. Legerdata blijft
+  // staan (die hangt onder een ander localStorage-prefix en staat op de server).
+  async function forceRefresh(btn) {
+    if (!confirm("Nieuwste versie ophalen? De app wordt opnieuw geladen; je legers blijven bewaard.")) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = `${icon("refresh")} Verversen…`; }
+    try { saveData(); } catch {}
+    try { sharedb.clearCache(); } catch {}
+    try {
+      if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+    } catch {}
+    try {
+      if (navigator.serviceWorker) {
+        for (const r of await navigator.serviceWorker.getRegistrations()) {
+          try { await r.update(); } catch {}
+        }
+      }
+    } catch {}
+    // Cache-buster in de URL zodat ook de WebView-HTTP-cache eraan moet geloven.
+    location.replace(location.pathname + "?fresh=" + Date.now());
+  }
+
   function drawInner() {
     app.innerHTML = "";
 
@@ -197,12 +220,16 @@ export function renderDatabase(ctx) {
 
     const header = el(`<div class="topbar">
       <span class="title">${icon("book", 18)} Database</span>
-      <button class="small" id="btn-back">${icon("back")} Terug</button>
+      <div style="display:flex;gap:6px">
+        <button class="small" id="btn-refresh" title="Haal de nieuwste versie op (wist de lokale cache)">${icon("refresh")} Ververs</button>
+        <button class="small" id="btn-back">${icon("back")} Terug</button>
+      </div>
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => {
       saveData();
       navigate(backTarget, army ? { armyId: army.id } : {});
     });
+    header.querySelector("#btn-refresh").addEventListener("click", (e) => forceRefresh(e.currentTarget));
     app.appendChild(header);
 
     // Faction-keuze als uitklapbare lijst: klik op een faction = standaard versie;
