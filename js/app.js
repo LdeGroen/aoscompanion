@@ -50,8 +50,33 @@ async function login(name, isAdmin) {
       console.warn("Backend niet bereikbaar, lokale data wordt gebruikt:", e.message);
     }
   }
+  migrateUserData(state.data);
   store.setSession(name, isAdmin);
   navigate("home");
+}
+
+// Naamcorrecties in de gedeelde data doorvoeren in bestaande legers/records,
+// zodat een hernoemde battle tactic z'n koppeling niet verliest.
+const TACTIC_RENAMES = { "Seige of Ashes": "Siege of Ashes" };
+function migrateUserData(data) {
+  if (!data) return;
+  const fix = (n) => TACTIC_RENAMES[n] || n;
+  let changed = false;
+  const fixList = (list) => {
+    for (const t of list || []) {
+      if (t && typeof t === "object" && t.name && fix(t.name) !== t.name) { t.name = fix(t.name); changed = true; }
+    }
+  };
+  for (const army of data.armies || []) {
+    if (Array.isArray(army.battleTactics)) {
+      army.battleTactics = army.battleTactics.map((n) => { if (fix(n) !== n) changed = true; return fix(n); });
+    }
+    fixList(army.game?.tactics);
+    fixList(army.game?.enemyTactics);
+  }
+  for (const rec of data.gameArchive || []) { fixList(rec.tactics); fixList(rec.enemyTactics); }
+  for (const t of data.tournaments || []) for (const g of t.games || []) { fixList(g.game?.tactics); fixList(g.game?.enemyTactics); }
+  if (changed) saveData();
 }
 
 function logout() {
