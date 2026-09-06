@@ -175,7 +175,16 @@ laadt dezelfde URL.
   enhancements), en `subfactionPoints` (op het leger als `army.subfactionPoints`, gevuld vanuit
   de DB-subfaction, bewerkbaar in de set-up) telt apart mee. **Faction terrain kán punten kosten**
   (bijv. Zontari Endrin Dock 20) en telt dus mee op `m.points`; alleen `Manifestation` (en
-  RoR-units, `inRoR`) zijn altijd 0. Geïmporteerd met `ko-import/driver-points.mjs` +
+  RoR-units, `inRoR`) zijn altijd 0.
+  - **Terrein-companions** (`TERRAIN_COMPANIONS` in setup.js): sommige faction terrain-stukken
+    brengen automatisch een warscroll mee die je níét los kunt kiezen — nu **Kharadron Overlords:
+    Zontari Endrin Dock → Auto Endrin**. De companion wordt uit de faction-DB bijgeplaatst met
+    `fromTerrain: true` en `points: 0`, staat ingesprongen onder z'n terrein in de roster, telt
+    niet als auxiliary unit/drop, en verdwijnt zodra het terrein weg is. `pruneTerrainCompanions()`
+    (synchroon, vóór het renderen) ruimt wezen én dubbelen op; `addTerrainCompanions()` (async, met
+    `companionBusy`-vlag tegen dubbele adds bij gelijktijdige renders) plaatst ontbrekende bij —
+    ook voor legers waar het terrein al in stond. `COMPANION_NAMES` filtert ze uit `pickModel`.
+    Lookup gaat via genormaliseerde namen (`COMPANION_MAP`), dus spaties/hoofdletters maken niet uit. Geïmporteerd met `ko-import/driver-points.mjs` +
   `batch-merge-points.mjs` (match op naam; battle formations = de subfaction-namen uit factions.js).
   **Periodieke updates** uit de officiële core Battle Profiles-xlsx (punten + regiment-opties per
   warscroll) gaan via `ko-import/merge-battleprofiles.mjs` (REPORT/LOCAL/prod, backup
@@ -514,6 +523,17 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
 - **Enhancements-knop** (`showEnhancementsMenu`): alle enhancements op je actieve models, gegroepeerd
   per model (via `eff(m).enhancements`), met categorie, stat-mods (`modLabel`) en beschrijving; de
   modelkop is klikbaar naar de popup.
+- **Regiments-knop** (`showRegimentsMenu`, icoon `layers`, naast Units/Einde spel): snel overzicht van
+  wie in welk regiment zit. Groepeert `army.models` op `regimentId` tegen `army.regiments` — het
+  regiment van de general eerst, de leider (`isLeader`) bovenaan met ★ + General-chip, daarna de
+  units; daarna Regiments of Renown (`reg.ror`), Auxiliary units (geen `regimentId`) en Faction
+  terrain (incl. `fromTerrain`-companions). Elke unit is klikbaar naar de model-popup.
+- **Tegenstander-enhancements**: in de battle set-up heeft elke tegenstander-unit een
+  **Enhancements**-knop (`openOpponentEnhPicker`) die de enhancements van hun faction uit de
+  gedeelde DB toont; gekozen enhancements komen als volledig object op `m.enhancements` van het
+  tegenstander-model. In `showOpponentMenu` staan ze als klikbare chips onder de unit (→ `enhDetail`
+  popup met categorie, stat-mods en tekst) en ze verschijnen ook in de model-popup (die leest
+  `model.enhancements` via `effectiveModel`, ongeacht army).
 - **Battleplan-knop** (`showBattleplanMenu`, icoon `map`): toont het battleplan-kaartje (klikbaar
   schermvullend), de twist, de battleplan-abilities en een **scoren-overzicht** (per
   `scoring.variants`: battlerounds + objective-opties met punten, plus liferoot/eindbonus). Leest

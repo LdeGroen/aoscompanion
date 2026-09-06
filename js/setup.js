@@ -64,9 +64,73 @@ export function renderSetup(ctx) {
     const c = JSON.parse(JSON.stringify(m));
     c.id = uid(); c.type = c.type || ""; c.ward = c.ward || "";
     c.enhancements = []; c.reinforced = false; c.regimentId = ""; c.inRoR = false;
-    delete c.enhancementIds; delete c.addedBy; delete c.isLeader; delete c.isGeneral; delete c.fromLore;
+    delete c.enhancementIds; delete c.addedBy; delete c.isLeader; delete c.isGeneral; delete c.fromLore; delete c.fromTerrain;
     return c;
   }
+
+  // Sommige faction terrain-stukken brengen automatisch een extra warscroll mee die
+  // je niet los kunt kiezen (Kharadron Overlords: Zontari Endrin Dock → Auto Endrin).
+  // De companion krijgt `fromTerrain: true`, kost niets en verdwijnt met z'n terrein.
+  const normNm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const TERRAIN_COMPANIONS = { "Zontari Endrin Dock": ["Auto Endrin"] };
+  // Genormaliseerde lookup (naam → companions), zodat spaties/hoofdletters niet uitmaken.
+  const COMPANION_MAP = new Map(Object.entries(TERRAIN_COMPANIONS).map(([k, v]) => [normNm(k), v]));
+  const COMPANION_NAMES = new Set(Object.values(TERRAIN_COMPANIONS).flat().map(normNm));
+  const desiredCompanions = () => {
+    const set = new Set();
+    for (const m of army.models) {
+      const comps = COMPANION_MAP.get(normNm(m.name));
+      if (comps) comps.forEach((c) => set.add(normNm(c)));
+    }
+    return set;
+  };
+  // Synchroon: companions weghalen waarvan het terrein weg is, en dubbelen opruimen.
+  function pruneTerrainCompanions() {
+    const desired = desiredCompanions();
+    const seen = new Set();
+    const before = army.models.length;
+    army.models = army.models.filter((m) => {
+      if (!m.fromTerrain) return true;
+      const n = normNm(m.name);
+      if (!desired.has(n) || seen.has(n)) return false; // terrein weg, of dubbel
+      seen.add(n);
+      return true;
+    });
+    if (army.models.length !== before) saveData();
+  }
+  // Asynchroon: ontbrekende companions uit de database bijplaatsen (na terrein kiezen).
+  // De busy-vlag voorkomt dat gelijktijdige renders er meerdere tegelijk toevoegen.
+  let companionBusy = false;
+  async function addTerrainCompanions() {
+    if (companionBusy) return;
+    const desired = desiredCompanions();
+    const have = new Set(army.models.filter((m) => m.fromTerrain).map((m) => normNm(m.name)));
+    const missing = [...desired].filter((n) => !have.has(n));
+    if (!missing.length) return;
+    companionBusy = true;
+    try {
+      const { db } = await sharedb.loadFactionDb(army.faction);
+      let added = false;
+      for (const n of missing) {
+        const src = (db.models || []).find((m) => normNm(m.name) === n);
+        if (!src) continue;
+        const c = copyForArmy(src);
+        c.fromTerrain = true; c.points = 0;
+        army.models.push(c);
+        added = true;
+      }
+      // Alleen opnieuw tekenen als er echt iets bij kwam (anders blijft dit rondzingen).
+      if (added) { saveData(); rerender(); }
+    } catch { /* offline: volgende keer opnieuw */ }
+    finally { companionBusy = false; }
+  }
+
+  // Oude/rommelige data: rules moeten lijsten zijn. Een blob-veld kan een object
+  // zijn (zie de arr()-guard in database.js) — zonder deze normalisatie crasht de
+  // hele set-up op `rules.forEach is not a function`.
+  const asList = (v) => (Array.isArray(v) ? v : v && typeof v === "object" ? Object.values(v) : []);
+  army.factionRules = asList(army.factionRules);
+  army.subfactionRules = asList(army.subfactionRules);
 
   // Migratie van bestaande legers naar de regiment-structuur (eenmalig)
   army.regiments = army.regiments || [];
@@ -112,7 +176,7 @@ export function renderSetup(ctx) {
       return;
     }
     const draw = (showAll) => {
-      const filtered = models.filter((m) => filter(m) && (showAll || !restrict || restrict(m)));
+      const filtered = models.filter((m) => filter(m) && !COMPANION_NAMES.has(normNm(m.name)) && (showAll || !restrict || restrict(m)));
       body.innerHTML = "";
       if (!filtered.length) { body.appendChild(el(`<p class="empty">${restrict && !showAll ? "Geen units die in dit regiment passen — vink hierboven aan om alles te tonen." : `Niets beschikbaar in de ${esc(army.faction)}-database.`}</p>`)); return; }
       for (const [typeLabel, group] of groupByType(filtered)) {
@@ -288,6 +352,10 @@ export function renderSetup(ctx) {
   }
 
   function renderRoster() {
+    pruneTerrainCompanions();
+    // Ontbrekende terrein-companions bijplaatsen (async → geen re-entrancy tijdens
+    // het renderen); ook voor legers waar het terrein al in stond.
+    addTerrainCompanions();
     const total = totalPoints(), over = total > POINTS_LIMIT;
     const warns = rosterWarnings();
     app.appendChild(el(`<div class="card">
@@ -310,7 +378,7 @@ export function renderSetup(ctx) {
     app.appendChild(addRegCard);
 
     // Auxiliary units (niet in een regiment)
-    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type));
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain);
     const auxCard = el(`<div class="card"><h2>Auxiliary units</h2><div data-list></div><div class="btnrow"><button class="small" data-add>${icon("plus")} Auxiliary unit toevoegen</button></div></div>`);
     const auxList = auxCard.querySelector("[data-list]");
     if (!aux.length) auxList.appendChild(el(`<p class="empty">Geen auxiliary units.</p>`));
@@ -327,11 +395,22 @@ export function renderSetup(ctx) {
     const terCard = el(`<div class="card"><h2>Faction terrain</h2><div data-list></div><div class="btnrow"><button class="small" data-add>${icon("plus")} Faction terrain toevoegen</button></div></div>`);
     const terList = terCard.querySelector("[data-list]");
     if (!terrain.length) terList.appendChild(el(`<p class="empty">Geen faction terrain (gratis, max 1).</p>`));
-    for (const t of terrain) terList.appendChild(modelRow(t, {}));
+    for (const t of terrain) {
+      terList.appendChild(modelRow(t, {}));
+      // Automatisch meegeleverde companions (bv. Auto Endrin) er direct onder tonen.
+      const comps = (COMPANION_MAP.get(normNm(t.name)) || []).map(normNm);
+      for (const c of army.models.filter((x) => x.fromTerrain && comps.includes(normNm(x.name)))) {
+        const crow = el(`<div class="card-header clickable" style="padding:6px 0 6px 18px;border-bottom:1px dashed var(--border)">
+          <span class="subtitle">↳ <strong>${esc(c.name)}</strong> ${c.type ? `<span class="chip tag">${esc(c.type)}</span>` : ""} — hoort bij ${esc(t.name)}</span>
+        </div>`);
+        crow.addEventListener("click", () => openModal(buildModelPopupContent(c, { el, esc, army }), el));
+        terList.appendChild(crow);
+      }
+    }
     terCard.querySelector("[data-add]").addEventListener("click", () => pickModel({
       title: "Faction terrain toevoegen",
       filter: (m) => m.type === "Faction terrain",
-      onPick: (t) => { t.regimentId = ""; army.models.push(t); },
+      onPick: (t) => { t.regimentId = ""; army.models.push(t); addTerrainCompanions(); },
     }));
     app.appendChild(terCard);
 
@@ -772,7 +851,7 @@ export function renderSetup(ctx) {
   // ===================== Lijst exporteren =====================
   function dropCount() {
     const regs = army.regiments.length; // elk regiment + RoR = 1 drop
-    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type)).length;
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain).length;
     return regs + aux;
   }
   function unitExportLines(m) {
@@ -809,7 +888,7 @@ export function renderSetup(ctx) {
       for (const m of ordered) L.push(...unitExportLines(m));
     }
     // Auxiliary units
-    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type));
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain);
     if (aux.length) { L.push(""); L.push("Auxiliary Units"); for (const m of aux) L.push(...unitExportLines(m)); }
     // Regiments of Renown
     for (const reg of army.regiments.filter((r) => r.ror)) {

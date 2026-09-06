@@ -356,15 +356,17 @@ export function renderCompanion(ctx) {
     const omList = omCard.querySelector("[data-list]");
     if (!opp.models.length) omList.appendChild(el(`<p class="empty">Nog geen models toegevoegd.</p>`));
     for (const m of opp.models) {
-      const row = el(`<div class="card-header clickable" style="padding:6px 0;border-bottom:1px dashed var(--border)">
-        <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
-        <button class="danger small">✕</button>
+      const enhN = (m.enhancements || []).length;
+      const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <span class="clickable"><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}${enhN ? ` <span class="chip tag">${icon("star")} ${enhN}</span>` : ""}</span>
+        <span style="display:flex;gap:6px;flex-shrink:0">
+          <button class="small" data-enh>${icon("star")} Enhancements${enhN ? ` (${enhN})` : ""}</button>
+          <button class="danger small" data-del>✕</button>
+        </span>
       </div>`);
-      row.addEventListener("click", (e) => {
-        if (e.target.closest("button")) return;
-        openModal(buildModelPopupContent(m, { el, esc }), el);
-      });
-      row.querySelector("button").addEventListener("click", () => {
+      row.querySelector(".clickable").addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
+      row.querySelector("[data-enh]").addEventListener("click", () => openOpponentEnhPicker(m));
+      row.querySelector("[data-del]").addEventListener("click", () => {
         opp.models = opp.models.filter((x) => x !== m);
         saveData();
         rerender();
@@ -515,6 +517,58 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Regiments-menu: snel overzicht van welke units in welk regiment zitten.
+  function showRegimentsMenu() {
+    const wrap = el(`<div><h2>${icon("layers")} Regiments</h2>
+      <p class="subtitle">Wie zit in welk regiment. Klik op een unit voor het kaartje.</p>
+      <div data-body></div></div>`);
+    const body = wrap.querySelector("[data-body]");
+    const regs = army.regiments || [];
+
+    const unitRow = (m, leader = false) => {
+      const row = el(`<div class="card-header clickable" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+        <span>${leader ? icon("star") + " " : ""}<strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.reinforced ? ' <span class="chip tag">Reinforced</span>' : ""}</span>
+        <span class="subtitle">${esc(m.type || "")}</span>
+      </div>`);
+      makeClickable(row, m);
+      return row;
+    };
+    const regCard = (title, models, titleIcon = "") => {
+      const card = el(`<div class="card inner"><h3>${titleIcon}${esc(title)}</h3><div data-u></div></div>`);
+      const u = card.querySelector("[data-u]");
+      if (!models.length) u.appendChild(el(`<p class="empty">Leeg.</p>`));
+      for (const [m, isL] of models) u.appendChild(unitRow(m, isL));
+      body.appendChild(card);
+    };
+
+    const general = army.models.find((m) => m.isGeneral);
+    const generalRid = general ? general.regimentId : null;
+    const ordered = regs.filter((r) => !r.ror)
+      .sort((a, b) => (a.id === generalRid ? -1 : 0) - (b.id === generalRid ? -1 : 0));
+    for (const reg of ordered) {
+      const inReg = army.models.filter((m) => m.regimentId === reg.id);
+      const leader = inReg.find((m) => m.isLeader);
+      const rest = inReg.filter((m) => !m.isLeader);
+      regCard(leader ? leader.name : "Regiment", [
+        ...(leader ? [[leader, true]] : []),
+        ...rest.map((m) => [m, false]),
+      ]);
+    }
+    for (const reg of regs.filter((r) => r.ror)) {
+      const inReg = army.models.filter((m) => m.regimentId === reg.id);
+      regCard(reg.ror?.name || "Regiment of Renown", inReg.map((m) => [m, false]), icon("star") + " ");
+    }
+    const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && m.type !== "Faction terrain" && m.type !== "Manifestation" && !m.fromTerrain);
+    if (aux.length) regCard("Auxiliary units", aux.map((m) => [m, false]));
+    const terrain = army.models.filter((m) => m.type === "Faction terrain" || m.fromTerrain);
+    if (terrain.length) regCard("Faction terrain", terrain.map((m) => [m, false]));
+
+    if (!body.children.length) {
+      body.appendChild(el(`<p class="empty">Geen regiments ingedeeld. Deel je leger in bij de set-up.</p>`));
+    }
+    openModal(wrap, el);
+  }
+
   // Spells-menu: altijd je spell-/prayer-/manifestation lore + de spells van je models.
   function showSpellsMenu() {
     const wrap = el(`<div><h2>${icon("zap")} Spells & lores</h2><div data-body></div></div>`);
@@ -624,12 +678,22 @@ export function renderCompanion(ctx) {
       list.appendChild(el(`<p class="empty">Geen models toegevoegd voor je tegenstander. Dat doe je in de battle set-up (bij een nieuw potje).</p>`));
     }
     for (const m of models) {
-      const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+      const row = el(`<div class="card-header clickable" style="padding:8px 0 6px">
         <span><strong>${esc(m.name)}</strong>${m.type ? ` <span class="chip tag">${esc(m.type)}</span>` : ""}</span>
         <span class="subtitle">Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}</span>
       </div>`);
       row.addEventListener("click", () => openModal(buildModelPopupContent(m, { el, esc }), el));
       list.appendChild(row);
+      // Enhancements op deze unit (klikbaar voor de tekst)
+      const enhs = m.enhancements || [];
+      const enhWrap = el(`<div class="chips" style="padding:0 0 8px;border-bottom:1px dashed var(--border);margin-bottom:2px"></div>`);
+      for (const enh of enhs) {
+        const chip = el(`<span class="chip tag clickable">${icon("star")} ${esc(enh.name)}</span>`);
+        chip.addEventListener("click", () => openModal(enhDetail(enh), el));
+        enhWrap.appendChild(chip);
+      }
+      if (enhs.length) list.appendChild(enhWrap);
+      else row.style.borderBottom = "1px dashed var(--border)";
     }
 
     // Faction- en subfaction rules van de tegenstander (uit de gedeelde database)
@@ -727,6 +791,61 @@ export function renderCompanion(ctx) {
     openModal(wrap, el);
   }
 
+  // Detail-popup van één enhancement (naam, categorie, stat-mods, tekst).
+  function enhDetail(enh) {
+    const mods = (enh.statMods || []).map(modLabel).join(", ");
+    return el(`<div>
+      <h2>${icon("star")} ${esc(enh.name)}</h2>
+      <p class="subtitle">${esc(enhancementCategoryLabel(enh.category))}</p>
+      ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
+      <div class="adesc" style="white-space:pre-line;margin-top:8px">${esc(enh.description || "")}</div>
+    </div>`);
+  }
+
+  // Picker (battle set-up): enhancements van de tegenstander-faction op een unit
+  // zetten, zodat je tijdens het spel een beeld hebt van hun hele army.
+  async function openOpponentEnhPicker(m) {
+    const opp = game.opponent;
+    let enhs = [];
+    try {
+      const { db } = await sharedb.loadFactionDb(opp.faction);
+      enhs = db.enhancements || [];
+    } catch (e) {
+      alert("Database niet beschikbaar: " + e.message);
+      return;
+    }
+    m.enhancements = m.enhancements || [];
+    const wrap = el(`<div><h2>Enhancements — ${esc(m.name)}</h2>
+      <p class="subtitle">Kies wat je tegenstander op deze unit heeft. Klik op een naam voor de tekst.</p>
+      <div data-list></div></div>`);
+    const list = wrap.querySelector("[data-list]");
+    if (!enhs.length) list.appendChild(el(`<p class="empty">Geen enhancements in de ${esc(opp.faction)}-database.</p>`));
+    const has = (e) => m.enhancements.some((x) => x.name.toLowerCase() === e.name.toLowerCase());
+    const draw = () => {
+      list.innerHTML = "";
+      for (const enh of enhs) {
+        const on = has(enh);
+        const row = el(`<div class="card-header" style="padding:6px 0;border-bottom:1px dashed var(--border)">
+          <span class="clickable"><strong>${esc(enh.name)}</strong> <span class="asrc">— ${esc(enhancementCategoryLabel(enh.category))}</span></span>
+          <button class="small ${on ? "danger" : "primary"}"></button>
+        </div>`);
+        row.querySelector(".clickable").addEventListener("click", () => openModal(enhDetail(enh), el));
+        const btn = row.querySelector("button");
+        btn.innerHTML = on ? `${icon("trash")} Weg` : `${icon("plus")} Kies`;
+        btn.addEventListener("click", () => {
+          if (on) m.enhancements = m.enhancements.filter((x) => x.name.toLowerCase() !== enh.name.toLowerCase());
+          else { const c = JSON.parse(JSON.stringify(enh)); delete c.addedBy; m.enhancements.push(c); }
+          saveData();
+          draw();
+          rerender();
+        });
+        list.appendChild(row);
+      }
+    };
+    draw();
+    openModal(wrap, el);
+  }
+
   // De belangrijkste actieknop (volgende phase / start ronde) altijd in beeld,
   // optioneel met een terugknop ernaast (terug in phases/beurten/battlerounds).
   function bottomBar(btn, prevBtn = null) {
@@ -761,6 +880,7 @@ export function renderCompanion(ctx) {
         <button class="small" id="btn-rules">${icon("book")} Rules</button>
         <button class="small" id="btn-enh">${icon("star")} Enhancements</button>
         <button class="small" id="btn-units">${icon("users")} Units</button>
+        <button class="small" id="btn-regiments">${icon("layers")} Regiments</button>
         <button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>
         <button class="small" id="btn-home">${icon("back")} Legers</button>
       </div>
@@ -774,6 +894,7 @@ export function renderCompanion(ctx) {
     bar.querySelector("#btn-rules").addEventListener("click", showRulesMenu);
     bar.querySelector("#btn-enh").addEventListener("click", showEnhancementsMenu);
     bar.querySelector("#btn-units").addEventListener("click", showUnitsMenu);
+    bar.querySelector("#btn-regiments").addEventListener("click", showRegimentsMenu);
     bar.querySelector("#btn-home").addEventListener("click", () => { saveData(); goBack(); });
     bar.querySelector("#btn-endgame").addEventListener("click", () => {
       if (confirm("Spel beëindigen? De spelstatus wordt gewist.")) {
