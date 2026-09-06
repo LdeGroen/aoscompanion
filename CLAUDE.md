@@ -70,10 +70,19 @@ laadt dezelfde URL.
   - **Companion deployment-fase** (`renderDeployment`): toont het battleplan-kaartje (klikbaar →
     schermvullend via `.bp-card`/`.bp-card-full`), de twist en alle battleplan-regels. Tijdens het
     spel verschijnen de abilities in hun eigen phase (via `collectAbilities`).
-  - De **6 General's Handbook battle tactics** (Blazing Onslaught, Seige of Ashes, Flanking
+  - De **6 General's Handbook battle tactics** (Blazing Onslaught, Siege of Ashes, Flanking
     Firestorm, Smokescreen, Burning Vengeance, Legend of the Parch) hebben elk 3 stappen met
     een eigen naam (`Affray: …` / `Strike: …` / `Domination: …`, elk 5 VP) + beschrijving;
     geïmporteerd met `ko-import/seed-ghb-tactics.mjs` (vervangt `gamedata.tactics`).
+    ⚠️ **De GHB-data is niet tegen BSData/Sigdex te controleren**: BSData kent alleen "General's
+    Handbook 2024-25", terwijl wij op 2026-27 zitten (geen fury/rage, geen Into the Fire e.d.).
+    De **battleplan-namen** zijn wél verifieerbaar tegen de kaartjes in `cards/battleplans/*.jpg`
+    (die staan als afbeelding in de repo); de twist/scoring-teksten staan daar niet op.
+    `ko-import/audit-ghb.mjs` doet een interne kwaliteitscheck (typefouten, mojibake, afgekapte
+    tekst, gaten in het scoreschema) en `fix-ghb.mjs` voert correcties door. Zo is "Seige of
+    Ashes" → "Siege of Ashes" rechtgezet (met `migrateUserData` in app.js die de naam ook in
+    bestaande legers/archief/toernooien bijtrekt) en zijn de "Keywords:"-regels van de seasonal
+    rules naar het gestructureerde `keywords`-veld verplaatst.
   - **General's Handbook-sectie in de database**: pseudo-faction `GHB_VIEW` ("❖ General's
     Handbook") onderaan de factionlijst (naast RoR) toont **battle tactics, battleplans en
     seasonal rules** met bewerk-/toevoeg-knoppen (admin). `drawGeneralsHandbook` →
@@ -271,6 +280,18 @@ laadt dezelfde URL.
   Modi: `REPORT=1` (dry), `LOCAL=1` (login op :3100), of op de Pi `node seed-soa.mjs` (token uit
   db.json, backup `.bak-soa-content`). Prod-seed = alleen de batch-json's + `seed-soa.mjs` naar
   `/tmp/soa3` scp'en, daar draaien, verifiëren via de live API, opruimen.
+  - **SoA is compleet en geverifieerd tegen BSData** (de bron die Sigdex toont — sigdex.io zegt
+    zelf "It only displays data from BSData"). BSData tagt SoA-content met de publicatie
+    **`9e18-bb03-7b60-d4ff`** ("Scourge of Aqshy"), maar **inconsistent**: warscrolls herken je
+    betrouwbaarder aan het naam-achtervoegsel "(Scourge of Aqshy)", enhancement-groepen aan de
+    publicationId. `ko-import/audit-soa.mjs` (veld-voor-veld diff) en `audit-soa-complete.mjs`
+    (compleetheid) doen die vergelijking; `seed-soa-missing.mjs` vulde de gaten aan.
+    De 23 PDF-batches misten **Lumineth Realm-lords** en **Daughters of Khaine** (2 warscrolls +
+    6 enhancements elk) — die zijn uit BSData bijgeplaatst. ⚠️ BSData heeft **geen punten voor
+    SoA-enhancements**: die van Lumineth/DoK staan daarom op 0 en moeten nog uit de Battle
+    Profiles-xlsx komen. Twee namen zijn gelijkgetrokken met BSData ("Kurnoth Hunters with
+    **Kurnoth** Greatswords", "Infernal Enrapturess**, Herald of Slaanesh**"). Let op: BSData
+    bevat ook echte fouten (OBR "Reaper**'** Blades" mist een s) — niet blind overnemen.
 - **Nieuw battletome voor een BSData-faction** (bijv. Ogor Mawtribes, Aug 2026): als BSData
   (`age-of-sigmar-4th`) het nieuwe boek al heeft, ververs je de hele faction-blob met
   `ko-import/refresh-ogor.mjs` (kopieerbaar sjabloon per faction: zet de `FACTION`-constante).
