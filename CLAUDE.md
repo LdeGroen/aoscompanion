@@ -381,6 +381,17 @@ laadt dezelfde URL.
   (Mist-clad Revellers, The Accursed Reflection) uit het boek zijn met `driver-hos-aor.mjs`
   resp. `driver-hos-ror.mjs` in de `armiesofrenown`/`regimentsofrenown`-blobs gezet (roster-opties
   → unit-lijst via keywords; RoR-punten staan niet in het boek → 0, handmatig aan te vullen).
+- **Warhammer Legends**: units die BSData tagt met de publicatie **`9dee-a6b2-4b42-bfee`**
+  ("Warhammer Legends") krijgen `model.legends = true` en een rode **Legends-chip** in de
+  model-popup, de database-kaart, de set-up-roster én de unit-picker (zoals Sigdex ze badget).
+  Ze zijn niet legaal in matched play. Gezet door `ko-import/fix-broad.mjs` (54 units).
+- **Brede data-audit tegen BSData**: `ko-import/audit-all.mjs` vergelijkt de hele gedeelde database
+  met BSData (units, punten, stats, wapens, abilities, keywords, enhancements, faction rules,
+  battle formations, Legends) en schrijft `/tmp/audit-all-out.json`; `fix-broad.mjs` voert de
+  eenduidige correcties door (backup `.bak-broadfix`). ⚠️ Let op bij het interpreteren: veel
+  "ontbrekende" units zijn in werkelijkheid **korte namen bij ons** (DB "Dexcessa" vs BSData
+  "Dexcessa, the Talon of Slaanesh"); die niet blind hernoemen, want `canTakeInRegiment` matcht
+  named heroes op de exacte naam. BSData bevat ook echte fouten (OBR "Reaper' Blades").
 - **Paragon-keyword**: warscrolls met het `Paragon`-keyword (Hedonites of Slaanesh) krijgen op hun
   kaartjes een opvallende paarse **Paragon-chip** (`.chip.paragon`) — in de model-popup
   (`modelview.js`), de database-kaart (`drawModels`) en de set-up-roster (`modelRow`). Detectie:

@@ -186,6 +186,12 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
 .chip.kw.core { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); font-weight: 600; }
 .chip.kw.cp { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); font-weight: 600; }
 
+/* Warhammer Legends: unit is naar Legends verplaatst (niet in matched play) */
+.chip.legends {
+  cursor: default; background: #f0e2e0; color: #8a3a2f; border-color: #d8b3ad;
+  font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+}
+
 /* Paragon-keyword (Hedonites of Slaanesh) — duidelijk zichtbaar op kaartjes */
 .chip.paragon { cursor: default; background: #6a1f6a; border-color: #c060c0; color: #fff; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .chip.paragon svg { width: 13px; height: 13px; }

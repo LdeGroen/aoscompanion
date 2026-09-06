@@ -803,7 +803,7 @@ export function renderDatabase(ctx) {
           <div>
             <h3>${esc(m.name)}</h3>
             <div class="subtitle">Move ${esc(m.move)} · Health ${esc(m.health)} · Control ${esc(m.control)} · Save ${esc(m.save)}${m.ward ? " · Ward " + esc(m.ward) : ""}${m.banishment ? " · Banish " + esc(m.banishment) : ""}</div>
-            ${(tags.length || isParagon) ? `<div class="chips">${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+            ${(tags.length || isParagon || m.legends) ? `<div class="chips">${m.legends ? '<span class="chip legends">Legends</span>' : ""}${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
             <div class="muted-list">${(m.rangedAttacks || []).length} ranged · ${(m.meleeAttacks || []).length} melee · ${(m.abilities || []).length} abilities · ${ownerLabel(m)}</div>
           </div>
         </div>

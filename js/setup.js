@@ -184,7 +184,7 @@ export function renderSetup(ctx) {
         const items = det.querySelector("[data-items]");
         for (const m of group) {
           const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}</span>
+            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}</span>
             <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
           </div>`);
           row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
@@ -257,7 +257,7 @@ export function renderSetup(ctx) {
     const isManif = m.type === "Manifestation", isTerrain = m.type === "Faction terrain";
     const card = el(`<div class="card inner clickable" style="margin:6px 0">
       <div class="card-header"><div>
-        <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
+        <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
         <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}${hasWeaponOptions(m) && loadoutSummary(m) ? ` · ${esc(loadoutSummary(m))}` : ""}</div>
       </div></div>
       <div class="btnrow" data-actions></div>
