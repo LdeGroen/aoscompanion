@@ -393,6 +393,15 @@ laadt dezelfde URL.
   "Dexcessa, the Talon of Slaanesh"); die niet blind hernoemen, want `canTakeInRegiment` matcht
   named heroes op de exacte naam. BSData bevat ook echte fouten (OBR "Reaper' Blades",
   HoS "Bestial Onslaughted"/"Blissbrew Homonculus").
+  **Korte namen zijn inmiddels gelijkgetrokken** met `ko-import/rename-shortnames.mjs` (8 stuks:
+  Dexcessa, Sigvald, Synessa, Syll'Esske, Glutos Orscollion, Infernal Enrapturess, Brokk Grungsson,
+  Skragrott) — het script plakt alléén het BSData-achtervoegsel achter ónze schrijfwijze, zodat
+  bv. de krullende apostrof in "Syll’Esske" behouden blijft, en slaat SoG/SoA-varianten over.
+  Daarvóór is `canTakeInRegiment` (+ de AoR-unitfilters in setup.js/database.js) tolerant gemaakt
+  via `nameAlias()`, dat ook op het deel vóór de komma vergelijkt — anders breken regiment-opties
+  die de korte vorm gebruiken. ⚠️ **Hernoemen kan duplicaten maken** als de volledige naam al
+  bestond; `ko-import/dedupe-models.mjs` ruimt dubbele warscrolls op (houdt de versie die het best
+  bij BSData past) en vond ook al langer bestaande dubbelen (Trugg, Kragnos).
   ⚠️ **Ward is een vals alarm in de audit**: `parse-faction.mjs` leest ward uit een
   `Ward (X+)`-categoriekeyword, maar BSData modelleert 'm bij veel units anders — Sigdex tóónt de
   ward wel (Shalaxi Helbane: Control 5 · 5+ · Save 4+). Onze ward-waarden zijn dus correct en moeten
