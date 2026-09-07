@@ -479,6 +479,17 @@ details.dmg-buffs > summary { font-size: 0.85rem; }
   font-size: 0.9rem;
 }
 .listsnap-row:last-child { border-bottom: none; }
+.listsnap-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 2px;
+  font-family: Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: var(--gold);
+}
+.listsnap-group:first-child { margin-top: 4px; }
 .listsnap-row svg { vertical-align: -2px; color: var(--gold); }
 .listsnap-pts { color: var(--gold); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .listsnap-diff {

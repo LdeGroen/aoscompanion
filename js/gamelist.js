@@ -1,4 +1,5 @@
 import { icon } from "./icons.js";
+import { loadoutSummary } from "./weaponoptions.js";
 
 // Momentopname van de legerlijst zoals die in één game gespeeld werd. Een leger
 // blijft dezelfde naam houden terwijl de lijst zich ontwikkelt, dus zonder zo'n
@@ -22,8 +23,59 @@ function unitEntry(m) {
     reinforced: !!m.reinforced,
     general: !!m.isGeneral,
     inRoR: !!m.inRoR,
+    loadout: loadoutSummary(m) || "",
     enhancements: (m.enhancements || []).map((e) => e.name).filter(Boolean).sort(),
   };
+}
+
+// De lijst opgedeeld zoals je hem exporteert: General's Regiment eerst, dan de
+// overige regiments, Auxiliary Units, Regiments of Renown en Faction Terrain.
+// Zo lees je in het archief precies wat er op tafel stond.
+function buildGroups(army) {
+  const models = army.models || [];
+  const groups = [];
+  const generalRid = (models.find((m) => m.isGeneral) || {}).regimentId;
+  const regs = (army.regiments || [])
+    .filter((r) => !r.ror)
+    .sort((a, b) => (a.id === generalRid ? -1 : 0) - (b.id === generalRid ? -1 : 0));
+
+  let regNo = 0;
+  for (const reg of regs) {
+    const inReg = models.filter((m) => m.regimentId === reg.id);
+    if (!inReg.length) continue;
+    const ordered = [...inReg.filter((m) => m.isLeader), ...inReg.filter((m) => !m.isLeader)];
+    groups.push({
+      title: reg.id === generalRid ? "General's Regiment" : `Regiment ${++regNo}`,
+      units: ordered.map(unitEntry),
+    });
+  }
+
+  const aux = models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain);
+  if (aux.length) groups.push({ title: "Auxiliary Units", units: aux.map(unitEntry) });
+
+  for (const reg of (army.regiments || []).filter((r) => r.ror)) {
+    groups.push({
+      title: "Regiment of Renown",
+      ror: { name: reg.ror.name || "", points: parseInt(reg.ror.points) || 0 },
+      units: models.filter((m) => m.regimentId === reg.id).map(unitEntry),
+    });
+  }
+
+  const terrain = models.filter((m) => m.type === "Faction terrain");
+  if (terrain.length) groups.push({ title: "Faction Terrain", units: terrain.map(unitEntry) });
+
+  const manifest = models.filter((m) => m.type === "Manifestation");
+  if (manifest.length) groups.push({ title: "Manifestations", units: manifest.map(unitEntry) });
+
+  return groups;
+}
+
+// Aantal drops, net als in de export: elk regiment (incl. RoR) plus elke losse
+// auxiliary unit.
+function dropCount(army) {
+  const models = army.models || [];
+  const aux = models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain).length;
+  return (army.regiments || []).length + aux;
 }
 
 export function buildListSnapshot(army) {
@@ -43,7 +95,10 @@ export function buildListSnapshot(army) {
     army: army.name || "",
     faction: army.faction || "",
     subfaction: army.subfaction || "",
+    formation: army.aor || army.subfaction || "",
+    drops: dropCount(army),
     points,
+    groups: buildGroups(army),
     units,
     ror,
     lores: {
@@ -62,7 +117,7 @@ export function buildListSnapshot(army) {
 export function fingerprint(snap) {
   if (!snap) return "";
   const units = (snap.units || [])
-    .map((u) => [u.name, u.points, u.reinforced ? "R" : "", u.general ? "G" : "", (u.enhancements || []).join("+")].join("~"))
+    .map((u) => [u.name, u.points, u.reinforced ? "R" : "", u.general ? "G" : "", (u.enhancements || []).join("+"), u.loadout || ""].join("~"))
     .sort()
     .join("|");
   const ror = (snap.ror || []).map((r) => r.name).sort().join("|");
@@ -86,6 +141,7 @@ export function diffLists(oldSnap, newSnap) {
     const notes = [];
     if (prev.reinforced !== u.reinforced) notes.push(u.reinforced ? "reinforced" : "niet meer reinforced");
     if (prev.general !== u.general) notes.push(u.general ? "nu general" : "niet meer general");
+    if ((prev.loadout || "") !== (u.loadout || "")) notes.push(`wapens: ${prev.loadout || "standaard"} → ${u.loadout || "standaard"}`);
     const gone = prev.enhancements.filter((e) => !u.enhancements.includes(e));
     const got = u.enhancements.filter((e) => !prev.enhancements.includes(e));
     for (const e of got) notes.push(`+ ${e}`);
@@ -110,25 +166,45 @@ export function diffLists(oldSnap, newSnap) {
 export const hasChanges = (d) => !!(d && (d.added.length || d.removed.length || d.changed.length || d.meta.length));
 
 // ---------- weergave (gedeeld door archief en statistieken) ----------
+// Zelfde indeling als "Lijst exporteren" in de set-up: per regiment, met de leider
+// bovenaan en de details eronder. Oudere momentopnames hebben nog geen `groups`;
+// die vallen terug op één platte lijst.
 export function listBlock(snap, { el, esc }) {
   const wrap = el(`<div class="listsnap"></div>`);
   if (!snap) {
     wrap.appendChild(el(`<p class="empty">Bij deze game is de lijst nog niet vastgelegd (van vóór die feature).</p>`));
     return wrap;
   }
-  wrap.appendChild(el(`<p class="subtitle">${esc(snap.faction)}${snap.subfaction ? " — " + esc(snap.subfaction) : ""} · ${snap.points} punten</p>`));
-  const paid = (snap.units || []).filter((u) => !FREE_TYPES.has(u.type));
-  const free = (snap.units || []).filter((u) => FREE_TYPES.has(u.type));
-  const row = (u) => el(`<div class="listsnap-row">
-    <span>${u.general ? icon("star") + " " : ""}${esc(u.name)}${u.reinforced ? ' <span class="chip tag">reinforced</span>' : ""}${u.inRoR ? ' <span class="chip tag">RoR</span>' : ""}
-      ${(u.enhancements || []).length ? `<div class="subtitle">${esc(u.enhancements.join(", "))}</div>` : ""}</span>
-    <span class="listsnap-pts">${u.points || ""}</span>
-  </div>`);
-  for (const u of paid) wrap.appendChild(row(u));
-  for (const r of snap.ror || []) {
-    wrap.appendChild(el(`<div class="listsnap-row"><span>${icon("star")} ${esc(r.name)} <span class="chip tag">RoR</span></span><span class="listsnap-pts">${r.points}</span></div>`));
+
+  const head = [snap.faction, snap.formation || snap.subfaction].filter(Boolean).map(esc).join(" — ");
+  wrap.appendChild(el(`<p class="subtitle">${head}${head ? " · " : ""}${snap.points} punten${snap.drops ? ` · ${snap.drops} drops` : ""}</p>`));
+
+  const unitRow = (u) => {
+    const bits = [];
+    if (u.general) bits.push("General");
+    if (u.reinforced) bits.push("Reinforced");
+    for (const e of u.enhancements || []) bits.push(e);
+    if (u.loadout) bits.push(u.loadout);
+    return el(`<div class="listsnap-row">
+      <span>${u.general ? icon("star") + " " : ""}${esc(u.name)}
+        ${bits.length ? `<div class="subtitle">${bits.map(esc).join(" · ")}</div>` : ""}</span>
+      <span class="listsnap-pts">${u.points || ""}</span>
+    </div>`);
+  };
+
+  if ((snap.groups || []).length) {
+    for (const g of snap.groups) {
+      wrap.appendChild(el(`<div class="listsnap-group">${esc(g.title)}${g.ror ? ` — ${esc(g.ror.name)} <span class="listsnap-pts">${g.ror.points}</span>` : ""}</div>`));
+      for (const u of g.units || []) wrap.appendChild(unitRow(u));
+    }
+  } else {
+    // Oud formaat: geen regiment-indeling bekend.
+    for (const u of snap.units || []) wrap.appendChild(unitRow(u));
+    for (const r of snap.ror || []) {
+      wrap.appendChild(el(`<div class="listsnap-row"><span>${icon("star")} ${esc(r.name)} <span class="chip tag">RoR</span></span><span class="listsnap-pts">${r.points}</span></div>`));
+    }
   }
-  for (const u of free) wrap.appendChild(row(u));
+
   const l = snap.lores || {};
   const lores = [["Spell lore", l.spell], ["Manifestation lore", l.manifestation], ["Prayer lore", l.prayer]].filter(([, v]) => v);
   if (lores.length) {

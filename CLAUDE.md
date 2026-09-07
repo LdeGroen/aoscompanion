@@ -808,6 +808,12 @@ enhancements, reinforced, general, RoR-vlag), Regiments of Renown, subfaction, l
 totaal — met dezelfde puntenregels als `totalPoints()` in setup.js (manifestaties en
 RoR-units 0, faction terrain wél).
 
+De weergave volgt **"Lijst exporteren"** uit de set-up: `snap.groups` bevat General's
+Regiment, genummerde regiments, Auxiliary Units, Regiment of Renown, Faction Terrain en
+Manifestations, met de leider bovenaan en general/reinforced/enhancements/wapenkeuze eronder
+— plus het aantal drops. Momentopnames van vóór dit formaat hebben geen `groups` en vallen
+terug op één platte lijst; opnieuw vastleggen zet ze om.
+
 `fingerprint()` maakt er een vergelijkbare tekst van (**op inhoud, niet op datum**), zodat
 opeenvolgende games met dezelfde lijst als één *versie* tellen. `diffLists()` geeft
 toegevoegd / weggehaald / gewijzigd (reinforced, general, enhancements) plus meta-regels
