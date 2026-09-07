@@ -468,6 +468,29 @@ details.dmg-buffs > summary { font-size: 0.85rem; }
 .dmg-total .k { display: block; font-size: 0.85rem; color: var(--text-dim); }
 .dmg-total .sub { display: block; margin-top: 4px; font-size: 0.85rem; color: var(--gold-dark); }
 
+/* --- Lijst-momentopname (archief + statistieken) --- */
+.listsnap { margin-top: 6px; }
+.listsnap-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.9rem;
+}
+.listsnap-row:last-child { border-bottom: none; }
+.listsnap-row svg { vertical-align: -2px; color: var(--gold); }
+.listsnap-pts { color: var(--gold); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.listsnap-diff {
+  padding: 5px 0 5px 10px;
+  border-left: 3px solid var(--border-strong);
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+.listsnap-diff.plus { border-left-color: var(--green); }
+.listsnap-diff.minus { border-left-color: var(--red); }
+.listsnap-diff.change { border-left-color: var(--gold); }
+
 /* --- Statistieken: tabellen en tijdlijn --- */
 /* Brede tabellen mogen zijwaarts scrollen in plaats van de pagina op te rekken. */
 table.statgrid {

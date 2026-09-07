@@ -1,6 +1,7 @@
 import { calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
+import { buildListSnapshot } from "./gamelist.js";
 
 // Scorekaart van een afgeronde game: opbouw van het game-record (voor het
 // archief), het samenvattingsscherm, en export als tekst of PNG-afbeelding
@@ -20,6 +21,9 @@ export function buildGameRecord(army, game, playerName) {
       subfaction: game.opponent?.subfaction || "",
     },
     battleplan: game.battleplan?.name || "",
+    // Momentopname van de lijst: een leger houdt zijn naam maar de lijst ontwikkelt
+    // zich, dus zonder dit is achteraf niet te zien wat je toen speelde.
+    list: buildListSnapshot(army),
     rounds: ROUNDS.map((r) => ({
       round: r,
       player: s.player.perRound[r] || 0,

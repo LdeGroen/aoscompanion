@@ -1,5 +1,6 @@
 import { buildScoreSummary, buildExportButtons, resultLabel, recomputeTotals } from "./scorecard.js";
 import { icon } from "./icons.js";
+import { listBlock, diffBlock, diffLists, hasChanges } from "./gamelist.js";
 
 // Archief: afgeronde games (scorekaarten) teruglezen, delen, bewerken of verwijderen.
 // Records staan in state.data.gameArchive en syncen mee met de userdata.
@@ -42,6 +43,7 @@ export function renderArchive(ctx) {
       });
       app.appendChild(actions);
       app.appendChild(buildExportButtons(detail, { el }));
+      app.appendChild(listSection(detail));
       const delBtn = el(`<div class="btnrow"><button class="danger small">${icon("trash")} Verwijder uit archief</button></div>`);
       delBtn.querySelector("button").addEventListener("click", () => {
         if (!confirm("Deze game uit het archief verwijderen?")) return;
@@ -81,6 +83,38 @@ export function renderArchive(ctx) {
       for (const rec of grp.recs) box.appendChild(recCard(rec));
       app.appendChild(det);
     }
+  }
+
+  // De lijst zoals die in deze game gespeeld werd, plus wat er veranderd is ten
+  // opzichte van de vorige game met hetzelfde leger.
+  function listSection(rec) {
+    const wrap = el(`<div class="card">
+      <h3>${icon("list", 18)} De lijst van deze game</h3>
+      <div data-list></div>
+      <div data-diff></div>
+    </div>`);
+    wrap.querySelector("[data-list]").appendChild(listBlock(rec.list, { el, esc }));
+
+    const prev = previousGameOf(rec);
+    const diffBox = wrap.querySelector("[data-diff]");
+    if (rec.list && prev && prev.list) {
+      const d = diffLists(prev.list, rec.list);
+      diffBox.appendChild(el(`<h3 style="margin-top:12px">${hasChanges(d) ? "Veranderd t.o.v. de vorige game" : "Ongewijzigd"}</h3>`));
+      diffBox.appendChild(el(`<p class="subtitle">Vorige game met ${esc(rec.player?.army || "dit leger")}: ${fmtDate(prev.date)} tegen ${esc(prev.opponent?.name || "?")}.</p>`));
+      diffBox.appendChild(diffBlock(d, { el, esc }));
+    } else if (rec.list && prev && !prev.list) {
+      diffBox.appendChild(el(`<p class="subtitle">Van de vorige game met dit leger is de lijst niet vastgelegd, dus er valt niets te vergelijken.</p>`));
+    }
+    return wrap;
+  }
+
+  // De game daarvóór met hetzelfde leger (op naam, want records dragen geen armyId).
+  function previousGameOf(rec) {
+    const army = rec.player?.army || "";
+    return [...state.data.gameArchive]
+      .filter((r) => (r.player?.army || "") === army && String(r.date) < String(rec.date))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+      .pop() || null;
   }
 
   function recCard(rec) {

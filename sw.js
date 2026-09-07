@@ -28,6 +28,7 @@ const SHELL = [
   "js/editors.js",
   "js/enhancements.js",
   "js/factions.js",
+  "js/gamelist.js",
   "js/icons.js",
   "js/modelview.js",
   "js/scorecard.js",

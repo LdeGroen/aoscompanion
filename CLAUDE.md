@@ -801,6 +801,28 @@ verouderde geheugen over de server heen; twee gearchiveerde games en een leger v
 Teruggehaald uit `~/backups/pi-backup-*.tar.gz` op de Pi — die dagelijkse tarball bevat
 `appsync/data/db.json`, en appsync zelf houdt géén versiegeschiedenis bij.
 
+## Lijst-momentopname per game (`js/gamelist.js`)
+Een leger houdt zijn naam terwijl de lijst zich ontwikkelt, dus `buildGameRecord` legt sinds
+07-09-2026 in **`rec.list`** vast wat er die game op tafel stond: units (punten incl.
+enhancements, reinforced, general, RoR-vlag), Regiments of Renown, subfaction, lores en het
+totaal — met dezelfde puntenregels als `totalPoints()` in setup.js (manifestaties en
+RoR-units 0, faction terrain wél).
+
+`fingerprint()` maakt er een vergelijkbare tekst van (**op inhoud, niet op datum**), zodat
+opeenvolgende games met dezelfde lijst als één *versie* tellen. `diffLists()` geeft
+toegevoegd / weggehaald / gewijzigd (reinforced, general, enhancements) plus meta-regels
+(subfaction, lores, RoR, punten). `listBlock`/`diffBlock` zijn de gedeelde weergave.
+
+Gebruikt op twee plekken:
+- **Archief-detail**: de lijst van die game + wat er veranderde t.o.v. de vórige game met
+  hetzelfde leger (gezocht op `player.army`, want records dragen geen armyId — zie de
+  waarschuwing bij Statistieken).
+- **Statistieken** (alleen met een legerfilter): versies met periode en W-G-V per versie, wat
+  er tussen de versies veranderde, en een tabel per unit. ⚠️ Die unit-tabel zegt hoe je games
+  liepen mét die unit in de lijst — niet wat de unit zelf presteerde.
+
+Games van vóór deze feature hebben geen `list` en worden overal netjes overgeslagen.
+
 ## Statistieken (`js/stats.js`)
 Eigen scherm (`navigate("stats")`, knop in de home-topbar) dat **live** uit
 `state.data.gameArchive` rekent — er wordt niets opgeslagen of gecachet. Toernooigames

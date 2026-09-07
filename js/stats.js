@@ -1,6 +1,7 @@
 import { TACTIC_STEP_POINTS } from "./battleplans.js";
 import { resultLabel } from "./scorecard.js";
 import { icon } from "./icons.js";
+import { diffLists, hasChanges } from "./gamelist.js";
 
 // Statistieken over alle gearchiveerde games (losse potjes én toernooigames).
 // Alles wordt live uit state.data.gameArchive gerekend; er wordt niets opgeslagen.
@@ -76,6 +77,7 @@ export function renderStats(ctx) {
     app.appendChild(battleplanCard(recs));
     app.appendChild(opponentCard(recs));
     if (!armyFilter) app.appendChild(armyCard(recs));
+    app.appendChild(listCard(recs));
     app.appendChild(funCard(recs));
     app.appendChild(timelineCard(recs));
   }
@@ -375,6 +377,83 @@ export function renderStats(ctx) {
       inner += `<p class="subtitle">Zwaarste nederlaag: <strong>${worstGame.totals.player}–${worstGame.totals.enemy}</strong> tegen ${esc(worstGame.opponent?.name || "?")} (${esc(worstGame.opponent?.faction || "?")}) met ${esc(armyOf(worstGame))}.</p>`;
     }
     return section(`${icon("skull", 18)} Losse weetjes`, inner);
+  }
+
+
+  // ---------- lijst-ontwikkeling ----------
+  // Een leger houdt zijn naam terwijl de lijst verandert. Records dragen sinds
+  // september 2026 een momentopname mee (rec.list); games van daarvoor missen die
+  // en tellen hier dus niet mee.
+  function listCard(recs) {
+    if (!armyFilter) {
+      return section(`${icon("list", 18)} Lijst-ontwikkeling`,
+        `<p class="subtitle">Kies hierboven een leger om te zien hoe die lijst zich ontwikkeld heeft en wat elke versie opleverde.</p>`);
+    }
+    const withList = [...recs].filter((r) => r.list).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (!withList.length) {
+      return section(`${icon("list", 18)} Lijst-ontwikkeling`,
+        `<p class="subtitle">Van deze games is de lijst nog niet vastgelegd. Dat gebeurt vanaf nu automatisch bij elke game die je uitspeelt.</p>`);
+    }
+
+    // Opeenvolgende games met dezelfde lijst horen bij één versie.
+    const versions = [];
+    for (const rec of withList) {
+      const last = versions[versions.length - 1];
+      if (last && last.fingerprint === rec.list.fingerprint) last.recs.push(rec);
+      else versions.push({ fingerprint: rec.list.fingerprint, list: rec.list, recs: [rec] });
+    }
+
+    let inner = statBlocks([
+      ["lijstversies", versions.length],
+      ["games met lijst", withList.length],
+      ["punten nu", versions[versions.length - 1].list.points],
+      ["units nu", (versions[versions.length - 1].list.units || []).length],
+    ]);
+
+    inner += table(["Versie", "Periode", "Games", "W-G-V", "Winst%", "Punten"],
+      versions.map((v, i) => {
+        const r = record(v.recs);
+        const from = new Date(v.recs[0].date).toLocaleDateString("nl-NL");
+        const to = new Date(v.recs[v.recs.length - 1].date).toLocaleDateString("nl-NL");
+        return [`v${i + 1}`, esc(from === to ? from : `${from} – ${to}`), v.recs.length, `${r.w}-${r.d}-${r.l}`, r.rate, v.list.points];
+      }));
+
+    // Wat er per nieuwe versie veranderd is.
+    const changes = [];
+    for (let i = 1; i < versions.length; i++) {
+      const d = diffLists(versions[i - 1].list, versions[i].list);
+      if (!hasChanges(d)) continue;
+      const bits = [
+        ...d.added.map((u) => `+ ${u.name}`),
+        ...d.removed.map((u) => `− ${u.name}`),
+        ...d.changed.map((c) => `${c.name}: ${c.notes.join(", ")}`),
+        ...d.meta,
+      ];
+      changes.push(`<div class="listsnap-diff change"><strong>v${i} → v${i + 1}</strong>: ${esc(bits.join(" · "))}</div>`);
+    }
+    if (changes.length) inner += `<h3 style="margin-top:12px">Wat er veranderde</h3>${changes.join("")}`;
+
+    // Per unit: hoe vaak stond hij in de lijst en wat leverden die games op?
+    const per = new Map();
+    for (const rec of withList) {
+      for (const u of rec.list.units || []) {
+        if (!per.has(u.name)) per.set(u.name, []);
+        per.get(u.name).push(rec);
+      }
+    }
+    const rows = [...per.entries()]
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+      .map(([name, set]) => {
+        const r = record(set);
+        return [esc(name), set.length, `${r.w}-${r.d}-${r.l}`, r.rate, fmt(avg(set.map((x) => x.totals.player - x.totals.enemy)))];
+      });
+    inner += `<h3 style="margin-top:12px">Per unit</h3>`;
+    inner += table(["Unit", "Games", "W-G-V", "Winst%", "Gem. saldo"], rows);
+    inner += `<p class="subtitle">Let op: dit zegt hoe je games liepen mét die unit in de lijst, niet wat die unit zelf deed.</p>`;
+    if (withList.length < recs.length) {
+      inner += `<p class="subtitle">${recs.length - withList.length} game(s) zonder vastgelegde lijst tellen hier niet mee.</p>`;
+    }
+    return section(`${icon("list", 18)} Lijst-ontwikkeling`, inner);
   }
 
   // ---------- 9. tijdlijn ----------
