@@ -823,8 +823,9 @@ Gebruikt op twee plekken:
 
 **Een toernooi = één lijst.** `tournament.list` wordt vastgelegd zodra je de eerste
 toernooigame start (in companion, bij `host.set(newGame())`) en elke game van dat toernooi
-krijgt hém mee — ook als je het leger er tussendoor in bewerkt. Zolang er nog niets gespeeld
-is, kun je hem op de toernooipagina opnieuw vastleggen; daarna staat de knop op "vastgezet".
+krijgt hém mee — ook als je het leger er tussendoor in bewerkt. Op de toernooipagina kun je hem
+**altijd** (opnieuw) vastleggen — ook halverwege een lopend toernooi; al gearchiveerde games
+van dat toernooi worden dan meteen bijgetrokken, zodat ze dezelfde lijst tonen.
 In het archief heet het blok dan "De lijst van dit toernooi", en de vergelijking slaat games
 uit hetzelfde toernooi over (die delen per definitie dezelfde lijst) en kijkt naar wat je
 vóór het toernooi speelde.

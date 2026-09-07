@@ -198,12 +198,14 @@ export function renderTournament(ctx) {
   }
 
   // Eén toernooi = één lijst. Die wordt vastgelegd zodra je de eerste game start
-  // en gaat mee naar het archief bij elke game van dit toernooi. Zolang er nog
-  // niets gespeeld is, kun je hem hier (opnieuw) vastleggen — handig als je de
-  // lijst nog aan het schaven bent.
+  // en gaat mee naar het archief bij elke game van dit toernooi. Je kunt hem hier
+  // altijd (opnieuw) vastleggen — ook bij een lopend toernooi, bijvoorbeeld als de
+  // games al openstonden voordat deze functie bestond. Zijn er al games
+  // gearchiveerd, dan worden die records meteen bijgewerkt, zodat alle games van
+  // het toernooi dezelfde lijst tonen.
   function listCard(t) {
-    const played = (t.games || []).some((g) => g.done);
     const army = state.data.armies.find((a) => a.id === t.armyId) || null;
+    const archived = (t.games || []).filter((g) => g.archivedId).length;
     const card = el(`<div class="card">
       <div class="card-header">
         <h3 style="margin:0">${icon("list", 18)} Toernooilijst</h3>
@@ -218,21 +220,34 @@ export function renderTournament(ctx) {
       body.appendChild(listBlock(t.list, { el, esc }));
       body.appendChild(el(`<p class="subtitle">Deze lijst hangt aan alle games van dit toernooi in het archief.</p>`));
     } else {
-      body.appendChild(el(`<p class="empty">Nog niet vastgelegd — dat gebeurt vanzelf zodra je de eerste game start.</p>`));
+      body.appendChild(el(`<p class="empty">Nog niet vastgelegd — leg hem hier vast, of start een game dan gebeurt het vanzelf.</p>`));
     }
 
-    if (army && !played) {
-      const btn = el(`<button class="small">${icon(t.list ? "refresh" : "check")} ${t.list ? "Opnieuw vastleggen" : "Nu vastleggen"}</button>`);
-      btn.addEventListener("click", () => {
-        if (t.list && !confirm("De lijst van dit toernooi vervangen door de huidige lijst van je leger?")) return;
-        t.list = buildListSnapshot(army);
-        saveData();
-        draw();
-      });
-      actions.appendChild(btn);
-    } else if (played) {
-      actions.appendChild(el(`<span class="subtitle">Vastgezet — er is al gespeeld</span>`));
+    if (!army) {
+      body.appendChild(el(`<p class="subtitle">Het leger van dit toernooi bestaat niet meer, dus er valt niets (opnieuw) vast te leggen.</p>`));
+      return card;
     }
+
+    const btn = el(`<button class="small">${icon(t.list ? "refresh" : "check")} ${t.list ? "Opnieuw vastleggen" : "Nu vastleggen"}</button>`);
+    btn.addEventListener("click", () => {
+      const vraag = t.list
+        ? `De lijst van dit toernooi vervangen door de huidige lijst van ${army.name}?`
+        : `De huidige lijst van ${army.name} vastleggen als toernooilijst?`;
+      const extra = archived ? `
+
+De ${archived} al gearchiveerde game(s) van dit toernooi krijgen deze lijst ook.` : "";
+      if (!confirm(vraag + extra)) return;
+      t.list = buildListSnapshot(army);
+      // Al gearchiveerde games meteen gelijktrekken.
+      for (const g of t.games || []) {
+        if (!g.archivedId) continue;
+        const rec = (state.data.gameArchive || []).find((r) => r.id === g.archivedId);
+        if (rec) rec.list = t.list;
+      }
+      saveData();
+      draw();
+    });
+    actions.appendChild(btn);
     return card;
   }
 
