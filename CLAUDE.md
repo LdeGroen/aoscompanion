@@ -836,7 +836,12 @@ In het archief heet het blok dan "De lijst van dit toernooi", en de vergelijking
 uit hetzelfde toernooi over (die delen per definitie dezelfde lijst) en kijkt naar wat je
 vóór het toernooi speelde.
 
-Games van vóór deze feature hebben geen `list` en worden overal netjes overgeslagen.
+Games van vóór deze feature hebben geen `list` en worden overal netjes overgeslagen. In het
+archief-detail kun je er alsnog één aan hangen (`listPicker` in archive.js): de **huidige**
+lijst van een van je legers, of dezelfde lijst als een andere gearchiveerde game — die tweede
+is bedoeld voor een reeks potjes met dezelfde lijst, en houdt de vingerafdruk gelijk zodat ze
+in de statistieken één versie vormen. Een verkeerd gekozen lijst is daar ook weer te
+vervangen of weg te halen.
 
 ## Statistieken (`js/stats.js`)
 Eigen scherm (`navigate("stats")`, knop in de home-topbar) dat **live** uit

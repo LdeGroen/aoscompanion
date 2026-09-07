@@ -177,7 +177,7 @@ export function listBlock(snap, { el, esc }) {
   }
 
   const head = [snap.faction, snap.formation || snap.subfaction].filter(Boolean).map(esc).join(" — ");
-  wrap.appendChild(el(`<p class="subtitle">${head}${head ? " · " : ""}${snap.points} punten${snap.drops ? ` · ${snap.drops} drops` : ""}</p>`));
+  wrap.appendChild(el(`<p class="subtitle">${head}${head ? " · " : ""}${snap.points} punten${snap.drops ? ` · ${snap.drops} drop${snap.drops === 1 ? "" : "s"}` : ""}</p>`));
 
   const unitRow = (u) => {
     const bits = [];

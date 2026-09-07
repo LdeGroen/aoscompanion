@@ -1,6 +1,6 @@
 import { buildScoreSummary, buildExportButtons, resultLabel, recomputeTotals } from "./scorecard.js";
 import { icon } from "./icons.js";
-import { listBlock, diffBlock, diffLists, hasChanges } from "./gamelist.js";
+import { listBlock, diffBlock, diffLists, hasChanges, buildListSnapshot } from "./gamelist.js";
 
 // Archief: afgeronde games (scorekaarten) teruglezen, delen, bewerken of verwijderen.
 // Records staan in state.data.gameArchive en syncen mee met de userdata.
@@ -96,6 +96,7 @@ export function renderArchive(ctx) {
       <div data-diff></div>
     </div>`);
     wrap.querySelector("[data-list]").appendChild(listBlock(rec.list, { el, esc }));
+    wrap.appendChild(listPicker(rec));
 
     const prev = previousGameOf(rec);
     const diffBox = wrap.querySelector("[data-diff]");
@@ -108,6 +109,87 @@ export function renderArchive(ctx) {
       diffBox.appendChild(el(`<p class="subtitle">Van de vorige game met dit leger is de lijst niet vastgelegd, dus er valt niets te vergelijken.</p>`));
     }
     return wrap;
+  }
+
+  // Games van vóór deze feature (of een game waarvan de lijst niet klopt) alsnog een
+  // lijst geven: de huidige lijst van een van je legers, of dezelfde lijst als een
+  // andere game in het archief — handig als je een reeks potjes met dezelfde lijst
+  // hebt gespeeld.
+  function listPicker(rec) {
+    const box = el(`<div data-picker></div>`);
+    const armies = state.data.armies || [];
+    const others = (state.data.gameArchive || [])
+      .filter((r) => r.id !== rec.id && r.list)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+    if (!armies.length && !others.length) {
+      if (!rec.list) box.appendChild(el(`<p class="subtitle">Er is nog geen leger of eerdere lijst om er een aan te hangen.</p>`));
+      return box;
+    }
+
+    let open = false;
+    function draw2() {
+      box.innerHTML = "";
+      if (!open) {
+        const btn = el(`<button class="small" style="margin-top:10px">${icon(rec.list ? "edit" : "plus")} ${rec.list ? "Lijst aanpassen" : "Lijst toevoegen"}</button>`);
+        btn.addEventListener("click", () => { open = true; draw2(); });
+        box.appendChild(btn);
+        return;
+      }
+
+      const form = el(`<div class="card inner" style="margin-top:10px">
+        <label>Welke lijst hoort bij deze game?</label>
+        <select data-src></select>
+        <p class="subtitle">Van een leger wordt de lijst genomen zoals die er <em>nu</em> uitziet — heb je hem sindsdien aangepast, kies dan een game die wel klopt.</p>
+        <div class="btnrow">
+          <button class="primary small" data-save>${icon("check")} Vastleggen</button>
+          <button class="small" data-cancel>Annuleren</button>
+          ${rec.list ? `<button class="danger small" data-clear>${icon("trash")} Lijst weghalen</button>` : ""}
+        </div>
+      </div>`);
+      const sel = form.querySelector("[data-src]");
+      sel.appendChild(el(`<option value="">— kies —</option>`));
+      if (armies.length) {
+        const grp = el(`<optgroup label="Huidige lijst van een leger"></optgroup>`);
+        for (const a of armies) grp.appendChild(el(`<option value="army:${esc(a.id)}">${esc(a.name || "(naamloos)")}</option>`));
+        sel.appendChild(grp);
+      }
+      if (others.length) {
+        const grp = el(`<optgroup label="Zelfde lijst als een andere game"></optgroup>`);
+        for (const r of others.slice(0, 40)) {
+          grp.appendChild(el(`<option value="rec:${esc(r.id)}">${fmtDate(r.date)} — ${esc(r.player?.army || "?")} tegen ${esc(r.opponent?.name || "?")}${r.tournamentName ? " (" + esc(r.tournamentName) + ")" : ""}</option>`));
+        }
+        sel.appendChild(grp);
+      }
+
+      form.querySelector("[data-cancel]").addEventListener("click", () => { open = false; draw2(); });
+      const clearBtn = form.querySelector("[data-clear]");
+      if (clearBtn) clearBtn.addEventListener("click", () => {
+        if (!confirm("De vastgelegde lijst van deze game weghalen?")) return;
+        delete rec.list;
+        saveData();
+        draw();
+      });
+      form.querySelector("[data-save]").addEventListener("click", () => {
+        const v = sel.value;
+        if (!v) return;
+        let list = null;
+        if (v.startsWith("army:")) {
+          const army = armies.find((a) => a.id === v.slice(5));
+          if (army) list = buildListSnapshot(army);
+        } else {
+          const src = others.find((r) => r.id === v.slice(4));
+          if (src) list = JSON.parse(JSON.stringify(src.list));
+        }
+        if (!list) return;
+        rec.list = list;
+        saveData();
+        draw();
+      });
+      box.appendChild(form);
+    }
+    draw2();
+    return box;
   }
 
   // De game daarvóór met hetzelfde leger (op naam, want records dragen geen armyId).
