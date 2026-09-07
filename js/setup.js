@@ -223,7 +223,11 @@ export function renderSetup(ctx) {
       if (reg.ror) continue; // RoR is een vaste warband
       const inReg = army.models.filter((m) => m.regimentId === reg.id);
       const leader = inReg.find((m) => m.isLeader);
-      if (!leader) { w.push("Een regiment heeft geen hero als leider."); continue; }
+      if (!leader) {
+        const namen = inReg.map((m) => m.name).join(", ");
+        w.push(`Een regiment heeft geen hero als leider${namen ? ` (met ${namen})` : " (leeg)"}.`);
+        continue;
+      }
       if (!isHero(leader)) w.push(`Leider van een regiment is geen hero: ${leader.name}.`);
       const heroes = inReg.filter((m) => !m.isLeader && isHero(m));
       if (heroes.length > 1) w.push(`Regiment ${leader.name}: meer dan 1 extra hero.`);
@@ -283,13 +287,12 @@ export function renderSetup(ctx) {
     if (!m.inRoR) addBtn(`${icon("edit")} Personaliseren`, "", () => personalizeModel(m));
     if (leader) addBtn(`★ ${m.isGeneral ? "General" : "Maak general"}`, m.isGeneral ? "primary" : "", () => { army.models.forEach((x) => { x.isGeneral = false; }); m.isGeneral = true; saveData(); rerender(); });
     addBtn(icon("trash"), "danger", () => {
-      if (leader) {
-        if (!confirm("Leider verwijderen? Het hele regiment (met units) wordt verwijderd.")) return;
-        army.models = army.models.filter((x) => x.regimentId !== m.regimentId);
-        army.regiments = army.regiments.filter((r) => r.id !== m.regimentId);
-      } else {
-        army.models = army.models.filter((x) => x.id !== m.id);
-      }
+      // Een leider weghalen laat het regiment staan: je wisselt vaak alleen van hero.
+      // Zolang er geen nieuwe leider is, waarschuwt de roster erover (rosterWarnings)
+      // en biedt de regimentskaart "Leider kiezen" aan. Het hele regiment weghalen
+      // doe je met de knop op de regimentskaart zelf.
+      if (leader && !confirm(`${m.name} uit dit regiment verwijderen? Het regiment en de units blijven staan — kies daarna een nieuwe leider.`)) return;
+      army.models = army.models.filter((x) => x.id !== m.id);
       saveData(); rerender();
     });
     return card;
@@ -302,11 +305,36 @@ export function renderSetup(ctx) {
     const units = inReg.filter((m) => !m.isLeader);
     const regPts = inReg.reduce((s, m) => s + pointsOf(m), 0);
     const card = el(`<div class="card">
-      <div class="card-header"><h3>${icon("shield")} ${leader ? esc(leader.name) : "Regiment"}</h3><span class="subtitle">${regPts} pts</span></div>
+      <div class="card-header"><h3>${icon("shield")} ${leader ? esc(leader.name) : "Regiment zonder leider"}</h3><span class="subtitle">${regPts} pts</span></div>
       <div data-leader></div><div data-units></div>
-      <div class="btnrow"><button class="small" data-add>${icon("plus")} Unit toevoegen</button></div>
+      <div class="btnrow">
+        <button class="small" data-add>${icon("plus")} Unit toevoegen</button>
+        ${leader ? "" : `<button class="primary small" data-lead>${icon("shield")} Leider kiezen</button>`}
+        <button class="danger small" data-delreg>${icon("trash")} Regiment verwijderen</button>
+      </div>
     </div>`);
     if (leader) card.querySelector("[data-leader]").appendChild(modelRow(leader, { leader: true }));
+    else card.querySelector("[data-leader]").appendChild(el(`<p class="warn">Dit regiment heeft geen hero als leider. Kies er een, of haal het regiment weg.</p>`));
+
+    const leadBtn = card.querySelector("[data-lead]");
+    if (leadBtn) leadBtn.addEventListener("click", () => pickModel({
+      title: "Leider kiezen",
+      filter: (m) => isHero(m),
+      onPick: (h) => {
+        h.regimentId = reg.id;
+        h.isLeader = true;
+        if (!army.models.some((x) => x.isGeneral)) h.isGeneral = true;
+        army.models.push(h);
+      },
+    }));
+
+    card.querySelector("[data-delreg]").addEventListener("click", () => {
+      const n = inReg.length;
+      if (!confirm(`Het hele regiment verwijderen${n ? ` — inclusief ${n} unit${n === 1 ? "" : "s"}` : ""}?`)) return;
+      army.models = army.models.filter((x) => x.regimentId !== reg.id);
+      army.regiments = army.regiments.filter((r) => r.id !== reg.id);
+      saveData(); rerender();
+    });
     const uwrap = card.querySelector("[data-units]");
     if (!units.length) uwrap.appendChild(el(`<p class="empty">Nog geen units in dit regiment.</p>`));
     for (const u of units) uwrap.appendChild(modelRow(u, {}));

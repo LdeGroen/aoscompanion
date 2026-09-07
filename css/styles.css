@@ -468,6 +468,17 @@ details.dmg-buffs > summary { font-size: 0.85rem; }
 .dmg-total .k { display: block; font-size: 0.85rem; color: var(--text-dim); }
 .dmg-total .sub { display: block; margin-top: 4px; font-size: 0.85rem; color: var(--gold-dark); }
 
+/* Inline waarschuwing in de set-up (bijv. regiment zonder leider) */
+.warn {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--red);
+  background: rgba(192, 57, 43, 0.07);
+  color: var(--red);
+  font-size: 0.9rem;
+}
+
 /* --- Lijst-momentopname (archief + statistieken) --- */
 .listsnap { margin-top: 6px; }
 .listsnap-row {

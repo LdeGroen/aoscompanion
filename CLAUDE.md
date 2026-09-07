@@ -168,6 +168,13 @@ laadt dezelfde URL.
   (gesorteerd op `generalRid`), daaronder de overige gewone regiments, dan Auxiliary units,
   Faction terrain en als laatste de Regiments of Renown. **Max 1 RoR**: `addRoR` weigert een
   tweede (alert) en de toevoeg-knop verdwijnt zodra er één RoR in het leger zit.
+- **Leider van een regiment weghalen**: de prullenbak bij een leider verwijdert **alleen die
+  hero**; het regiment en zijn units blijven staan (je wisselt vaak alleen van hero). Zo'n
+  regiment heet dan "Regiment zonder leider", toont een inline waarschuwing plus een knop
+  **Leider kiezen** (picker gefilterd op heroes), en `rosterWarnings()` meldt het met de units
+  erbij. Het hele regiment weg doe je met **Regiment verwijderen** op de regimentskaart.
+  `canTakeInRegiment(undefined, unit)` staat alles toe, dus units toevoegen blijft werken
+  zolang er geen leider is.
 - **Regiment-opties** (welke units een hero in zijn regiment mag): geïmporteerd uit BSData
   (Battle-Profiles-sectie van de faction-`.cat`: `modifier add/category/force` → `affects`-id
   → keyword óf specifieke named unit). Per warscroll opgeslagen als `regimentOptions:
