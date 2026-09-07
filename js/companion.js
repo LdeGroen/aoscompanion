@@ -7,6 +7,7 @@ import * as sharedb from "./sharedb.js";
 import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { openDamageCalculator } from "./damage.js";
+import { buildListSnapshot } from "./gamelist.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -44,6 +45,10 @@ export function renderCompanion(ctx) {
 
   if (!host.get()) {
     host.set(newGame());
+    // Een toernooi speel je met één lijst. Die leggen we vast zodra de eerste game
+    // begint — dát is de lijst waarmee je het toernooi in gaat — en elke game van
+    // dit toernooi krijgt hem mee, ook als je het leger er later nog in bewerkt.
+    if (isTournament && !tournament.list) tournament.list = buildListSnapshot(army);
     saveData();
   }
   const game = host.get();
@@ -1188,6 +1193,10 @@ export function renderCompanion(ctx) {
           rec.tournamentId = tournament.id;
           rec.tournamentName = tournament.name;
           rec.gameLabel = tgame.name;
+          // De toernooilijst wint van de lijst-van-nu, zodat alle games van één
+          // toernooi dezelfde lijst tonen.
+          if (!tournament.list) tournament.list = rec.list;
+          else rec.list = tournament.list;
         }
         state.data.gameArchive.push(rec);
         game.archivedId = rec.id;

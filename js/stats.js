@@ -415,7 +415,12 @@ export function renderStats(ctx) {
         const r = record(v.recs);
         const from = new Date(v.recs[0].date).toLocaleDateString("nl-NL");
         const to = new Date(v.recs[v.recs.length - 1].date).toLocaleDateString("nl-NL");
-        return [`v${i + 1}`, esc(from === to ? from : `${from} – ${to}`), v.recs.length, `${r.w}-${r.d}-${r.l}`, r.rate, v.list.points];
+        // Een toernooi speel je met één lijst, dus valt dat samen met één versie —
+        // dan is de toernooinaam informatiever dan alleen "v3".
+        const tids = new Set(v.recs.map((x) => x.tournamentId || ""));
+        const tName = tids.size === 1 && [...tids][0] ? v.recs[0].tournamentName : "";
+        const label = `v${i + 1}${tName ? ` <span class="subtitle">${esc(tName)}</span>` : ""}`;
+        return [label, esc(from === to ? from : `${from} – ${to}`), v.recs.length, `${r.w}-${r.d}-${r.l}`, r.rate, v.list.points];
       }));
 
     // Wat er per nieuwe versie veranderd is.

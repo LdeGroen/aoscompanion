@@ -1,6 +1,7 @@
 import { icon } from "./icons.js";
 import { uid } from "./storage.js";
 import { resultLabel } from "./scorecard.js";
+import { buildListSnapshot, listBlock } from "./gamelist.js";
 
 // Toernooi-mode: een toernooi is een reeks companion-games voor één leger.
 // state.data.tournaments = [{ id, name, armyId, days, rounds, createdAt,
@@ -181,6 +182,8 @@ export function renderTournament(ctx) {
     card.querySelector("#t-editmeta").addEventListener("click", () => { editingMeta = true; draw(); });
     app.appendChild(card);
 
+    app.appendChild(listCard(t));
+
     for (const g of t.games) app.appendChild(gameRow(t, g));
 
     const delWrap = el(`<div class="btnrow" style="margin-top:16px"><button class="danger small">${icon("trash")} Toernooi verwijderen</button></div>`);
@@ -192,6 +195,45 @@ export function renderTournament(ctx) {
       draw();
     });
     app.appendChild(delWrap);
+  }
+
+  // Eén toernooi = één lijst. Die wordt vastgelegd zodra je de eerste game start
+  // en gaat mee naar het archief bij elke game van dit toernooi. Zolang er nog
+  // niets gespeeld is, kun je hem hier (opnieuw) vastleggen — handig als je de
+  // lijst nog aan het schaven bent.
+  function listCard(t) {
+    const played = (t.games || []).some((g) => g.done);
+    const army = state.data.armies.find((a) => a.id === t.armyId) || null;
+    const card = el(`<div class="card">
+      <div class="card-header">
+        <h3 style="margin:0">${icon("list", 18)} Toernooilijst</h3>
+        <div class="btnrow" style="margin:0" data-actions></div>
+      </div>
+      <div data-body></div>
+    </div>`);
+    const body = card.querySelector("[data-body]");
+    const actions = card.querySelector("[data-actions]");
+
+    if (t.list) {
+      body.appendChild(listBlock(t.list, { el, esc }));
+      body.appendChild(el(`<p class="subtitle">Deze lijst hangt aan alle games van dit toernooi in het archief.</p>`));
+    } else {
+      body.appendChild(el(`<p class="empty">Nog niet vastgelegd — dat gebeurt vanzelf zodra je de eerste game start.</p>`));
+    }
+
+    if (army && !played) {
+      const btn = el(`<button class="small">${icon(t.list ? "refresh" : "check")} ${t.list ? "Opnieuw vastleggen" : "Nu vastleggen"}</button>`);
+      btn.addEventListener("click", () => {
+        if (t.list && !confirm("De lijst van dit toernooi vervangen door de huidige lijst van je leger?")) return;
+        t.list = buildListSnapshot(army);
+        saveData();
+        draw();
+      });
+      actions.appendChild(btn);
+    } else if (played) {
+      actions.appendChild(el(`<span class="subtitle">Vastgezet — er is al gespeeld</span>`));
+    }
+    return card;
   }
 
   // Toernooi-gegevens bewerken (naam, datum/data, locatie, organisatie).

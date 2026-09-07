@@ -88,8 +88,10 @@ export function renderArchive(ctx) {
   // De lijst zoals die in deze game gespeeld werd, plus wat er veranderd is ten
   // opzichte van de vorige game met hetzelfde leger.
   function listSection(rec) {
+    const isT = !!rec.tournamentId;
     const wrap = el(`<div class="card">
-      <h3>${icon("list", 18)} De lijst van deze game</h3>
+      <h3>${icon("list", 18)} ${isT ? "De lijst van dit toernooi" : "De lijst van deze game"}</h3>
+      ${isT ? `<p class="subtitle">Eén lijst voor alle games van ${esc(rec.tournamentName || "dit toernooi")}.</p>` : ""}
       <div data-list></div>
       <div data-diff></div>
     </div>`);
@@ -100,7 +102,7 @@ export function renderArchive(ctx) {
     if (rec.list && prev && prev.list) {
       const d = diffLists(prev.list, rec.list);
       diffBox.appendChild(el(`<h3 style="margin-top:12px">${hasChanges(d) ? "Veranderd t.o.v. de vorige game" : "Ongewijzigd"}</h3>`));
-      diffBox.appendChild(el(`<p class="subtitle">Vorige game met ${esc(rec.player?.army || "dit leger")}: ${fmtDate(prev.date)} tegen ${esc(prev.opponent?.name || "?")}.</p>`));
+      diffBox.appendChild(el(`<p class="subtitle">Vorige game met ${esc(rec.player?.army || "dit leger")}${prev.tournamentId ? ` (${esc(prev.tournamentName || "toernooi")})` : ""}: ${fmtDate(prev.date)} tegen ${esc(prev.opponent?.name || "?")}.</p>`));
       diffBox.appendChild(diffBlock(d, { el, esc }));
     } else if (rec.list && prev && !prev.list) {
       diffBox.appendChild(el(`<p class="subtitle">Van de vorige game met dit leger is de lijst niet vastgelegd, dus er valt niets te vergelijken.</p>`));
@@ -109,10 +111,13 @@ export function renderArchive(ctx) {
   }
 
   // De game daarvóór met hetzelfde leger (op naam, want records dragen geen armyId).
+  // Games uit hetzelfde toernooi slaan we over: die delen per definitie één lijst,
+  // dus vergelijken we met wat je vóór het toernooi speelde.
   function previousGameOf(rec) {
     const army = rec.player?.army || "";
     return [...state.data.gameArchive]
       .filter((r) => (r.player?.army || "") === army && String(r.date) < String(rec.date))
+      .filter((r) => !(rec.tournamentId && r.tournamentId === rec.tournamentId))
       .sort((a, b) => String(a.date).localeCompare(String(b.date)))
       .pop() || null;
   }
