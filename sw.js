@@ -20,6 +20,7 @@ const SHELL = [
   "js/archive.js",
   "js/backend.js",
   "js/battleplans.js",
+  "js/battleplanview.js",
   "js/companion.js",
   "js/config.js",
   "js/damage.js",

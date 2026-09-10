@@ -8,6 +8,7 @@ import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from 
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { openDamageCalculator } from "./damage.js";
 import { buildListSnapshot } from "./gamelist.js";
+import { buildBattleplanDetail } from "./battleplanview.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -49,6 +50,9 @@ export function renderCompanion(ctx) {
     // begint — dát is de lijst waarmee je het toernooi in gaat — en elke game van
     // dit toernooi krijgt hem mee, ook als je het leger er later nog in bewerkt.
     if (isTournament && !tournament.list) tournament.list = buildListSnapshot(army);
+    // Ligt het battleplan van deze ronde al vast (ingevuld bij het toernooi), dan
+    // staat het in de battle set-up meteen goed.
+    if (isTournament && tgame.battleplanId) host.get().setupBattleplanId = tgame.battleplanId;
     saveData();
   }
   const game = host.get();
@@ -619,27 +623,9 @@ export function renderCompanion(ctx) {
     const body = wrap.querySelector("[data-body]");
     if (!bp) {
       body.appendChild(el(`<p class="empty">Geen battleplan gekozen voor dit potje. Dat doe je in de battle set-up (bij een nieuw potje).</p>`));
-      openModal(wrap, el); return;
+    } else {
+      body.appendChild(buildBattleplanDetail(bp, { el, esc }));
     }
-    if (bp.card) {
-      const img = el(`<img class="bp-card" src="${esc(bp.card)}" alt="${esc(bp.name)}" loading="lazy" />`);
-      img.addEventListener("click", () => openModal(el(`<div class="bp-card-full"><img src="${esc(bp.card)}" alt="${esc(bp.name)}" /></div>`), el));
-      body.appendChild(img);
-    }
-    if (bp.twist) body.appendChild(el(`<div class="card inner"><strong>Twist</strong><div class="muted-list">${esc(bp.twist)}</div></div>`));
-    for (const ab of bp.abilities || []) body.appendChild(el(`<div class="ability battleplan"><span class="aname">${esc(ab.name)}</span><div class="adesc">${esc(ab.description || "")}</div></div>`));
-    // Scoring-overzicht
-    body.appendChild(el(`<h3>Scoren</h3>`));
-    const sc = bp.scoring || {};
-    for (const v of sc.variants || []) {
-      const card = el(`<div class="card inner"><div class="card-header"><strong>Battleround ${(v.rounds || []).join(", ")}</strong></div><div data-opts></div></div>`);
-      const opts = card.querySelector("[data-opts]");
-      for (const o of v.options || []) opts.appendChild(el(`<div class="lore-entry"><span>${esc(o.label)}</span> <span class="lval">+${o.points}</span></div>`));
-      body.appendChild(card);
-    }
-    if (sc.liferoot) body.appendChild(el(`<div class="muted-list">Liferoot points zijn cumulatief; aan het einde van je beurt geef je ze door.</div>`));
-    if (sc.endBonus) body.appendChild(el(`<div class="card inner"><strong>Eindbonus</strong> <span class="lval">+${sc.endBonus.points}</span><div class="muted-list">${esc(sc.endBonus.label)}</div></div>`));
-    if (!(sc.variants || []).length && !sc.endBonus) body.appendChild(el(`<p class="empty">Geen scoreschema bekend voor dit battleplan.</p>`));
     openModal(wrap, el);
   }
 

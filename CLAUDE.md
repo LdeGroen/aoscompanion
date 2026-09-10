@@ -136,6 +136,15 @@ laadt dezelfde URL.
     `recomputeTotals(rec)` in scorecard.js herberekent `rec.totals` (zelfde formule als
     `calcSide`: som objectives + tactics×5 + endBonus). Opslaan vervangt het record in
     `gameArchive`. Liferoot is informatief (telt niet mee in het totaal).
+- **Battleplans liggen bij een toernooi vooraf vast**: elk game-slot draagt
+  `battleplanId`/`battleplanName`. Invullen kan bij het aanmaken (één keuzelijst per ronde,
+  het aantal volgt het formaat) én later per game-regel op de toernooipagina. Bij het starten
+  van die game zet companion `setupBattleplanId`, zodat de battle set-up hem al goed heeft
+  staan. Het volledige battleplan (kaartje, twist, abilities, scoreschema) toont
+  `js/battleplanview.js` — gedeeld met de Battleplan-knop in de companion-topbar, zodat je
+  vooraf net zoveel ziet als tijdens het potje. ⚠️ Het aanmaakformulier zet
+  `onBattleplansReady` zodat een late gamedata-lading alleen de keuzelijsten hertekent en
+  niet het hele formulier (anders ben je je getypte naam kwijt).
 - **Toernooien** (route `tournament`, js/tournament.js, ★ Toernooi-knop op home):
   een toernooi is een reeks **volledige companion-games voor één leger**.
   `state.data.tournaments = [{id,name,armyId,days,rounds,games:[{id,name,game,done,archivedId}]}]`.

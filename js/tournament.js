@@ -2,6 +2,8 @@ import { icon } from "./icons.js";
 import { uid } from "./storage.js";
 import { resultLabel } from "./scorecard.js";
 import { buildListSnapshot, listBlock } from "./gamelist.js";
+import { loadGamedata } from "./battleplans.js";
+import { openBattleplanModal } from "./battleplanview.js";
 
 // Toernooi-mode: een toernooi is een reeks companion-games voor één leger.
 // state.data.tournaments = [{ id, name, armyId, days, rounds, createdAt,
@@ -24,6 +26,25 @@ export function renderTournament(ctx) {
   let editingMeta = false;
 
   const tournaments = () => state.data.tournaments;
+
+  // Battleplans komen uit de gedeelde gamedata-blob. Bij een toernooi liggen ze
+  // vooraf vast, dus je kunt ze hier per ronde invullen en tijdens het toernooi
+  // teruglezen — inclusief kaartje, twist en scoreschema.
+  let battleplans = null;   // null = nog aan het laden, [] = niet gelukt
+  let onBattleplansReady = null; // gezet door het aanmaakformulier, zodat een
+                                 // late lading dat formulier niet opnieuw opbouwt
+                                 // (en je getypte naam wist)
+  const battleplansLoaded = () => {
+    if (onBattleplansReady) onBattleplansReady();
+    else draw();
+  };
+  loadGamedata()
+    .then(({ db }) => { battleplans = db.battleplans || []; battleplansLoaded(); })
+    .catch(() => { battleplans = []; battleplansLoaded(); });
+  const bpFor = (g) => (battleplans || []).find((b) => b.id === g.battleplanId) || null;
+  const bpOptions = (selected) =>
+    `<option value="">— nog niet bekend —</option>` +
+    (battleplans || []).map((b) => `<option value="${esc(b.id)}"${b.id === selected ? " selected" : ""}>${esc(b.name)}</option>`).join("");
   const armyName = (id) => (state.data.armies.find((a) => a.id === id) || {}).name || "onbekend leger";
   const isPast = (t) => (t.games || []).length > 0 && (t.games || []).every((g) => g.done);
   const recFor = (g) => (state.data.gameArchive || []).find((r) => r.id === g.archivedId);
@@ -119,6 +140,8 @@ export function renderTournament(ctx) {
       </div>
       <label>Leger</label>
       <select id="t-army">${state.data.armies.map((a) => `<option value="${a.id}">${esc(a.name || "(naamloos)")} — ${esc(a.faction)}</option>`).join("")}</select>
+      <label>Battleplans per ronde <span class="subtitle">(liggen bij een toernooi meestal vooraf vast — later aan te vullen)</span></label>
+      <div id="t-plans"></div>
       <div class="btnrow">
         <button class="primary" id="t-create">${icon("check")} Toernooi aanmaken</button>
         <button id="t-cancel">Annuleren</button>
@@ -126,11 +149,36 @@ export function renderTournament(ctx) {
     </div>`);
     const fmtSel = wrap.querySelector("#t-fmt");
     const custom = wrap.querySelector("#t-custom");
+    const plansBox = wrap.querySelector("#t-plans");
+
+    // Eén keuzelijst per ronde; het aantal volgt het gekozen formaat.
+    const chosen = [];
+    function drawPlans() {
+      const n = roundCount();
+      plansBox.innerHTML = "";
+      if (battleplans === null) { plansBox.appendChild(el(`<p class="subtitle">Battleplans laden…</p>`)); return; }
+      if (!battleplans.length) { plansBox.appendChild(el(`<p class="subtitle">Battleplans konden niet geladen worden — je kunt ze later invullen.</p>`)); return; }
+      for (let i = 0; i < n; i++) {
+        const rowEl = el(`<div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+          <span class="subtitle" style="flex:0 0 70px">Game ${i + 1}</span>
+          <span style="flex:1"><select data-i="${i}">${bpOptions(chosen[i])}</select></span>
+        </div>`);
+        rowEl.querySelector("select").addEventListener("change", (e) => { chosen[i] = e.target.value; });
+        plansBox.appendChild(rowEl);
+      }
+    }
+    function roundCount() {
+      if (fmtKey !== "custom") return (FORMATS.find((f) => f.key === fmtKey) || {}).rounds || 0;
+      return Math.max(1, parseInt(wrap.querySelector("#t-rounds").value) || 1);
+    }
+
     fmtSel.addEventListener("change", () => {
       fmtKey = fmtSel.value;
       custom.style.display = fmtKey === "custom" ? "flex" : "none";
+      drawPlans();
     });
-    wrap.querySelector("#t-cancel").addEventListener("click", () => { creating = false; draw(); });
+    wrap.querySelector("#t-rounds").addEventListener("input", drawPlans);
+    wrap.querySelector("#t-cancel").addEventListener("click", () => { creating = false; onBattleplansReady = null; draw(); });
     wrap.querySelector("#t-create").addEventListener("click", () => {
       const name = wrap.querySelector("#t-name").value.trim();
       if (!name) { wrap.querySelector("#t-name").focus(); return; }
@@ -146,16 +194,23 @@ export function renderTournament(ctx) {
         dates: wrap.querySelector("#t-dates").value.trim(),
         location: wrap.querySelector("#t-location").value.trim(),
         organization: wrap.querySelector("#t-org").value.trim(),
-        games: Array.from({ length: rounds }, (_, i) => ({
-          id: uid(), name: `${name} game ${i + 1}`, game: null, done: false, archivedId: null,
-        })),
+        games: Array.from({ length: rounds }, (_, i) => {
+          const bp = (battleplans || []).find((b) => b.id === chosen[i]);
+          return {
+            id: uid(), name: `${name} game ${i + 1}`, game: null, done: false, archivedId: null,
+            battleplanId: bp ? bp.id : "", battleplanName: bp ? bp.name : "",
+          };
+        }),
       };
       tournaments().push(t);
       saveData();
       creating = false;
+      onBattleplansReady = null;
       openId = t.id;
       draw();
     });
+    onBattleplansReady = drawPlans;
+    drawPlans();
     app.appendChild(wrap);
   }
 
@@ -304,16 +359,45 @@ De ${archived} al gearchiveerde game(s) van dit toernooi krijgen deze lijst ook.
       btnLabel = `${icon("play")} Spelen`;
     }
     const chipCls = g.done ? (rec && resultLabel(rec).win === true ? "" : "dim") : "dim";
+    const bp = bpFor(g);
+    const bpName = bp ? bp.name : (g.battleplanName || "");
     const row = el(`<div class="card">
       <div class="card-header">
-        <div><h3>${esc(g.name)}</h3>${statusHtml}</div>
+        <div><h3>${esc(g.name)}</h3>${statusHtml}
+          ${bpName ? `<div class="subtitle">${icon("map", 14)} ${esc(bpName)}</div>` : ""}</div>
         <span class="chip tag ${chipCls}">${g.done ? "Klaar" : g.game ? "Bezig" : "Open"}</span>
       </div>
-      <div class="btnrow"><button class="primary small" data-play>${btnLabel}</button></div>
+      <div class="btnrow">
+        <button class="primary small" data-play>${btnLabel}</button>
+        ${bp ? `<button class="small" data-bpinfo>${icon("map")} Battleplan bekijken</button>` : ""}
+        <button class="small" data-bppick>${icon("map")} ${bpName ? "Battleplan wijzigen" : "Battleplan invullen"}</button>
+      </div>
+      <div data-bpedit></div>
     </div>`);
     row.querySelector("[data-play]").addEventListener("click", () => {
       saveData();
       navigate("companion", { armyId: t.armyId, tournamentRef: { tid: t.id, gid: g.id }, tournamentOpenId: null });
+    });
+    const infoBtn = row.querySelector("[data-bpinfo]");
+    if (infoBtn) infoBtn.addEventListener("click", () => openBattleplanModal(bp, { el, esc }));
+
+    const editBox = row.querySelector("[data-bpedit]");
+    row.querySelector("[data-bppick]").addEventListener("click", () => {
+      if (editBox.children.length) { editBox.innerHTML = ""; return; }
+      if (battleplans === null) { editBox.appendChild(el(`<p class="subtitle">Battleplans laden…</p>`)); return; }
+      if (!battleplans.length) { editBox.appendChild(el(`<p class="subtitle">Battleplans konden niet geladen worden (offline?).</p>`)); return; }
+      const box = el(`<div style="margin-top:8px">
+        <label>Welk battleplan is deze ronde?</label>
+        <select data-sel>${bpOptions(g.battleplanId)}</select>
+      </div>`);
+      box.querySelector("[data-sel]").addEventListener("change", (e) => {
+        const chosen = (battleplans || []).find((b) => b.id === e.target.value);
+        g.battleplanId = chosen ? chosen.id : "";
+        g.battleplanName = chosen ? chosen.name : "";
+        saveData();
+        draw();
+      });
+      editBox.appendChild(box);
     });
     return row;
   }
