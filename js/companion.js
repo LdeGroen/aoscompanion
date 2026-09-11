@@ -9,6 +9,7 @@ import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorec
 import { openDamageCalculator } from "./damage.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { buildBattleplanDetail } from "./battleplanview.js";
+import { parseListText, resolveList } from "./listimport.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -360,7 +361,10 @@ export function renderCompanion(ctx) {
     const omCard = el(`<div class="card"><h2>Models van ${esc(opp.name || "je tegenstander")}</h2>
       <p class="subtitle">Voeg de unieke models van je tegenstander toe uit de database. Tijdens de game open je hun kaartjes via de Tegenstander-knop bovenin.</p>
       <div data-list></div>
-      <div class="btnrow"><button class="small" data-add>${icon("import")} Kaartje uit de database</button></div>
+      <div class="btnrow">
+        <button class="primary small" data-paste>${icon("import")} Lijst plakken</button>
+        <button class="small" data-add>${icon("plus")} Kaartje uit de database</button>
+      </div>
     </div>`);
     app.appendChild(omCard);
     const omList = omCard.querySelector("[data-list]");
@@ -384,6 +388,7 @@ export function renderCompanion(ctx) {
       omList.appendChild(row);
     }
     omCard.querySelector("[data-add]").addEventListener("click", openOpponentModelPicker);
+    omCard.querySelector("[data-paste]").addEventListener("click", openOpponentListImport);
 
     // --- Battleplan ---
     const bpCard = el(`<div class="card">
@@ -796,6 +801,103 @@ export function renderCompanion(ctx) {
 
   // Picker (battle set-up): enhancements van de tegenstander-faction op een unit
   // zetten, zodat je tijdens het spel een beeld hebt van hun hele army.
+  // Een geëxporteerde lijst van je tegenstander plakken: de app zoekt de kaartjes
+  // en enhancements erbij op, zodat je ze niet stuk voor stuk hoeft aan te klikken.
+  // Je ziet eerst wat er gevonden is (en wat niet) voordat er iets wordt toegevoegd.
+  function openOpponentListImport() {
+    const opp = game.opponent;
+    const wrap = el(`<div><h2>${icon("import")} Lijst van je tegenstander plakken</h2>
+      <p class="subtitle">Plak een geëxporteerde lijst. De app zoekt de kaartjes en enhancements erbij; wat hij niet herkent, laat hij staan en meldt hij.</p>
+      <textarea data-text style="min-height:180px;font-family:monospace;font-size:0.8rem" placeholder="Plak hier de lijst…"></textarea>
+      <div class="btnrow"><button class="primary" data-read>${icon("check")} Lijst inlezen</button></div>
+      <div data-result></div>
+    </div>`);
+    const result = wrap.querySelector("[data-result]");
+
+    wrap.querySelector("[data-read]").addEventListener("click", async () => {
+      const text = wrap.querySelector("[data-text]").value;
+      result.innerHTML = "";
+      if (!text.trim()) return;
+
+      const parsed = parseListText(text, { factions: AOS_FACTIONS });
+      const faction = parsed.faction || opp.faction;
+      if (!faction) {
+        result.appendChild(el(`<p class="empty">Geen faction herkend in de lijst. Kies hierboven eerst de faction van je tegenstander.</p>`));
+        return;
+      }
+      result.appendChild(el(`<p class="subtitle">Database van ${esc(faction)} laden…</p>`));
+      let db, uni;
+      try {
+        db = (await sharedb.loadFactionDb(faction)).db;
+        uni = (await sharedb.loadUniversalDb()).db;
+      } catch (e) {
+        result.innerHTML = "";
+        result.appendChild(el(`<p class="empty">Database niet beschikbaar: ${esc(e.message)}</p>`));
+        return;
+      }
+      const { matched, unknown } = resolveList(parsed, {
+        models: [...(db.models || []), ...(uni.models || [])],
+        enhancements: db.enhancements || [],
+      });
+
+      // Dubbele units (2× dezelfde unit in een lijst) tellen we, maar we voegen
+      // één kaartje toe: het is een naslagwerk, geen exacte kopie van zijn leger.
+      const uniq = [];
+      for (const m of matched) {
+        const found = uniq.find((x) => x.model.name === m.model.name);
+        if (found) { found.count++; for (const e of m.enhancements) if (!found.enhancements.some((x) => x.name === e.name)) found.enhancements.push(e); }
+        else uniq.push({ ...m, count: 1 });
+      }
+
+      result.innerHTML = "";
+      result.appendChild(el(`<div class="stats">
+        <div class="stat"><span class="v">${uniq.length}</span><span class="k">kaartjes gevonden</span></div>
+        <div class="stat"><span class="v">${uniq.reduce((a, x) => a + x.enhancements.length, 0)}</span><span class="k">enhancements</span></div>
+        ${unknown.length ? `<div class="stat"><span class="v">${unknown.length}</span><span class="k">niet gevonden</span></div>` : ""}
+      </div>`));
+      if (parsed.armyName || parsed.points) {
+        result.appendChild(el(`<p class="subtitle">${esc(parsed.armyName || "Lijst")}${parsed.points ? ` · ${parsed.points} punten` : ""} · ${esc(faction)}${parsed.subfaction ? " — " + esc(parsed.subfaction) : ""}</p>`));
+      }
+
+      for (const m of uniq) {
+        result.appendChild(el(`<div class="listsnap-row">
+          <span>${esc(m.model.name)}${m.count > 1 ? ` <span class="chip tag">${m.count}×</span>` : ""}
+            ${m.enhancements.length ? `<div class="subtitle">${icon("star", 13)} ${m.enhancements.map((e) => esc(e.name)).join(", ")}</div>` : ""}
+            ${m.unknownBullets.length ? `<div class="subtitle">niet herkend: ${m.unknownBullets.map(esc).join(", ")}</div>` : ""}</span>
+        </div>`));
+      }
+      if (unknown.length) {
+        result.appendChild(el(`<div class="warn">Niet in de ${esc(faction)}-database gevonden: ${unknown.map((u) => esc(u.name)).join(", ")}. Voeg die zo nodig los toe.</div>`));
+      }
+      if (!uniq.length) return;
+
+      const addBtn = el(`<button class="primary bigbtn">${icon("check")} ${uniq.length} kaartje${uniq.length === 1 ? "" : "s"} toevoegen</button>`);
+      addBtn.addEventListener("click", () => {
+        opp.faction = faction;
+        if (parsed.subfaction) opp.subfaction = parsed.subfaction;
+        opp.models = opp.models || [];
+        for (const m of uniq) {
+          const already = opp.models.find((x) => x.name.toLowerCase() === m.model.name.toLowerCase());
+          const target = already || Object.assign(JSON.parse(JSON.stringify(m.model)), { enhancements: [] });
+          target.enhancements = target.enhancements || [];
+          for (const e of m.enhancements) {
+            if (target.enhancements.some((x) => x.name.toLowerCase() === e.name.toLowerCase())) continue;
+            const c = JSON.parse(JSON.stringify(e));
+            delete c.addedBy;
+            target.enhancements.push(c);
+          }
+          if (!already) opp.models.push(target);
+        }
+        saveData();
+        overlay.remove();
+        rerender();
+      });
+      result.appendChild(addBtn);
+    });
+
+    const overlay = openModal(wrap, el);
+  }
+
   async function openOpponentEnhPicker(m) {
     const opp = game.opponent;
     let enhs = [];

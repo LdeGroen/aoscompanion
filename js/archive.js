@@ -1,6 +1,8 @@
 import { buildScoreSummary, buildExportButtons, resultLabel, recomputeTotals } from "./scorecard.js";
 import { icon } from "./icons.js";
-import { listBlock, diffBlock, diffLists, hasChanges, buildListSnapshot } from "./gamelist.js";
+import { listBlock, diffBlock, diffLists, hasChanges, buildListSnapshot, snapshotFromParsedList } from "./gamelist.js";
+import { parseListText } from "./listimport.js";
+import { AOS_FACTIONS } from "./factions.js";
 
 // Archief: afgeronde games (scorekaarten) teruglezen, delen, bewerken of verwijderen.
 // Records staan in state.data.gameArchive en syncen mee met de userdata.
@@ -140,7 +142,11 @@ export function renderArchive(ctx) {
       const form = el(`<div class="card inner" style="margin-top:10px">
         <label>Welke lijst hoort bij deze game?</label>
         <select data-src></select>
-        <p class="subtitle">Van een leger wordt de lijst genomen zoals die er <em>nu</em> uitziet — heb je hem sindsdien aangepast, kies dan een game die wel klopt.</p>
+        <p class="subtitle">Van een leger wordt de lijst genomen zoals die er <em>nu</em> uitziet — heb je hem sindsdien aangepast, kies dan een game die wel klopt of plak de geëxporteerde lijst.</p>
+        <div data-paste style="display:none">
+          <label>Geëxporteerde lijst</label>
+          <textarea data-text style="min-height:160px;font-family:monospace;font-size:0.8rem" placeholder="Plak hier de lijst…"></textarea>
+        </div>
         <div class="btnrow">
           <button class="primary small" data-save>${icon("check")} Vastleggen</button>
           <button class="small" data-cancel>Annuleren</button>
@@ -148,7 +154,10 @@ export function renderArchive(ctx) {
         </div>
       </div>`);
       const sel = form.querySelector("[data-src]");
+      const pasteBox = form.querySelector("[data-paste]");
       sel.appendChild(el(`<option value="">— kies —</option>`));
+      sel.appendChild(el(`<option value="paste">Een geëxporteerde lijst plakken</option>`));
+      sel.addEventListener("change", () => { pasteBox.style.display = sel.value === "paste" ? "" : "none"; });
       if (armies.length) {
         const grp = el(`<optgroup label="Huidige lijst van een leger"></optgroup>`);
         for (const a of armies) grp.appendChild(el(`<option value="army:${esc(a.id)}">${esc(a.name || "(naamloos)")}</option>`));
@@ -174,7 +183,13 @@ export function renderArchive(ctx) {
         const v = sel.value;
         if (!v) return;
         let list = null;
-        if (v.startsWith("army:")) {
+        if (v === "paste") {
+          const text = form.querySelector("[data-text]").value;
+          if (!text.trim()) return;
+          const parsed = parseListText(text, { factions: AOS_FACTIONS });
+          if (!parsed.units.length) { alert("Geen units herkend in deze tekst."); return; }
+          list = snapshotFromParsedList(parsed);
+        } else if (v.startsWith("army:")) {
           const army = armies.find((a) => a.id === v.slice(5));
           if (army) list = buildListSnapshot(army);
         } else {

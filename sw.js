@@ -31,6 +31,7 @@ const SHELL = [
   "js/factions.js",
   "js/gamelist.js",
   "js/icons.js",
+  "js/listimport.js",
   "js/modelview.js",
   "js/scorecard.js",
   "js/setup.js",

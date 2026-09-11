@@ -226,3 +226,49 @@ export function diffBlock(diff, { el, esc }) {
   for (const m of diff.meta) line("change", esc(m));
   return wrap;
 }
+
+// Een geplakte, geëxporteerde lijst omzetten naar een momentopname. Handig voor
+// games van vroeger (of van een lijst die je alleen als tekst hebt). Wat in de
+// export onder een unit staat (enhancements én wapenkeuzes) kunnen we niet uit
+// elkaar houden; dat komt hier allemaal onder `enhancements` terecht.
+export function snapshotFromParsedList(parsed) {
+  if (!parsed) return null;
+  const toUnit = (u) => ({
+    name: u.name || "",
+    type: "",
+    points: u.points || 0,
+    reinforced: !!u.reinforced,
+    general: !!u.general,
+    inRoR: false,
+    loadout: "",
+    enhancements: [...(u.bullets || [])].sort(),
+  });
+
+  const groups = [];
+  for (const u of parsed.units || []) {
+    const title = u.group || "Units";
+    let g = groups.find((x) => x.title === title);
+    if (!g) { g = { title, units: [] }; groups.push(g); }
+    g.units.push(toUnit(u));
+  }
+
+  const units = (parsed.units || []).map(toUnit).sort((a, b) => a.name.localeCompare(b.name));
+  const snap = {
+    army: parsed.armyName || "",
+    faction: parsed.faction || "",
+    subfaction: parsed.subfaction || "",
+    formation: parsed.subfaction || "",
+    drops: parsed.drops || 0,
+    points: parsed.points || units.reduce((a, u) => a + u.points, 0),
+    groups,
+    units,
+    ror: [],
+    lores: {
+      spell: parsed.lores?.spell || "",
+      manifestation: parsed.lores?.manifestation || "",
+      prayer: parsed.lores?.prayer || "",
+    },
+  };
+  snap.fingerprint = fingerprint(snap);
+  return snap;
+}

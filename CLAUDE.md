@@ -817,6 +817,24 @@ verouderde geheugen over de server heen; twee gearchiveerde games en een leger v
 Teruggehaald uit `~/backups/pi-backup-*.tar.gz` op de Pi — die dagelijkse tarball bevat
 `appsync/data/db.json`, en appsync zelf houdt géén versiegeschiedenis bij.
 
+## Lijst plakken (`js/listimport.js`)
+`parseListText(text, {factions})` leest een **geëxporteerde lijst** (onze eigen export is de
+maat, maar hij is tolerant: hoofdletters, `•`/`-`/`*` als bullet, onbekende regels). Hij haalt
+legernaam, punten, faction/subfaction, drops, lores, battle tactics en de units per sectie
+eruit; `General`/`Reinforced` worden als vlag herkend, de rest van de bullets blijft staan.
+`resolveList(parsed, {models, enhancements})` koppelt die aan de database op genormaliseerde
+naam (ook de korte vorm: "Dexcessa" vindt "Dexcessa, the Talon of Slaanesh") en levert
+`matched` + `unknown`. Getest met `ko-import/test-listimport.mjs` (25 tests).
+
+Twee plekken gebruiken het:
+- **Battle set-up → Lijst plakken** (companion): zet de kaartjes van je tegenstander in één
+  keer klaar mét hun enhancements. Je ziet eerst wat gevonden is; dubbele units worden als
+  `2×` geteld maar leveren één kaartje op (het is een naslagwerk, geen kopie van zijn leger).
+- **Archief → Lijst toevoegen → "Een geëxporteerde lijst plakken"**: via
+  `snapshotFromParsedList` (gamelist.js) wordt de tekst een momentopname mét regiment-indeling.
+  ⚠️ In een geplakte lijst is niet te zien of een bullet een enhancement of een wapenkeuze is;
+  alles komt onder `enhancements` te staan.
+
 ## Lijst-momentopname per game (`js/gamelist.js`)
 Een leger houdt zijn naam terwijl de lijst zich ontwikkelt, dus `buildGameRecord` legt sinds
 07-09-2026 in **`rec.list`** vast wat er die game op tafel stond: units (punten incl.
