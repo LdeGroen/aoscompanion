@@ -46,6 +46,7 @@ export function renderArchive(ctx) {
       app.appendChild(actions);
       app.appendChild(buildExportButtons(detail, { el }));
       app.appendChild(listSection(detail));
+      app.appendChild(opponentListSection(detail));
       const delBtn = el(`<div class="btnrow"><button class="danger small">${icon("trash")} Verwijder uit archief</button></div>`);
       delBtn.querySelector("button").addEventListener("click", () => {
         if (!confirm("Deze game uit het archief verwijderen?")) return;
@@ -98,7 +99,7 @@ export function renderArchive(ctx) {
       <div data-diff></div>
     </div>`);
     wrap.querySelector("[data-list]").appendChild(listBlock(rec.list, { el, esc }));
-    wrap.appendChild(listPicker(rec));
+    wrap.appendChild(listPicker(rec, "list"));
 
     const prev = previousGameOf(rec);
     const diffBox = wrap.querySelector("[data-diff]");
@@ -113,36 +114,53 @@ export function renderArchive(ctx) {
     return wrap;
   }
 
-  // Games van vóór deze feature (of een game waarvan de lijst niet klopt) alsnog een
-  // lijst geven: de huidige lijst van een van je legers, of dezelfde lijst als een
-  // andere game in het archief — handig als je een reeks potjes met dezelfde lijst
-  // hebt gespeeld.
-  function listPicker(rec) {
-    const box = el(`<div data-picker></div>`);
-    const armies = state.data.armies || [];
-    const others = (state.data.gameArchive || [])
-      .filter((r) => r.id !== rec.id && r.list)
-      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  // De lijst waar je tégen speelde. Net zo waardevol om terug te lezen als je
+  // eigen lijst: waar liep je tegenaan, en met welke units. Wordt automatisch
+  // gevuld als je in de battle set-up zijn lijst hebt geplakt.
+  function opponentListSection(rec) {
+    const naam = rec.opponent?.name || "je tegenstander";
+    // De faction staat al in de lijst zelf; alleen tonen als er (nog) geen lijst is.
+    const sub = rec.opponentList ? "" : [rec.opponent?.faction, rec.opponent?.subfaction].filter(Boolean).map(esc).join(" — ");
+    const wrap = el(`<div class="card">
+      <h3>${icon("shield", 18)} De lijst van ${esc(naam)}</h3>
+      ${sub ? `<p class="subtitle">${sub}</p>` : ""}
+      <div data-list></div>
+    </div>`);
+    const box = wrap.querySelector("[data-list]");
+    if (rec.opponentList) box.appendChild(listBlock(rec.opponentList, { el, esc }));
+    else box.appendChild(el(`<p class="empty">Nog niet vastgelegd. Plak zijn geëxporteerde lijst, dan zie je later terug waartegen je speelde.</p>`));
+    wrap.appendChild(listPicker(rec, "opponentList"));
+    return wrap;
+  }
 
-    if (!armies.length && !others.length) {
-      if (!rec.list) box.appendChild(el(`<p class="subtitle">Er is nog geen leger of eerdere lijst om er een aan te hangen.</p>`));
-      return box;
-    }
+  // Een lijst (die van jou of die van je tegenstander) alsnog aan een game hangen:
+  // een geëxporteerde lijst plakken, dezelfde lijst als een andere game, of — voor
+  // je eigen kant — de huidige lijst van een van je legers.
+  function listPicker(rec, field) {
+    const isOpp = field === "opponentList";
+    const box = el(`<div data-picker></div>`);
+    const armies = isOpp ? [] : (state.data.armies || []);
+    const others = (state.data.gameArchive || [])
+      .filter((r) => r.id !== rec.id && r[field])
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
     let open = false;
     function draw2() {
       box.innerHTML = "";
       if (!open) {
-        const btn = el(`<button class="small" style="margin-top:10px">${icon(rec.list ? "edit" : "plus")} ${rec.list ? "Lijst aanpassen" : "Lijst toevoegen"}</button>`);
+        const btn = el(`<button class="small" style="margin-top:10px">${icon(rec[field] ? "edit" : "plus")} ${rec[field] ? "Lijst aanpassen" : "Lijst toevoegen"}</button>`);
         btn.addEventListener("click", () => { open = true; draw2(); });
         box.appendChild(btn);
         return;
       }
 
+      const uitleg = isOpp
+        ? "Plak de lijst die je tegenstander je gestuurd heeft, of neem er een over uit een eerdere game."
+        : "Van een leger wordt de lijst genomen zoals die er <em>nu</em> uitziet — heb je hem sindsdien aangepast, kies dan een game die wel klopt of plak de geëxporteerde lijst.";
       const form = el(`<div class="card inner" style="margin-top:10px">
-        <label>Welke lijst hoort bij deze game?</label>
+        <label>Welke lijst hoort hierbij?</label>
         <select data-src></select>
-        <p class="subtitle">Van een leger wordt de lijst genomen zoals die er <em>nu</em> uitziet — heb je hem sindsdien aangepast, kies dan een game die wel klopt of plak de geëxporteerde lijst.</p>
+        <p class="subtitle">${uitleg}</p>
         <div data-paste style="display:none">
           <label>Geëxporteerde lijst</label>
           <textarea data-text style="min-height:160px;font-family:monospace;font-size:0.8rem" placeholder="Plak hier de lijst…"></textarea>
@@ -150,7 +168,7 @@ export function renderArchive(ctx) {
         <div class="btnrow">
           <button class="primary small" data-save>${icon("check")} Vastleggen</button>
           <button class="small" data-cancel>Annuleren</button>
-          ${rec.list ? `<button class="danger small" data-clear>${icon("trash")} Lijst weghalen</button>` : ""}
+          ${rec[field] ? `<button class="danger small" data-clear>${icon("trash")} Lijst weghalen</button>` : ""}
         </div>
       </div>`);
       const sel = form.querySelector("[data-src]");
@@ -164,9 +182,12 @@ export function renderArchive(ctx) {
         sel.appendChild(grp);
       }
       if (others.length) {
-        const grp = el(`<optgroup label="Zelfde lijst als een andere game"></optgroup>`);
+        const grp = el(`<optgroup label="${isOpp ? "Lijst uit een andere game" : "Zelfde lijst als een andere game"}"></optgroup>`);
         for (const r of others.slice(0, 40)) {
-          grp.appendChild(el(`<option value="rec:${esc(r.id)}">${fmtDate(r.date)} — ${esc(r.player?.army || "?")} tegen ${esc(r.opponent?.name || "?")}${r.tournamentName ? " (" + esc(r.tournamentName) + ")" : ""}</option>`));
+          const label = isOpp
+            ? `${fmtDate(r.date)} — ${esc(r.opponent?.name || "?")} (${esc(r.opponent?.faction || "?")})`
+            : `${fmtDate(r.date)} — ${esc(r.player?.army || "?")} tegen ${esc(r.opponent?.name || "?")}${r.tournamentName ? " (" + esc(r.tournamentName) + ")" : ""}`;
+          grp.appendChild(el(`<option value="rec:${esc(r.id)}">${label}</option>`));
         }
         sel.appendChild(grp);
       }
@@ -174,8 +195,8 @@ export function renderArchive(ctx) {
       form.querySelector("[data-cancel]").addEventListener("click", () => { open = false; draw2(); });
       const clearBtn = form.querySelector("[data-clear]");
       if (clearBtn) clearBtn.addEventListener("click", () => {
-        if (!confirm("De vastgelegde lijst van deze game weghalen?")) return;
-        delete rec.list;
+        if (!confirm("Deze vastgelegde lijst weghalen?")) return;
+        delete rec[field];
         saveData();
         draw();
       });
@@ -189,15 +210,22 @@ export function renderArchive(ctx) {
           const parsed = parseListText(text, { factions: AOS_FACTIONS });
           if (!parsed.units.length) { alert("Geen units herkend in deze tekst."); return; }
           list = snapshotFromParsedList(parsed);
+          // Faction uit de geplakte lijst overnemen als die van de tegenstander
+          // nog leeg is — dan klopt het archief ook in de statistieken.
+          if (isOpp && parsed.faction && !rec.opponent?.faction) {
+            rec.opponent = rec.opponent || {};
+            rec.opponent.faction = parsed.faction;
+            if (parsed.subfaction) rec.opponent.subfaction = parsed.subfaction;
+          }
         } else if (v.startsWith("army:")) {
           const army = armies.find((a) => a.id === v.slice(5));
           if (army) list = buildListSnapshot(army);
         } else {
           const src = others.find((r) => r.id === v.slice(4));
-          if (src) list = JSON.parse(JSON.stringify(src.list));
+          if (src) list = JSON.parse(JSON.stringify(src[field]));
         }
         if (!list) return;
-        rec.list = list;
+        rec[field] = list;
         saveData();
         draw();
       });

@@ -24,6 +24,9 @@ export function buildGameRecord(army, game, playerName) {
     // Momentopname van de lijst: een leger houdt zijn naam maar de lijst ontwikkelt
     // zich, dus zonder dit is achteraf niet te zien wat je toen speelde.
     list: buildListSnapshot(army),
+    // En die van je tegenstander, als je zijn lijst in de battle set-up geplakt
+    // hebt — anders is in het archief later bij te plakken.
+    opponentList: game.opponent?.list || null,
     rounds: ROUNDS.map((r) => ({
       round: r,
       player: s.player.perRound[r] || 0,

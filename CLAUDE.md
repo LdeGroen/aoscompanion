@@ -830,8 +830,14 @@ Twee plekken gebruiken het:
 - **Battle set-up → Lijst plakken** (companion): zet de kaartjes van je tegenstander in één
   keer klaar mét hun enhancements. Je ziet eerst wat gevonden is; dubbele units worden als
   `2×` geteld maar leveren één kaartje op (het is een naslagwerk, geen kopie van zijn leger).
-- **Archief → Lijst toevoegen → "Een geëxporteerde lijst plakken"**: via
-  `snapshotFromParsedList` (gamelist.js) wordt de tekst een momentopname mét regiment-indeling.
+- **Archief**: elk record heeft twee lijsten — `rec.list` (die van jou) en
+  `rec.opponentList` (die van je tegenstander), allebei met dezelfde
+  `listPicker(rec, field)`: een geëxporteerde lijst plakken, of er een overnemen uit een
+  andere game (voor je eigen kant ook de huidige lijst van een leger). Via
+  `snapshotFromParsedList` (gamelist.js) wordt geplakte tekst een momentopname mét
+  regiment-indeling. `opponentList` vult zichzelf als je in de battle set-up zijn lijst
+  plakte (companion zet `game.opponent.list`, buildGameRecord neemt hem over); staat de
+  faction van de tegenstander nog leeg, dan wordt die uit de geplakte lijst overgenomen.
   ⚠️ In een geplakte lijst is niet te zien of een bullet een enhancement of een wapenkeuze is;
   alles komt onder `enhancements` te staan.
 

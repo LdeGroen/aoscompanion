@@ -10,6 +10,7 @@ import { openDamageCalculator } from "./damage.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { buildBattleplanDetail } from "./battleplanview.js";
 import { parseListText, resolveList } from "./listimport.js";
+import { snapshotFromParsedList } from "./gamelist.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -875,6 +876,9 @@ export function renderCompanion(ctx) {
       addBtn.addEventListener("click", () => {
         opp.faction = faction;
         if (parsed.subfaction) opp.subfaction = parsed.subfaction;
+        // De hele lijst bewaren we ook: die gaat mee naar het archief, zodat je
+        // later terugziet waartegen je gespeeld hebt.
+        opp.list = snapshotFromParsedList(parsed);
         opp.models = opp.models || [];
         for (const m of uniq) {
           const already = opp.models.find((x) => x.name.toLowerCase() === m.model.name.toLowerCase());
