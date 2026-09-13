@@ -130,6 +130,12 @@ laadt dezelfde URL.
   tekst-export en PNG-export (handgetekend canvas — geen dependencies). Afgeronde
   games met battleplan worden automatisch in `state.data.gameArchive` gezet
   (synct mee); js/archive.js is het archiefscherm (route `archive`).
+  - **Basisgegevens van een archief-record zijn bewerkbaar** ('Gegevens bewerken' →
+    `drawMetaEditor` in archive.js): datum, naam/faction/subfaction van de tegenstander,
+    je eigen leger/faction/subfaction en het battleplan. Bij het wijzigen van de datum blijft
+    de tijd staan, zodat games op dezelfde dag hun volgorde houden (waar de lijst-vergelijking
+    op leunt). Let op: de statistieken groeperen op `player.army`, dus dat veld aanpassen
+    verplaatst een game naar een ander leger.
   - **Archief-records zijn bewerkbaar**: in de archief-detail zet 'Scores bewerken' een
     werkkopie klaar (`editRec`) met per-ronde objective-punten (jij/tegenstander), tactics
     per ronde (klikbare R1-R5-chips → `scoredRounds`), endBonus-eigenaar en liferoot;

@@ -11,6 +11,7 @@ export function renderArchive(ctx) {
   state.data.gameArchive = state.data.gameArchive || [];
   let detail = null; // record dat open staat
   let editRec = null; // werkkopie tijdens bewerken (null = niet in bewerkmodus)
+  let editMeta = false; // basisgegevens (datum, tegenstander, leger) bewerken
 
   const fmtDate = (iso) => {
     const d = new Date(iso);
@@ -27,22 +28,26 @@ export function renderArchive(ctx) {
     </div>`);
     header.querySelector("#btn-back").addEventListener("click", () => {
       if (editRec) { editRec = null; draw(); }
+      else if (editMeta) { editMeta = false; draw(); }
       else if (detail) { detail = null; draw(); }
       else navigate("home");
     });
     app.appendChild(header);
 
     if (editRec) { drawEditor(); return; }
+    if (editMeta && detail) { drawMetaEditor(detail); return; }
 
     if (detail) {
       app.appendChild(buildScoreSummary(detail, { el, esc }));
       const actions = el(`<div class="btnrow">
         <button class="small" id="ar-edit">${icon("edit")} Scores bewerken</button>
+        <button class="small" id="ar-meta">${icon("edit")} Gegevens bewerken</button>
       </div>`);
       actions.querySelector("#ar-edit").addEventListener("click", () => {
         editRec = JSON.parse(JSON.stringify(detail));
         draw();
       });
+      actions.querySelector("#ar-meta").addEventListener("click", () => { editMeta = true; draw(); });
       app.appendChild(actions);
       app.appendChild(buildExportButtons(detail, { el }));
       app.appendChild(listSection(detail));
@@ -86,6 +91,95 @@ export function renderArchive(ctx) {
       for (const rec of grp.recs) box.appendChild(recCard(rec));
       app.appendChild(det);
     }
+  }
+
+  // Basisgegevens van een gearchiveerde game rechtzetten: wanneer, tegen wie en
+  // met welk leger. Handig voor een verkeerd gespelde naam, een faction die bij
+  // het invoeren niet ingevuld was, of een leger dat je later hernoemd hebt —
+  // de statistieken groeperen op `player.army`, dus dat laatste telt echt mee.
+  function drawMetaEditor(rec) {
+    rec.player = rec.player || {};
+    rec.opponent = rec.opponent || {};
+    const facties = Object.keys(AOS_FACTIONS);
+    const d = new Date(rec.date);
+    const isoDatum = Number.isNaN(d.getTime())
+      ? ""
+      : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const facSelect = (id, waarde) => `<select id="${id}">
+      <option value="">— geen —</option>
+      ${facties.map((f) => `<option value="${esc(f)}"${f === waarde ? " selected" : ""}>${esc(f)}</option>`).join("")}
+    </select>`;
+
+    const wrap = el(`<div class="card">
+      <h2>Gegevens van deze game</h2>
+      <label>Datum</label>
+      <input type="date" id="m-date" value="${esc(isoDatum)}" />
+
+      <h3 style="margin-top:14px">Tegenstander</h3>
+      <label>Naam</label>
+      <input type="text" id="m-oppname" value="${esc(rec.opponent.name || "")}" />
+      <div class="row">
+        <div><label>Faction</label>${facSelect("m-oppfac", rec.opponent.faction || "")}</div>
+        <div><label>Subfaction</label><select id="m-oppsub"></select></div>
+      </div>
+
+      <h3 style="margin-top:14px">Jouw kant</h3>
+      <label>Leger</label>
+      <input type="text" id="m-army" value="${esc(rec.player.army || "")}" />
+      <div class="row">
+        <div><label>Faction</label>${facSelect("m-myfac", rec.player.faction || "")}</div>
+        <div><label>Subfaction</label><select id="m-mysub"></select></div>
+      </div>
+      <label>Battleplan</label>
+      <input type="text" id="m-plan" value="${esc(rec.battleplan || "")}" />
+
+      <div class="btnrow">
+        <button class="primary" id="m-save">${icon("check")} Opslaan</button>
+        <button id="m-cancel">Annuleren</button>
+      </div>
+    </div>`);
+
+    // Subfaction volgt de gekozen faction; een waarde die er niet (meer) bij hoort
+    // blijft als optie staan, zodat hij niet stilletjes verdwijnt.
+    const vulSubs = (facId, subId, huidig) => {
+      const sel = wrap.querySelector(`#${subId}`);
+      const fac = wrap.querySelector(`#${facId}`).value;
+      const opties = AOS_FACTIONS[fac] || [];
+      sel.innerHTML = `<option value="">— geen —</option>`;
+      const alle = opties.includes(huidig) || !huidig ? opties : [huidig, ...opties];
+      for (const sub of alle) {
+        sel.appendChild(el(`<option value="${esc(sub)}"${sub === huidig ? " selected" : ""}>${esc(sub)}</option>`));
+      }
+    };
+    vulSubs("m-oppfac", "m-oppsub", rec.opponent.subfaction || "");
+    vulSubs("m-myfac", "m-mysub", rec.player.subfaction || "");
+    wrap.querySelector("#m-oppfac").addEventListener("change", () => vulSubs("m-oppfac", "m-oppsub", ""));
+    wrap.querySelector("#m-myfac").addEventListener("change", () => vulSubs("m-myfac", "m-mysub", ""));
+
+    wrap.querySelector("#m-cancel").addEventListener("click", () => { editMeta = false; draw(); });
+    wrap.querySelector("#m-save").addEventListener("click", () => {
+      const datum = wrap.querySelector("#m-date").value;
+      if (datum) {
+        // Tijd van de oorspronkelijke datum behouden: games op dezelfde dag
+        // houden zo hun volgorde (en daarmee de lijst-vergelijking).
+        const oud = new Date(rec.date);
+        const [y, mth, dag] = datum.split("-").map(Number);
+        const nieuw = Number.isNaN(oud.getTime()) ? new Date(y, mth - 1, dag) : new Date(oud);
+        if (!Number.isNaN(oud.getTime())) nieuw.setFullYear(y, mth - 1, dag);
+        rec.date = nieuw.toISOString();
+      }
+      rec.opponent.name = wrap.querySelector("#m-oppname").value.trim();
+      rec.opponent.faction = wrap.querySelector("#m-oppfac").value;
+      rec.opponent.subfaction = wrap.querySelector("#m-oppsub").value;
+      rec.player.army = wrap.querySelector("#m-army").value.trim();
+      rec.player.faction = wrap.querySelector("#m-myfac").value;
+      rec.player.subfaction = wrap.querySelector("#m-mysub").value;
+      rec.battleplan = wrap.querySelector("#m-plan").value.trim();
+      saveData();
+      editMeta = false;
+      draw();
+    });
+    app.appendChild(wrap);
   }
 
   // De lijst zoals die in deze game gespeeld werd, plus wat er veranderd is ten
