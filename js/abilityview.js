@@ -113,6 +113,56 @@ export function timingHtml(timing, esc) {
     .join("")}</div>`;
 }
 
+// Regels die als opsomming bedoeld zijn ("1 Glyph of Shyish: …", "• …", "- …").
+// Die zetten we als lijst met de nummer/bullet in de marge, zodat een lange
+// effect-tekst leest als een tabel in plaats van als een muur.
+const LIST_RE = /^\s*(?:([0-9]{1,2})\s*[.):]?|[•\-*‣])\s+(.+)$/;
+
+// Tekst met alinea's en opsommingen. Werkt op de ruwe (nog niet ge-escapete) tekst
+// en escapet zelf, zodat de opmaak nooit uit de data kan komen.
+function richText(text, esc) {
+  const lines = String(text || "").split("\n");
+  const out = [];
+  let list = null;
+
+  const flush = () => { if (list) { out.push(`<ul class="ab-list">${list.join("")}</ul>`); list = null; } };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    const m = LIST_RE.exec(line);
+    if (m) {
+      // "1 Glyph of Ghur: Add 1 to…" → het deel vóór de dubbele punt is de kop
+      const rest = m[2];
+      const split = /^([^:]{1,44}):\s*(.+)$/.exec(rest);
+      const marker = m[1] ? `<span class="ab-li-n">${esc(m[1])}</span>` : `<span class="ab-li-n">•</span>`;
+      const body = split
+        ? `<strong>${esc(split[1])}</strong> ${markNumbers(esc(split[2]))}`
+        : markNumbers(esc(rest));
+      list = list || [];
+      list.push(`<li>${marker}<span>${body}</span></li>`);
+      continue;
+    }
+    flush();
+    out.push(`<p>${markNumbers(esc(line))}</p>`);
+  }
+  flush();
+  return out.join("");
+}
+
+// Lange teksten inklappen met een lees-meer. Bewust zonder JavaScript (checkbox +
+// label), zodat elke plek die deze HTML als string invoegt het gratis meekrijgt.
+let clampId = 0;
+const LONG = 280; // tekens waarboven we inklappen
+function maybeClamp(html, plain, esc) {
+  if (String(plain || "").length <= LONG) return `<div class="ab-text">${html}</div>`;
+  const id = `abmore${++clampId}`;
+  return `<div class="ab-long">
+    <input type="checkbox" class="ab-more" id="${id}" />
+    <div class="ab-text ab-clamp">${html}</div>
+    <label class="ab-more-btn" for="${id}"></label>
+  </div>`;
+}
+
 // De hele body van een ability: timing, blokken, keywords. De kop (naam, knoppen)
 // blijft van de aanroeper, want die verschilt per scherm.
 export function abilityBodyHtml(ab, esc, { keywords = true, phases = true } = {}) {
@@ -121,11 +171,12 @@ export function abilityBodyHtml(ab, esc, { keywords = true, phases = true } = {}
   parts.push(timing.length
     ? timingHtml(timing, esc)
     : (phases ? phaseChipsHtml(ab?.phases, esc) : ""));
-  if (intro) parts.push(`<div class="ab-text">${markNumbers(esc(intro))}</div>`);
+  if (intro) parts.push(maybeClamp(richText(intro, esc), intro, esc));
   for (const b of blocks) {
-    parts.push(`<div class="ab-block">
-      <span class="ab-label ${b.label.toLowerCase().replace(/\s+/g, "-")}">${esc(b.label)}</span>
-      <span class="ab-text">${markNumbers(esc(b.text))}</span>
+    const kind = b.label.toLowerCase().replace(/\s+/g, "-");
+    parts.push(`<div class="ab-block ${kind}">
+      <span class="ab-label">${esc(b.label)}</span>
+      ${maybeClamp(richText(b.text, esc), b.text, esc)}
     </div>`);
   }
   if (keywords) {

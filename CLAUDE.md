@@ -848,6 +848,14 @@ zijn `phases`-velden als chips in dezelfde kleuren. `markNumbers()` accentueert 
 wordt overal hergebruikt: timing-chips, de koppen van de wapentabellen (ranged = amber,
 melee = rood) en de sectiekoppen in de warscroll-popup. Eén fase = één kleur, in de hele app.
 
+**Lange teksten**: `richText()` maakt van regels als "1 Glyph of Shyish: …" een opsomming met
+het nummer in de marge en het deel vóór de dubbele punt vet; `maybeClamp()` klapt alles boven
+280 tekens in met een **lees-meer**. Dat laatste is bewust een checkbox + label (geen
+JavaScript), zodat elke plek die deze HTML als string invoegt het gratis meekrijgt — let op:
+de ids komen uit een teller, dus de HTML moet in het document terechtkomen, niet gedupliceerd.
+Declare/Effect zijn omkaderde blokken waarin het label als koprand aan zijn eigen tekst
+vastzit.
+
 ⚠️ De parser mag nooit tekst opeten: `ko-import/test-abilityview.mjs` controleert de regels en
 er is een droogloop over alle 2538 teksten gedaan (0 tekstverlies). Verander je de regexes,
 draai die controle dan opnieuw.

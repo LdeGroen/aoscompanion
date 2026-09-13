@@ -372,9 +372,10 @@ table.weapons.melee th { background: var(--ph-combat); border-color: var(--ph-co
   border-left: 3px solid var(--blue);
   background: var(--bg-card-2);
   border-radius: 0 8px 8px 0;
-  padding: 8px 12px;
-  margin-bottom: 8px;
+  padding: 10px 12px 11px;
+  margin-bottom: 10px;
 }
+.ability .aname { font-size: 1.02rem; }
 .ability .aname { font-weight: 600; }
 .ability .asrc { font-size: 0.75rem; color: var(--text-dim); }
 .ability .ccost { color: var(--gold); font-size: 0.8rem; }
@@ -415,27 +416,90 @@ table.weapons.melee th { background: var(--ph-combat); border-color: var(--ph-co
 .tchip.t-limit { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
 .tchip.t-other { background: var(--bg-input); color: var(--text-dim); border-color: var(--border-strong); }
 
-/* Declare / Effect als eigen blok met een label ervoor */
-.ab-block { display: flex; align-items: flex-start; gap: 8px; margin: 5px 0; }
+/* Declare / Effect: één blok waarin het label vastzit aan zijn eigen tekst, zodat
+   je ziet dat ze bij elkaar horen in plaats van dat er een zin achter een chip staat. */
+.ab-block {
+  margin: 6px 0;
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
 .ab-label {
-  flex: 0 0 auto;
-  min-width: 58px;
-  text-align: center;
-  font-size: 0.64rem;
+  display: block;
+  font-size: 0.63rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 3px 7px;
-  border-radius: 6px;
+  letter-spacing: 0.07em;
+  padding: 4px 10px;
   background: var(--bg-input);
   color: var(--text-dim);
-  border: 1px solid var(--border-strong);
-  margin-top: 1px;
+  border-bottom: 1px solid var(--border);
 }
-.ab-label.declare { background: #e8eef7; color: #2f5d92; border-color: #7f9fc4; }
-.ab-label.effect { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
-.ab-label.cost { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); }
-.ab-text { font-size: 0.9rem; white-space: pre-line; flex: 1; min-width: 0; }
+.ab-block.declare { border-color: #a8bcd6; border-left-color: #2f5d92; }
+.ab-block.declare .ab-label { background: #e8eef7; color: #2f5d92; border-bottom-color: #cdd9e8; }
+.ab-block.effect { border-color: var(--gold-bright); border-left-color: var(--gold-dark); }
+.ab-block.effect .ab-label { background: var(--gold-soft); color: var(--gold-dark); border-bottom-color: #e2d5ab; }
+.ab-block.cost .ab-label { background: var(--gold-dark); color: #fff; }
+.ab-block .ab-text, .ab-block .ab-long { padding: 7px 10px 8px; }
+/* In een ingeklapt blok zit de padding al op .ab-long — niet nog eens eromheen */
+.ab-block .ab-long > .ab-text { padding: 0; }
+.ab-text { font-size: 0.9rem; min-width: 0; line-height: 1.45; }
+.ab-text p { margin: 0 0 6px; }
+.ab-text p:last-child { margin-bottom: 0; }
+
+/* Opsommingen binnen een ability (de 1-6 van een glyph-tabel e.d.) */
+ul.ab-list { list-style: none; margin: 4px 0 0; padding: 0; }
+ul.ab-list li {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border);
+}
+ul.ab-list li:first-child { border-top: none; padding-top: 0; }
+.ab-li-n {
+  flex: 0 0 auto;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--gold-soft);
+  color: var(--gold-dark);
+  border: 1px solid var(--gold-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Lange teksten: ingeklapt met een lees-meer (checkbox, geen JavaScript nodig) */
+.ab-long { position: relative; }
+.ab-more { position: absolute; opacity: 0; pointer-events: none; }
+.ab-clamp { max-height: 7.5em; overflow: hidden; }
+.ab-long .ab-clamp::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 26px;
+  height: 34px;
+  background: linear-gradient(to bottom, transparent, var(--bg-card));
+  pointer-events: none;
+}
+.ab-more-btn {
+  display: inline-block;
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gold-dark);
+  cursor: pointer;
+  user-select: none;
+}
+.ab-more-btn::after { content: "Lees meer ▾"; }
+.ab-more:checked ~ .ab-clamp { max-height: none; }
+.ab-more:checked ~ .ab-clamp::after { display: none; }
+.ab-more:checked ~ .ab-more-btn::after { content: "Minder ▴"; }
+.ab-more:focus-visible ~ .ab-more-btn { outline: 2px solid var(--gold-dark); outline-offset: 2px; border-radius: 4px; }
+
 /* Afstanden, dobbelstenen en rolresultaten: de getallen waar je naar zoekt */
 .ab-num { font-weight: 700; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
 /* Regeleinden in ingevoerde beschrijvingen ook tonen */
