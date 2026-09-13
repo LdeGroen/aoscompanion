@@ -828,6 +828,30 @@ verouderde geheugen over de server heen; twee gearchiveerde games en een leger v
 Teruggehaald uit `~/backups/pi-backup-*.tar.gz` op de Pi — die dagelijkse tarball bevat
 `appsync/data/db.json`, en appsync zelf houdt géén versiegeschiedenis bij.
 
+## Ability-weergave (`js/abilityview.js`)
+Alle ability-teksten — warscroll-abilities, enhancements, faction- én subfaction rules,
+battleplan-abilities — gaan door `abilityBodyHtml(ab, esc)`. Die trekt de vaste vorm uit de
+data uit elkaar:
+
+    [Once Per Turn (Army), Any Combat Phase]   → gekleurde timing-chips
+    Declare: …                                 → blok met label
+    Effect: …                                  → blok met label
+
+`parseAbility()` herkent timing tussen blokhaken (1637 van de 2538 teksten) én zonder haken,
+maar dan **alleen** als de eerste regel er echt als timing uitziet (`TIMING_RE`) — anders zou
+een gewone openingszin verdwijnen. Heeft een ability geen timing in de tekst, dan tonen we
+zijn `phases`-velden als chips in dezelfde kleuren. `markNumbers()` accentueert afstanden
+(12"), dobbelstenen (D3, 2D6) en rolresultaten (4+).
+
+**Kleurconventie** staat als CSS-variabelen in `:root` (`--ph-hero`, `--ph-move`, `--ph-shoot`,
+`--ph-charge`, `--ph-combat`, `--ph-round`, `--ph-passive`, `--ph-deploy`, `--ph-react`) en
+wordt overal hergebruikt: timing-chips, de koppen van de wapentabellen (ranged = amber,
+melee = rood) en de sectiekoppen in de warscroll-popup. Eén fase = één kleur, in de hele app.
+
+⚠️ De parser mag nooit tekst opeten: `ko-import/test-abilityview.mjs` controleert de regels en
+er is een droogloop over alle 2538 teksten gedaan (0 tekstverlies). Verander je de regexes,
+draai die controle dan opnieuw.
+
 ## Lijst plakken (`js/listimport.js`)
 `parseListText(text, {factions})` leest een **geëxporteerde lijst** (onze eigen export is de
 maat, maar hij is tolerant: hoofdletters, `•`/`-`/`*` als bullet, onbekende regels). Hij haalt

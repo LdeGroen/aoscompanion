@@ -22,6 +22,18 @@
   --shadow: 0 1px 2px rgba(22, 24, 32, 0.04), 0 2px 8px rgba(22, 24, 32, 0.07);
   --shadow-lg: 0 10px 30px rgba(22, 24, 32, 0.16);
   --focus-ring: rgba(156, 121, 19, 0.24);
+
+  /* Kleurconventie per spelfase — overal dezelfde kleur voor dezelfde fase,
+     zodat je aan tafel op kleur kunt zoeken in plaats van op tekst lezen. */
+  --ph-hero: #6b3fa0;      --ph-hero-bg: #f0e8f9;
+  --ph-move: #2e7d44;      --ph-move-bg: #e4f3e9;
+  --ph-shoot: #9a5a00;     --ph-shoot-bg: #fbeed9;
+  --ph-charge: #b4531b;    --ph-charge-bg: #fbe7da;
+  --ph-combat: #b0322a;    --ph-combat-bg: #fae3e1;
+  --ph-round: #42566b;     --ph-round-bg: #e8eef4;
+  --ph-passive: #5b5f66;   --ph-passive-bg: #eceef1;
+  --ph-deploy: #0f6b68;    --ph-deploy-bg: #ddf0ef;
+  --ph-react: #7a3374;     --ph-react-bg: #f8e6f6;
 }
 
 * { box-sizing: border-box; }
@@ -252,14 +264,48 @@ h1 svg.ic, .topbar .title svg.ic { vertical-align: -3px; margin-right: 2px; }
   min-width: 62px;
 }
 .stat .v { font-size: 1.1rem; font-weight: bold; color: var(--gold); }
+.stat.ws { background: var(--bg-card); border-color: var(--border-strong); min-width: 62px; }
+.stat.ws .v { color: var(--text); font-size: 1.25rem; }
+.stat.ws.save .v { color: var(--ph-round); }
+.stat.ws.ward .v { color: var(--ph-hero); }
+.stat.ws.health .v { color: var(--ph-combat); }
 .stat .k { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
 
 /* --- Weapon tabel --- */
-table.weapons { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 6px 0; }
-table.weapons th, table.weapons td { border: 1px solid var(--border); padding: 6px 7px; text-align: center; }
-table.weapons th { background: var(--bg-input); color: var(--text-dim); font-weight: normal; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
-table.weapons tr:nth-child(odd) td { background: var(--bg-input); }
+table.weapons { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 6px 0; overflow: hidden; border-radius: 8px; }
+table.weapons th, table.weapons td { border: 1px solid var(--border); padding: 7px; text-align: center; }
+table.weapons th {
+  background: var(--gold-dark); color: #fff; font-weight: 600;
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; border-color: var(--gold-dark);
+}
+table.weapons tr:nth-child(even) td { background: var(--bg-input); }
 table.weapons td.name { text-align: left; font-weight: 600; }
+table.weapons td.dmg { color: var(--ph-combat); font-weight: 700; }
+/* Ranged en melee elk hun eigen kleurkop, zodat je ze niet verwart */
+table.weapons.ranged th { background: var(--ph-shoot); border-color: var(--ph-shoot); }
+table.weapons.melee th { background: var(--ph-combat); border-color: var(--ph-combat); }
+
+/* Kop van een warscroll-popup: naam op een gekleurd vlak */
+.ws-head {
+  margin: -4px -4px 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
+  color: #fff;
+}
+.ws-head h2 { margin: 0; color: #fff; font-size: 1.3rem; text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.ws-head .chips { margin: 6px 0 0; }
+.ws-head .chip.tag { background: rgba(255,255,255,0.16); color: #fff; border-color: rgba(255,255,255,0.45); }
+.ws-section {
+  display: flex; align-items: center; gap: 6px;
+  margin: 14px 0 4px; font-family: Georgia, serif; font-weight: bold; font-size: 1rem;
+}
+.ws-section.ranged { color: var(--ph-shoot); }
+.ws-section.melee { color: var(--ph-combat); }
+.ws-section.abilities { color: var(--ph-hero); }
+.ws-section.enh { color: var(--ph-deploy); }
+/* Keywords van de unit zelf, onderaan het kaartje */
+.ws-keywords { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
 .weapon-bonus { font-size: 0.8rem; color: var(--gold); margin: 2px 0 6px; }
 
 /* --- Companion mode --- */
@@ -343,6 +389,55 @@ table.weapons td.name { text-align: left; font-weight: 600; }
 }
 .ability.used .owner { text-decoration: line-through; }
 .ability .adesc { font-size: 0.9rem; margin-top: 2px; }
+
+/* --- Ability-opmaak: wanneer / Declare / Effect / keywords --- */
+/* Wanneer mag dit? Bovenaan, in de kleur van de fase. */
+.ab-timing { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+.tchip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.tchip.t-hero { background: var(--ph-hero-bg); color: var(--ph-hero); border-color: var(--ph-hero); }
+.tchip.t-move { background: var(--ph-move-bg); color: var(--ph-move); border-color: var(--ph-move); }
+.tchip.t-shoot { background: var(--ph-shoot-bg); color: var(--ph-shoot); border-color: var(--ph-shoot); }
+.tchip.t-charge { background: var(--ph-charge-bg); color: var(--ph-charge); border-color: var(--ph-charge); }
+.tchip.t-combat { background: var(--ph-combat-bg); color: var(--ph-combat); border-color: var(--ph-combat); }
+.tchip.t-round { background: var(--ph-round-bg); color: var(--ph-round); border-color: var(--ph-round); }
+.tchip.t-passive { background: var(--ph-passive-bg); color: var(--ph-passive); border-color: var(--ph-passive); }
+.tchip.t-deploy { background: var(--ph-deploy-bg); color: var(--ph-deploy); border-color: var(--ph-deploy); }
+.tchip.t-reaction { background: var(--ph-react-bg); color: var(--ph-react); border-color: var(--ph-react); }
+.tchip.t-limit { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
+.tchip.t-other { background: var(--bg-input); color: var(--text-dim); border-color: var(--border-strong); }
+
+/* Declare / Effect als eigen blok met een label ervoor */
+.ab-block { display: flex; align-items: flex-start; gap: 8px; margin: 5px 0; }
+.ab-label {
+  flex: 0 0 auto;
+  min-width: 58px;
+  text-align: center;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  border: 1px solid var(--border-strong);
+  margin-top: 1px;
+}
+.ab-label.declare { background: #e8eef7; color: #2f5d92; border-color: #7f9fc4; }
+.ab-label.effect { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
+.ab-label.cost { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); }
+.ab-text { font-size: 0.9rem; white-space: pre-line; flex: 1; min-width: 0; }
+/* Afstanden, dobbelstenen en rolresultaten: de getallen waar je naar zoekt */
+.ab-num { font-weight: 700; color: var(--gold-dark); font-variant-numeric: tabular-nums; }
 /* Regeleinden in ingevoerde beschrijvingen ook tonen */
 .ability .adesc, .command .cdesc, .muted-list, .lore-entry .subtitle { white-space: pre-line; }
 .ability.faction { border-left-color: var(--gold); }

@@ -1,5 +1,6 @@
 import { openModal } from "./modelview.js";
 import { icon } from "./icons.js";
+import { abilityBodyHtml } from "./abilityview.js";
 
 // Alles wat je over één battleplan wilt zien: het kaartje (klikbaar → schermvullend),
 // de twist, de abilities en het scoreschema. Gedeeld door de companion (knop
@@ -19,7 +20,7 @@ export function buildBattleplanDetail(bp, { el, esc }) {
   }
   if (bp.twist) body.appendChild(el(`<div class="card inner"><strong>Twist</strong><div class="muted-list">${esc(bp.twist)}</div></div>`));
   for (const ab of bp.abilities || []) {
-    body.appendChild(el(`<div class="ability battleplan"><span class="aname">${esc(ab.name)}</span><div class="adesc">${esc(ab.description || "")}</div></div>`));
+    body.appendChild(el(`<div class="ability battleplan"><span class="aname">${esc(ab.name)}</span>${abilityBodyHtml(ab, esc)}</div>`));
   }
 
   body.appendChild(el(`<h3>Scoren</h3>`));

@@ -7,6 +7,7 @@ import { loadGamedata } from "./battleplans.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
+import { abilityBodyHtml } from "./abilityview.js";
 
 // Set-up mode: leger samenstellen, models invoeren, enhancements, lores en faction rules.
 export function renderSetup(ctx) {
@@ -854,7 +855,7 @@ export function renderSetup(ctx) {
     const wrap = el(`<div><h2>${esc(t.name)}</h2><div data-body></div></div>`);
     const body = wrap.querySelector("[data-body]");
     for (const ab of t.abilities || []) {
-      body.appendChild(el(`<div class="ability faction"><span class="aname">${esc(ab.name)}</span>${(ab.phases || []).includes("deployment") ? ' <span class="chip tag">Deployment</span>' : ""}<div class="adesc">${esc(ab.description || "")}</div></div>`));
+      body.appendChild(el(`<div class="ability faction"><span class="aname">${esc(ab.name)}</span>${(ab.phases || []).includes("deployment") ? ' <span class="chip tag">Deployment</span>' : ""}${abilityBodyHtml(ab, esc)}</div>`));
     }
     if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
     steps.forEach((s, i) => {

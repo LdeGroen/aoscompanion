@@ -11,6 +11,7 @@ import { buildListSnapshot } from "./gamelist.js";
 import { buildBattleplanDetail } from "./battleplanview.js";
 import { parseListText, resolveList } from "./listimport.js";
 import { snapshotFromParsedList } from "./gamelist.js";
+import { abilityBodyHtml } from "./abilityview.js";
 
 // Companion mode: het spelen van een battle met je leger.
 export function renderCompanion(ctx) {
@@ -285,7 +286,7 @@ export function renderCompanion(ctx) {
     const body = wrap.querySelector("[data-body]");
     // Deployment-ability (bijv. Hideout / Fugitive): geen eigen stap, maar wel belangrijk om in te zien.
     for (const ab of t.abilities || []) {
-      body.appendChild(el(`<div class="ability faction"><span class="aname">${esc(ab.name)}</span>${(ab.phases || []).includes("deployment") ? ' <span class="chip tag">Deployment</span>' : ""}<div class="adesc">${esc(ab.description || "")}</div></div>`));
+      body.appendChild(el(`<div class="ability faction"><span class="aname">${esc(ab.name)}</span>${(ab.phases || []).includes("deployment") ? ' <span class="chip tag">Deployment</span>' : ""}${abilityBodyHtml(ab, esc)}</div>`));
     }
     if (!steps.length) body.appendChild(el(`<p class="empty">Geen stappen ingevoerd voor deze battle tactic (te bewerken in de database).</p>`));
     steps.forEach((s, i) => {
@@ -609,7 +610,7 @@ export function renderCompanion(ctx) {
           <span class="aname">${esc(r.name)}</span>
           ${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}
           ${phases ? `<div class="subtitle">${phases}</div>` : ""}
-          <div class="adesc">${esc(r.description || "")}</div>
+          ${abilityBodyHtml(r, esc)}
         </div>`));
       }
     };
@@ -650,7 +651,7 @@ export function renderCompanion(ctx) {
         entries.appendChild(el(`<div class="ability enhancement">
           <span class="aname">${esc(enh.name)}</span> <span class="asrc">— ${esc(enhancementCategoryLabel(enh.category))}</span>
           ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
-          <div class="adesc">${esc(enh.description || "")}</div>
+          ${abilityBodyHtml(enh, esc)}
         </div>`));
       }
       body.appendChild(card);
@@ -708,7 +709,7 @@ export function renderCompanion(ctx) {
               rulesWrap.appendChild(el(`<div class="ability faction">
                 <span class="aname">${esc(r.name)}</span>
                 ${r.oncePerBattle ? ' <span class="chip tag">Once per battle</span>' : ""}
-                <div class="adesc">${esc(r.description)}</div>
+                ${abilityBodyHtml(r, esc)}
               </div>`));
             }
           };
@@ -796,7 +797,7 @@ export function renderCompanion(ctx) {
       <h2>${icon("star")} ${esc(enh.name)}</h2>
       <p class="subtitle">${esc(enhancementCategoryLabel(enh.category))}</p>
       ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
-      <div class="adesc" style="white-space:pre-line;margin-top:8px">${esc(enh.description || "")}</div>
+      <div style="margin-top:8px">${abilityBodyHtml(enh, esc)}</div>
     </div>`);
   }
 
@@ -1727,7 +1728,7 @@ export function renderCompanion(ctx) {
         <div class="owner">${esc(ab.source)}</div>
         <span class="aname">${esc(ab.name)}</span>${costTag}
         ${abilityTagsHtml(ab, esc)}
-        <div class="adesc">${esc(ab.description)}</div>
+        ${abilityBodyHtml(ab, esc)}
         <div data-cp></div>
       </div>`);
       // Kost CP: afvinken bij gebruik trekt de kosten van de teller af (per beurt)
@@ -1765,7 +1766,7 @@ export function renderCompanion(ctx) {
       <span class="aname">${esc(ab.name)}</span>${costTag}
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
       ${abilityTagsHtml(ab, esc)}
-      <div class="adesc">${esc(ab.description)}</div>
+      ${abilityBodyHtml(ab, esc)}
       <div class="btnrow">
         <button class="small ${used ? "" : "primary"}">${used ? `${icon("undo")} Toch niet gebruikt` : `${icon("zap")} Gebruik (once per battle)`}</button>
       </div>
@@ -1800,7 +1801,7 @@ export function renderCompanion(ctx) {
         const card = el(`<div class="ability">
           <div class="owner">${esc(b.source)} · ${b.dur === "nextTurn" ? "tot je volgende beurt" : "deze beurt"}</div>
           <span class="aname">${esc(b.name)}</span>
-          <div class="adesc">${esc(b.description)}</div>
+          ${abilityBodyHtml(b, esc)}
           <div class="btnrow"><button class="small danger">${icon("undo")} Afgelopen</button></div>
         </div>`);
         card.querySelector("button").addEventListener("click", () => { delete game.activeBuffs[key]; saveData(); rerender(); });
