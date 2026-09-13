@@ -804,7 +804,18 @@ actuele data, en voegt `mergeRemoteData` in app.js samen **op id** (armies, game
 tournaments, modelLibrary): alles wat op de server staat maar hier niet, komt erbij.
 Daarnaast synct de app opnieuw bij `visibilitychange` (terug op de voorgrond).
 
-Bewuste keuzes: bij hetzelfde id wint de **lokale** versie (dat zie je op je scherm), en
+**Toernooien vormen de uitzondering**: daar voegt `mergeTournament` slot voor slot samen
+(`done`, `archivedId`, `game`, battleplan — informatie wint van leegte), want "deze ronde is
+gespeeld" mag nooit verdwijnen. Daarnaast draait `reconcileTournaments(data)` bij elke login
+én na elke merge: die koppelt gearchiveerde toernooigames terug aan hun slot via
+`tournamentId` + `gameLabel`, en zet een ronde weer open als het record verwijderd is. De app
+repareert zichzelf dus.
+
+Aanleiding (13-09-2026): na 5 gespeelde GT-games stond het toernooi weer op 0/5. De
+archiefrecords waren er nog (die worden per stuk samengevoegd), maar een apparaat dat het
+toernooi nog als onbegonnen kende won op id-niveau en wiste de `done`-vlaggen.
+
+Bewuste keuzes: bij hetzelfde id wint verder de **lokale** versie (dat zie je op je scherm), en
 een verwijdering op het ene apparaat kan via het andere terugkomen. Data terugkrijgen is
 minder erg dan data kwijtraken.
 

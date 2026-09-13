@@ -47,6 +47,30 @@ function mergeLists(local, remote) {
   return out;
 }
 
+// Twee versies van hetzelfde toernooi: de slots slot-voor-slot bijwerken, want
+// "deze game is gespeeld" is informatie die nooit mag verdwijnen. Een apparaat dat
+// het toernooi nog als onbegonnen kende, zette anders alle rondes terug op open —
+// precies wat er op 13-09-2026 gebeurde.
+function mergeTournament(local, remote) {
+  let changed = false;
+  const slots = [...(local.games || [])];
+  for (const rg of remote.games || []) {
+    const lg = slots.find((x) => x.id === rg.id);
+    if (!lg) { slots.push(rg); changed = true; continue; }
+    if (!lg.archivedId && rg.archivedId) { lg.archivedId = rg.archivedId; changed = true; }
+    if (!lg.done && rg.done) { lg.done = true; changed = true; }
+    if (!lg.game && rg.game) { lg.game = rg.game; changed = true; }
+    if (!lg.battleplanId && rg.battleplanId) {
+      lg.battleplanId = rg.battleplanId;
+      lg.battleplanName = rg.battleplanName || "";
+      changed = true;
+    }
+  }
+  local.games = slots;
+  if (!local.list && remote.list) { local.list = remote.list; changed = true; }
+  return changed;
+}
+
 function mergeRemoteData(remote) {
   if (!remote || !state.data) return false;
   let changed = false;
@@ -55,6 +79,12 @@ function mergeRemoteData(remote) {
     if (merged.length !== (state.data[key] || []).length) changed = true;
     state.data[key] = merged;
   }
+  // Toernooien die beide kanten kennen alsnog inhoudelijk samenvoegen
+  for (const rt of remote.tournaments || []) {
+    const lt = (state.data.tournaments || []).find((x) => x.id === rt.id);
+    if (lt && mergeTournament(lt, rt)) changed = true;
+  }
+  if (reconcileTournaments(state.data)) changed = true;
   if (changed) {
     store.saveUserData(state.user.name, state.data);
     backend.pushData(state.data); // nu op basis van de nieuwe serverversie
@@ -94,6 +124,37 @@ async function login(name, isAdmin) {
   navigate("home");
 }
 
+// Toernooi-slots en archief weer op één lijn brengen. Een gearchiveerde game die
+// zijn koppeling kwijt is (bijv. door een sync-conflict) wordt teruggevonden via
+// tournamentId + gameLabel; wijst een slot naar een record dat niet meer bestaat,
+// dan staat die ronde weer open. Draait bij elke login, dus de app repareert
+// zichzelf zonder dat er iets handmatig hoeft te gebeuren.
+export function reconcileTournaments(data) {
+  if (!data) return false;
+  const archive = data.gameArchive || [];
+  let changed = false;
+  for (const t of data.tournaments || []) {
+    for (const g of t.games || []) {
+      if (g.archivedId) {
+        if (archive.some((r) => r.id === g.archivedId)) {
+          if (!g.done) { g.done = true; changed = true; }
+          continue;
+        }
+        // Het record is verwijderd → deze ronde staat weer open
+        g.archivedId = null;
+        if (g.done) { g.done = false; changed = true; }
+      }
+      const rec = archive.find((r) => r.tournamentId === t.id && r.gameLabel && r.gameLabel === g.name);
+      if (rec) {
+        g.archivedId = rec.id;
+        if (!g.done) g.done = true;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 // Naamcorrecties in de gedeelde data doorvoeren in bestaande legers/records,
 // zodat een hernoemde battle tactic z'n koppeling niet verliest.
 const TACTIC_RENAMES = { "Seige of Ashes": "Siege of Ashes" };
@@ -114,6 +175,7 @@ function migrateUserData(data) {
     fixList(army.game?.enemyTactics);
   }
   for (const rec of data.gameArchive || []) { fixList(rec.tactics); fixList(rec.enemyTactics); }
+  if (reconcileTournaments(data)) changed = true;
   for (const t of data.tournaments || []) for (const g of t.games || []) { fixList(g.game?.tactics); fixList(g.game?.enemyTactics); }
   if (changed) saveData();
 }
