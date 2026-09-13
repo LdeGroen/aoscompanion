@@ -362,7 +362,7 @@ export function renderSetup(ctx) {
     </div>`);
     const ab = wrap.querySelector("[data-abs]");
     if (abilities && abilities.length) {
-      for (const a of abilities) ab.appendChild(el(`<div class="card inner"><h3>${esc(a.name || "Regel")}</h3><div class="muted-list">${esc(a.description || "")}</div></div>`));
+      for (const a of abilities) ab.appendChild(el(`<div class="card inner"><h3>${esc(a.name || "Regel")}</h3>${abilityBodyHtml(a, esc)}</div>`));
     } else {
       ab.appendChild(el(`<p class="empty">Geen RoR-regels bekend. Je kunt ze toevoegen in de database.</p>`));
     }
@@ -644,7 +644,7 @@ export function renderSetup(ctx) {
         const checked = m.enhancements.some((sel) => same(sel, e));
         const line = el(`<div class="checkline" style="align-items:flex-start">
           <input type="checkbox" ${checked ? "checked" : ""} />
-          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${e.points ? " · " + e.points + " pts" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? `<div class="muted-list">${esc(e.description)}</div>` : ""}</span>
+          <span><strong>${esc(e.name)}</strong> <span class="subtitle">— ${esc(enhancementCategoryLabel(e.category))}${e.category === "other" && e.forType ? " (" + esc(e.forType) + ")" : ""}${e.points ? " · " + e.points + " pts" : ""}${mods ? " · " + esc(mods) : ""}</span>${isStale ? ' <span class="chip tag dim">past niet bij type</span>' : ""}${e.description ? abilityBodyHtml(e, esc, { keywords: false, phases: false }) : ""}</span>
         </div>`);
         line.querySelector("input").addEventListener("change", (ev) => {
           if (ev.target.checked) m.enhancements.push(JSON.parse(JSON.stringify(e)));
@@ -861,7 +861,7 @@ export function renderSetup(ctx) {
     steps.forEach((s, i) => {
       const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());
       const heading = hasLabel ? esc(s.name) : `Stap ${i + 1}`;
-      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${heading}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
+      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${heading}</h3></div>${s.description ? abilityBodyHtml({ description: s.description }, esc, { keywords: false, phases: false }) : ""}</div>`));
     });
     openModal(wrap, el);
   }
@@ -1285,8 +1285,7 @@ export function renderSetup(ctx) {
       rules.forEach((r, i) => {
         const item = el(`<div class="card inner">
           <div class="card-header"><h3>${esc(r.name || "(naamloos)")}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
-          ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
-          <div class="muted-list">${esc(r.description || "")}</div>
+          ${abilityBodyHtml(r, esc)}
           <div class="btnrow"><button class="small" data-pers>${icon("edit")} Personaliseren</button><button class="small danger" data-del>${icon("trash")} Verwijderen</button></div>
         </div>`);
         item.querySelector("[data-pers]").addEventListener("click", () => personalizeRule(r));

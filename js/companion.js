@@ -292,7 +292,7 @@ export function renderCompanion(ctx) {
     steps.forEach((s, i) => {
       const hasLabel = s.name && !/^stap\s*\d*$/i.test(s.name.trim());
       const heading = hasLabel ? esc(s.name) : `Stap ${i + 1}`;
-      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${heading}</h3></div>${s.description ? `<div class="muted-list">${esc(s.description)}</div>` : ""}</div>`));
+      body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${heading}</h3></div>${s.description ? abilityBodyHtml({ description: s.description }, esc, { keywords: false, phases: false }) : ""}</div>`));
     });
     openModal(wrap, el);
   }

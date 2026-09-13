@@ -418,12 +418,12 @@ export function renderDatabase(ctx) {
     const body = wrap.querySelector("[data-body]");
     if (r.otype === "ability") {
       if ((o.phases || []).length) body.appendChild(el(`<div class="subtitle">Phases: ${o.phases.map((p) => esc(phaseLabel(p))).join(", ")}${o.oncePerBattle ? " · once per battle" : ""}</div>`));
-      body.appendChild(el(`<div class="muted-list">${esc(o.description || "")}</div>`));
+      body.appendChild(el(`<div>${abilityBodyHtml({ description: o.description }, esc, { keywords: false, phases: false })}</div>`));
     } else if (r.otype === "lore") {
       for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? abilityBodyHtml({ description: e.description }, esc, { keywords: false, phases: false }) : ""}</div>`));
     } else if (r.otype === "ror") {
       if ((o.units || []).length) body.appendChild(el(`<div class="subtitle">Units: ${(o.units || []).map((u) => esc(u.name)).join(", ")}${o.points ? ` · ${o.points} pts` : ""}</div>`));
-      for (const ab of (o.abilities || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(ab.name)}</h3></div><div class="muted-list">${esc(ab.description || "")}</div></div>`));
+      for (const ab of (o.abilities || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(ab.name)}</h3></div>${abilityBodyHtml(ab, esc)}</div>`));
     }
     openModal(wrap, el);
   }
@@ -448,8 +448,7 @@ export function renderDatabase(ctx) {
     if (!a.rules?.length) rl.appendChild(el(`<p class="empty">Geen aparte faction rules.</p>`));
     for (const r of a.rules || []) rl.appendChild(el(`<div class="card inner">
       <div class="card-header"><h3>${esc(r.name)}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
-      ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
-      <div class="muted-list">${esc(r.description)}</div>
+      ${abilityBodyHtml(r, esc)}
     </div>`));
     app.appendChild(rulesCard);
 
@@ -462,7 +461,7 @@ export function renderDatabase(ctx) {
       for (const enh of items) list.appendChild(el(`<div class="card inner">
         <div class="card-header"><h3>${esc(enh.name)}</h3></div>
         ${(enh.phases || []).length ? `<div class="subtitle">Phases: ${enh.phases.map((p) => esc(phaseLabel(p))).join(", ")}${enh.oncePerBattle ? " · once per battle" : ""}</div>` : ""}
-        <div class="muted-list">${esc(enh.description)}</div>
+        ${abilityBodyHtml(enh, esc, { phases: false })}
       </div>`));
       app.appendChild(card);
     }
@@ -645,8 +644,7 @@ export function renderDatabase(ctx) {
       if (editing?.target === r) { list.appendChild(buildRuleEditor({ rule: editing.target, el, esc, onChange: editSaveSoon, actions: editActions() })); continue; }
       const item = el(`<div class="card inner">
         <div class="card-header"><h3>${esc(r.name || "(naamloos)")}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
-        ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
-        <div class="muted-list">${esc(r.description)}</div>
+        ${abilityBodyHtml(r, esc)}
         <div class="btnrow">${dbEdit ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button><button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}</div>
       </div>`);
       const editBtn = item.querySelector('[data-act="edit"]');
@@ -961,7 +959,7 @@ export function renderDatabase(ctx) {
           <div class="card-header"><h3>${esc(enh.name)}</h3>${enh.category === "other" && (enh.forTypes?.length || enh.forType) ? `<span class="chip tag">${esc((enh.forTypes?.length ? enh.forTypes : [enh.forType]).join(", "))}</span>` : ""}</div>
           ${mods ? `<div class="subtitle">Stats: ${esc(mods)}</div>` : ""}
           ${(enh.phases || []).length ? `<div class="subtitle">Phases: ${enh.phases.map((p) => esc(phaseLabel(p))).join(", ")}${enh.oncePerBattle ? " · once per battle" : ""}</div>` : ""}
-          <div class="muted-list">${esc(enh.description)}</div>
+          ${abilityBodyHtml(enh, esc, { phases: false })}
           <div class="subtitle">${ownerLabel(enh)}</div>
           <div class="btnrow">
             ${canEdit(enh) ? `<button class="small" data-act="edit">${icon("edit")} Bewerken</button>
@@ -1081,8 +1079,7 @@ export function renderDatabase(ctx) {
       }
       const item = el(`<div class="card inner">
         <div class="card-header"><h3>${esc(r.name)}</h3>${r.oncePerBattle ? '<span class="chip tag">Once per battle</span>' : ""}</div>
-        ${(r.phases || []).length ? `<div class="subtitle">Phases: ${r.phases.map((p) => esc(phaseLabel(p))).join(", ")}</div>` : ""}
-        <div class="muted-list">${esc(r.description)}</div>
+        ${abilityBodyHtml(r, esc)}
         <div class="subtitle">${ownerLabel(r)}</div>
         <div class="btnrow">
           ${army ? `<button class="primary small" data-act="army">${icon("plus")} Naar dit leger</button>` : ""}
