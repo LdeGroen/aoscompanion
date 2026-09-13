@@ -843,6 +843,12 @@ een gewone openingszin verdwijnen. Heeft een ability geen timing in de tekst, da
 zijn `phases`-velden als chips in dezelfde kleuren. `markNumbers()` accentueert afstanden
 (12"), dobbelstenen (D3, 2D6) en rolresultaten (4+).
 
+**Weapon abilities** (`weaponAbilities`/`weaponAbilityClass` in modelview.js) staan als chip
+**in de aanvalsrij** in plaats van als voetnoot: crits rood (vol vlak — die doen het werk),
+Anti-X violet, Charge oranje, Shoot in Combat amber, Companion neutraal grijs. Eén `bonuses`-
+veld kan er meerdere bevatten ("Charge (+1 Damage), Companion"), dus splitsen we op komma's
+buiten de haakjes. Een brede tabel scrollt in zijn eigen `.weapons-wrap` — nooit de hele popup.
+
 **Kleurconventie** staat als CSS-variabelen in `:root` (`--ph-hero`, `--ph-move`, `--ph-shoot`,
 `--ph-charge`, `--ph-combat`, `--ph-round`, `--ph-passive`, `--ph-deploy`, `--ph-react`) en
 wordt overal hergebruikt: timing-chips, de koppen van de wapentabellen (ranged = amber,

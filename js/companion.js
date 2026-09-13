@@ -1641,7 +1641,7 @@ export function renderCompanion(ctx) {
       makeClickable(card, m);
       attachDestroyed(card.querySelector(".card-header"), m);
       const target = card.querySelector("[data-weapons]");
-      target.appendChild(weaponTable(filterWeapons(e.model[key], m), toHitTransform));
+      target.appendChild(weaponTable(filterWeapons(e.model[key], m), toHitTransform, key === "rangedAttacks" ? "ranged" : "melee"));
       // Wapen-gerelateerde enhancement-mods als voetnoot bij de tabel
       for (const note of e.notes.filter((n) => WEAPON_STATS.has(n.stat))) {
         target.appendChild(el(`<div class="weapon-bonus">✦ ${esc(note.source)}: ${esc(note.label)} (verwerkt in de tabel)</div>`));
@@ -1650,7 +1650,8 @@ export function renderCompanion(ctx) {
     }
   }
 
-  const weaponTable = (weapons, toHitTransform) => sharedWeaponTable(weapons, el, esc, toHitTransform);
+  // kind = "ranged" | "melee" → gekleurde tabelkop, net als in de warscroll-popup
+  const weaponTable = (weapons, toHitTransform, kind = "") => sharedWeaponTable(weapons, el, esc, toHitTransform, kind);
 
   function renderLoresDisplay(target = app) {
     const hasWizard = army.models.some((m) => wizLevel(m) > 0);
@@ -1848,7 +1849,7 @@ export function renderCompanion(ctx) {
         if (!withRanged.length) sub.appendChild(el(`<p class="empty">Geen models met ranged attacks.</p>`));
         for (const m of withRanged) {
           const mc = el(`<div class="card inner" style="margin-top:6px"><div class="card-header"><strong>${esc(m.name)}</strong>${m.champion ? '<span class="chip tag">Champion</span>' : ""}</div></div>`);
-          mc.appendChild(weaponTable(filterWeapons(eff(m).model.rangedAttacks, m), minusOneToHit));
+          mc.appendChild(weaponTable(filterWeapons(eff(m).model.rangedAttacks, m), minusOneToHit, "ranged"));
           sub.appendChild(mc);
         }
         extra.appendChild(sub);

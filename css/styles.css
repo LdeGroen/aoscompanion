@@ -308,6 +308,38 @@ table.weapons.melee th { background: var(--ph-combat); border-color: var(--ph-co
 .ws-keywords { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
 .weapon-bonus { font-size: 0.8rem; color: var(--gold); margin: 2px 0 6px; }
 
+/* Weapon abilities in de aanvalsrij zelf: even belangrijk als de getallen. */
+.wa-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.wa {
+  font-size: 0.63rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.wa.wa-crit { background: var(--ph-combat); color: #fff; border-color: var(--ph-combat); }
+.wa.wa-anti { background: var(--ph-react-bg); color: var(--ph-react); border-color: var(--ph-react); }
+.wa.wa-charge { background: var(--ph-charge-bg); color: var(--ph-charge); border-color: var(--ph-charge); }
+.wa.wa-shoot { background: var(--ph-shoot-bg); color: var(--ph-shoot); border-color: var(--ph-shoot); }
+.wa.wa-companion { background: var(--bg-input); color: var(--text-dim); border-color: var(--border-strong); }
+.wa.wa-other { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
+/* De naamkolom mag groeien voor de chips, maar niet zover dat de tabel de popup
+   uit duwt: breder dan het scherm scrollt de tabel zelf, niet de hele pagina. */
+table.weapons td.name { min-width: 118px; }
+.weapons-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Op een telefoon de kolommen strakker, zodat het profiel in één blik past
+   (past hij dan nog niet, dan scrollt de tabel zelf — niet de hele popup). */
+@media (max-width: 460px) {
+  table.weapons { font-size: 0.8rem; }
+  table.weapons th, table.weapons td { padding: 6px 2px; }
+  table.weapons td.name { min-width: 92px; padding-left: 6px; }
+  table.weapons th { letter-spacing: 0; font-size: 0.62rem; }
+  .wa { font-size: 0.6rem; padding: 2px 5px; }
+}
+
 /* --- Companion mode --- */
 .phase-nav { display: flex; gap: 5px; overflow-x: auto; padding: 6px 0 10px; }
 .phase-nav button { white-space: nowrap; font-size: 0.8rem; padding: 7px 13px; flex-shrink: 0; border-radius: 999px; }

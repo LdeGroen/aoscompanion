@@ -9,8 +9,43 @@ import { icon } from "./icons.js";
 // het leger live verwerkt (✦); in de database staan de kaartjes los, dus dan
 // is er niets om te verwerken en zie je de ruwe stats.
 
+// Weapon abilities (Crit (2 Hits), Anti-Infantry (+1 Rend), Charge (+1 Damage)…)
+// zijn net zo belangrijk als de getallen ernaast, dus staan ze als chip ín de rij
+// in plaats van als voetnoot onder de tabel. Eén veld kan er meerdere bevatten
+// ("Charge (+1 Damage), Companion"); we splitsen op komma's buiten de haakjes.
+export function weaponAbilities(bonuses) {
+  const out = [];
+  for (const raw of bonuses || []) {
+    for (const part of String(raw || "").split(/,\s*(?![^()]*\))/)) {
+      const t = part.trim();
+      if (t) out.push(t);
+    }
+  }
+  return out;
+}
+
+// Kleur per soort: crits rood (die doen het werk), anti-X violet (voorwaardelijk),
+// charge oranje en shoot amber — dezelfde kleuren als de fases elders in de app.
+export function weaponAbilityClass(text) {
+  const t = String(text || "").toLowerCase();
+  if (t.startsWith("crit")) return "wa-crit";
+  if (t.startsWith("anti")) return "wa-anti";
+  if (t.startsWith("charge")) return "wa-charge";
+  if (t.includes("shoot in combat")) return "wa-shoot";
+  if (t.startsWith("companion")) return "wa-companion";
+  return "wa-other";
+}
+
+function weaponAbilityChips(w, esc) {
+  const list = weaponAbilities(w.bonuses);
+  if (!list.length) return "";
+  return `<div class="wa-chips">${list
+    .map((b) => `<span class="wa ${weaponAbilityClass(b)}">${esc(b)}</span>`)
+    .join("")}</div>`;
+}
+
 export function weaponTable(weapons, el, esc, toHitTransform, kind = "") {
-  const wrap = el(`<div></div>`);
+  const wrap = el(`<div class="weapons-wrap"></div>`);
   const hasRange = weapons.some((w) => w.range);
   const table = el(`<table class="weapons ${kind}">
     <tr><th>Wapen</th>${hasRange ? "<th>Range</th>" : ""}<th>Atk</th><th>Hit</th><th>Wnd</th><th>Rend</th><th>Dmg</th></tr>
@@ -19,7 +54,7 @@ export function weaponTable(weapons, el, esc, toHitTransform, kind = "") {
     const hit = toHitTransform ? toHitTransform(w.toHit) : w.toHit;
     const wname = (w.count ? `${w.count}× ` : "") + w.name;
     table.appendChild(el(`<tr>
-      <td class="name">${esc(wname)}</td>
+      <td class="name">${esc(wname)}${weaponAbilityChips(w, esc)}</td>
       ${hasRange ? `<td>${esc(w.range || "")}"</td>` : ""}
       <td>${esc(w.attacks)}</td>
       <td>${esc(hit)}</td>
@@ -29,11 +64,6 @@ export function weaponTable(weapons, el, esc, toHitTransform, kind = "") {
     </tr>`));
   }
   wrap.appendChild(table);
-  for (const w of weapons) {
-    for (const b of (w.bonuses || []).filter(Boolean)) {
-      wrap.appendChild(el(`<div class="weapon-bonus">✦ ${esc(w.name)}: ${esc(b)}</div>`));
-    }
-  }
   return wrap;
 }
 
