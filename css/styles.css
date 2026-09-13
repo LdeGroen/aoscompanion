@@ -510,9 +510,17 @@ ul.ab-list li:first-child { border-top: none; padding-top: 0; }
 .ability.used { opacity: 0.6; border-left-color: var(--text-dim); }
 .ability.used .aname, .ability.used .adesc { text-decoration: line-through; }
 
-.lore-entry { padding: 6px 0; border-bottom: 1px dashed var(--border); }
+.lore-entry { padding: 9px 0; border-bottom: 1px dashed var(--border); }
 .lore-entry:last-child { border-bottom: none; }
-.lore-entry .lval { color: var(--gold); font-weight: bold; }
+/* Naam + casting value op één regel, daaronder de Declare/Effect-blokken */
+.lore-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.lore-head strong { font-size: 1rem; }
+.lval {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 9px; border-radius: 999px;
+  background: var(--gold-soft); color: var(--gold-dark); border: 1px solid var(--gold-dark);
+  white-space: nowrap;
+}
 .lore-entry .lore-link { color: var(--gold); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .lore-entry .lore-link:hover { text-decoration: underline; }
 

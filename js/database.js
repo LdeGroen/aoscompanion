@@ -4,6 +4,7 @@ import { buildModelEditor, buildEnhancementEditor, buildRuleEditor, buildLoreEdi
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
+import { abilityBodyHtml } from "./abilityview.js";
 import { openModal, buildModelPopupContent } from "./modelview.js";
 import { buildBattleplanAbilityEditor, buildTacticEditor } from "./editors.js";
 import { loadGamedata, saveGamedata, scoringOptionsFor } from "./battleplans.js";
@@ -419,7 +420,7 @@ export function renderDatabase(ctx) {
       if ((o.phases || []).length) body.appendChild(el(`<div class="subtitle">Phases: ${o.phases.map((p) => esc(phaseLabel(p))).join(", ")}${o.oncePerBattle ? " · once per battle" : ""}</div>`));
       body.appendChild(el(`<div class="muted-list">${esc(o.description || "")}</div>`));
     } else if (r.otype === "lore") {
-      for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? `<div class="muted-list">${esc(e.description)}</div>` : ""}</div>`));
+      for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? abilityBodyHtml({ description: e.description }, esc, { keywords: false, phases: false }) : ""}</div>`));
     } else if (r.otype === "ror") {
       if ((o.units || []).length) body.appendChild(el(`<div class="subtitle">Units: ${(o.units || []).map((u) => esc(u.name)).join(", ")}${o.points ? ` · ${o.points} pts` : ""}</div>`));
       for (const ab of (o.abilities || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(ab.name)}</h3></div><div class="muted-list">${esc(ab.description || "")}</div></div>`));

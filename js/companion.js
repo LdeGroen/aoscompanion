@@ -1665,8 +1665,8 @@ export function renderCompanion(ctx) {
         for (const ab of m.abilities.filter((a) => a.isSpell)) {
           const row = el(`<div class="lore-entry">
             <div class="owner">${esc(m.name)}</div>
-            <strong>${esc(ab.name)}</strong> <span class="lval">Cast ${esc(ab.castingValue || "?")}</span>
-            <div class="subtitle">${esc(ab.description)}</div>
+            <div class="lore-head"><strong>${esc(ab.name)}</strong> <span class="lval">Cast ${esc(ab.castingValue || "?")}</span></div>
+            ${abilityBodyHtml(ab, esc, { phases: false })}
           </div>`);
           makeClickable(row, m);
           entries.appendChild(row);
@@ -1687,8 +1687,11 @@ export function renderCompanion(ctx) {
       if (!entry.name && !entry.description) continue;
       const manif = linkManifests ? findUniversalManifest(entry.name) : null;
       const row = el(`<div class="lore-entry">
-        <strong class="${manif ? "lore-link" : ""}">${esc(entry.name)}</strong> <span class="lval">${valuePrefix} ${esc(entry.value)}</span>
-        <div class="subtitle">${esc(entry.description)}</div>
+        <div class="lore-head">
+          <strong class="${manif ? "lore-link" : ""}">${esc(entry.name)}</strong>
+          ${entry.value ? `<span class="lval">${valuePrefix} ${esc(entry.value)}</span>` : ""}
+        </div>
+        ${abilityBodyHtml({ description: entry.description }, esc, { keywords: false, phases: false })}
       </div>`);
       if (manif) {
         const name = row.querySelector("strong");
