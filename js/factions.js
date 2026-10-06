@@ -15,7 +15,7 @@ export const AOS_FACTIONS = {
   "Slaves to Darkness": ["Darkoath Horde", "Legion of Chaos", "Despoilers", "Godswrath Warband", "Chaos Horde", "Champions of Chaos"],
   "Skaven": ["Warpcog Convocation", "Fleshmeld Menagerie", "Virulent Procession", "Claw-horde", "Kill‑Pack", "Envoys of the Deepengnaw", "Gathering of the Clans"],
   "Blades of Khorne": ["Brass Stampede", "Khornate Legion", "Murderhost", "Bloodbound Warhorde", "Tournament of Skulls", "The Goretide"],
-  "Disciples of Tzeentch": ["Fated Blades", "Malevolent Schemers", "Denizens of the Silver Towers", "Mutants and Mad Thingst", "Denizens of the Silver Tower", "Mutants and Mad Things", "Masters of Fate", "Spellweaver Coven"],
+  "Disciples of Tzeentch": ["Fated Blades", "Malevolent Schemers", "Denizens of the Silver Tower", "Mutants and Mad Things", "Masters of Fate", "Spellweaver Coven"],
   "Maggotkin of Nurgle": ["Affliction Cyst", "Tallyband of Nurgle", "Nurgle's Menagerie", "Plague Cyst"],
   "Hedonites of Slaanesh": ["Depraved Carnival", "Godseeker Cavalcade", "Artisans of Torment", "Lurid Dreamers", "Pretenders", "Invaders"],
   "Helsmiths of Hashut": ["Hashutite Host", "Castigation Battery", "The Bullfather's Horns", "Daemonsmith Cabal", "Domination Force", "Industrial Polluters"],
