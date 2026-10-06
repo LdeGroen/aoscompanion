@@ -929,6 +929,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `sync-ability-text.mjs` | Ability-teksten (kaartjes, faction rules, enhancements) **letterlijk** van Sigdex, mét originele timing; ook in opgeslagen legers |
 | `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
+| `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen; bij afwijkende warscrollnaam (Gelgus Pust, Kurnoth Hunters, Hobgrot Vandalz) alleen de tekst |
 | `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
 
