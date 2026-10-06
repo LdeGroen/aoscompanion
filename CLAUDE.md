@@ -1076,7 +1076,9 @@ Van onze kant dichtgezet:
   zélf uit die cache en blijft een oude worker hangen.
 
 De echte fix zit in het Cloudflare-dashboard: *Caching → Configuration → Browser Cache TTL*
-op **Respect Existing Headers**. Dat kan alleen Luc doen.
+op **Respect Existing Headers**. Dat heeft Luc op 06-10-2026 gedaan; sindsdien komt
+`Cache-Control: no-cache` ongewijzigd door (te controleren met `curl -sI`). De sw.js-maatregelen
+blijven staan als vangnet.
 
 ## Ververs-knop (vastzittende cache)
 In de database-topbar zit **Ververs** (`forceRefresh` in database.js). Nodig omdat een
