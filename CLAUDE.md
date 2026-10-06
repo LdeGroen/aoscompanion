@@ -953,7 +953,8 @@ schrijft met 250 ms vertraging naar schijf.
   `phases` blijven bepalen *waar* een ability in de speelmodus staat. Teksten zonder
   Sigdex-bron blijven zoals ze zijn. Na de opruimronde van 06-10-2026 zijn dat er nog 15, allemaal
   verklaard: Blissbrew Homunculus (Sigdex spelt "Homonculus"), Khorgos Khul / Khul Ascended /
-  Athol Khul (niet in Sigdex, wel in BSData) en de 6 Idoneth-tides (Concealing Tide t/m Storm's
+  Athol Khul (niet in Sigdex; volledig tegen BSData gecontroleerd en met `fix-khul.mjs` gelijk
+  getrokken: wards, Legends-vlag, Effect-labels) en de 6 Idoneth-tides (Concealing Tide t/m Storm's
   Wrath: ontbreken in Sigdex' `factions.json`, maar zijn woord voor woord gelijk aan BSData).
 - **Onze typografie blijft.** Hernoem een wapen alleen als de *genormaliseerde* naam verschilt;
   een apostrof, streepje of hoofdletter is geen reden.
