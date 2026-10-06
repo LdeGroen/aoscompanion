@@ -951,7 +951,10 @@ schrijft met 250 ms vertraging naar schijf.
 - **Ability-teksten letterlijk zoals in Sigdex** (Luc wil ze precies zo kunnen lezen):
   `[timing]` + `Used By:`/`Declare:`/`Effect:`, alleen de markdown (`**`, `^^`) eraf. De
   `phases` blijven bepalen *waar* een ability in de speelmodus staat. Teksten zonder
-  Sigdex-bron (±50, vaak een tikfout in de naam) blijven zoals ze zijn.
+  Sigdex-bron blijven zoals ze zijn. Na de opruimronde van 06-10-2026 zijn dat er nog 15, allemaal
+  verklaard: Blissbrew Homunculus (Sigdex spelt "Homonculus"), Khorgos Khul / Khul Ascended /
+  Athol Khul (niet in Sigdex, wel in BSData) en de 6 Idoneth-tides (Concealing Tide t/m Storm's
+  Wrath: ontbreken in Sigdex' `factions.json`, maar zijn woord voor woord gelijk aan BSData).
 - **Onze typografie blijft.** Hernoem een wapen alleen als de *genormaliseerde* naam verschilt;
   een apostrof, streepje of hoofdletter is geen reden.
 - **Hernoemd wapen = ook `weaponOptions` (`name`/`replaces`) en `weaponLoadout` in legers**,
