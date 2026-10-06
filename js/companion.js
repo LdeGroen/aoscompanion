@@ -1224,8 +1224,10 @@ export function renderCompanion(ctx) {
     // Phase-specifieke inhoud
     renderPhaseContent(owner, phase.key);
 
-    // Abilities voor deze phase (passives niet hier, die staan in het uitschuifblad onderaan)
-    const abs = abilitiesFor(owner, phase.key).filter((ab) => !isPassiveAb(ab));
+    // Abilities voor deze phase. Een passive zónder fases staat alleen in het
+    // uitschuifblad onderaan; een passive mét fases (bijv. iets met je save: shooting
+    // én combat) is in die fases relevant en verschijnt daar dus ook.
+    const abs = abilitiesFor(owner, phase.key).filter((ab) => !isPassiveAb(ab) || (ab.phases || []).length);
     if (abs.length) {
       app.appendChild(el(`<h3>Abilities in deze phase</h3>`));
       for (const ab of abs) app.appendChild(abilityCard(ab));

@@ -872,42 +872,103 @@ vastzit.
 er is een droogloop over alle 2538 teksten gedaan (0 tekstverlies). Verander je de regexes,
 draai die controle dan opnieuw.
 
-## Data-updates: Sigdex ≠ BSData
-Sigdex zegt "displays data from BSData", maar zet daar **een aparte Battle Profiles-bron voor
-punten** overheen. Gevolg: BSData is de bron voor warscrolls, regels en formations, maar de
-**punten in BSData lopen achter**. Een puntenaudit tegen BSData meldt dan vrolijk "alles
-gelijk" terwijl er 178 verschillen zijn (meegemaakt 24-09-2026).
+## Data-updates: werkwijze en scripts (`ko-import/`)
 
-Sigdex' eigen data zit niet in zijn publieke bestanden (`.../aos-data/manifest.json` kent wel
-`warscrolls.json`/`factions.json`, maar **zonder punten**); de samengestelde set staat in de
-IndexedDB van sigdex.io onder `scrolldex → aosData` (`armies`, `units`, `regimentsOfRenown`,
-`version.battleProfiles`). Exporteren zonder alles door de chat te halen: op sigdex.io
-`window.name = JSON.stringify(payload)` zetten, naar `http://localhost:<poort>` navigeren
-(window.name overleeft een cross-origin navigatie) en daar naar een lokale ontvanger POSTen —
-rechtstreeks van https naar http://localhost blokkeert de browser als mixed content.
+### Bronnen: BSData voor regels, Sigdex voor de rest
+- **BSData** (`github.com/BSData/age-of-sigmar-4th`, `.cat`-XML) is de basis voor warscrolls,
+  regels, formations, enhancements en lores. Onze parsers (`parse-faction.mjs`,
+  `parse-enh.mjs`, `parse-regiments.mjs`, `parse-lores.mjs`, `parse-weaponoptions.mjs`) zetten
+  dat om naar ons schema.
+- **Sigdex** zegt "displays data from BSData", maar is meer dan dat — en wordt door Luc als
+  waarheid aangewezen. Twee soorten Sigdex-data:
+  - **Publiek** (rechtstreeks met `fetch` op te halen, ook vanaf de Pi):
+    `https://sigdex-storage.nyc3.digitaloceanspaces.com/aos-data/warscrolls.json` (alle
+    warscrolls: stats, wapens met `weaponAbilities`, abilities met `timing`/`declare`/`effect`,
+    keywords, `ward`) en `.../factions.json` (battleTraits, heroicTraits, artifacts,
+    otherEnhancements, met `timing`). **Geen punten.**
+  - **Alleen in de app**: de samengestelde set mét punten en regiment-opties, in de IndexedDB
+    van sigdex.io onder `scrolldex → aosData` (`armies[naam].units[].points`,
+    `.battleProfile.regiment_options`, `regimentsOfRenown`, `version.battleProfiles`).
+    Exporteren zonder alles door de chat te halen: op sigdex.io
+    `window.name = JSON.stringify(payload)`, naar `http://localhost:<poort>` navigeren
+    (window.name overleeft een cross-origin navigatie) en daar naar een lokale ontvanger POSTen
+    — rechtstreeks van https naar http://localhost blokkeert de browser als mixed content.
 
-Scripts in `ko-import/`:
-- `audit-points-sigdex.mjs` — onze punten vs Sigdex (read-only)
-- `update-points-sigdex.mjs` — punten in de gedeelde database bijwerken
-- `update-army-points.mjs` — punten in **opgeslagen legers** bijtrekken (een leger bewaart een
-  kopie van elk kaartje, dus die lopen anders achter)
-- `fix-regiment-options.mjs` — regiment-opties en sub-hero-keywords uit Sigdex
+### Waarom niet alles uit BSData
+Wat we de harde weg hebben geleerd (sep–okt 2026):
+- **Punten in BSData lopen achter.** Sigdex legt er een aparte Battle Profiles-bron overheen.
+  Een audit tegen BSData meldde "alles gelijk" terwijl er 178 verschillen waren.
+- **Wards staan in BSData als categorie** (`categoryLink name="WARD (6+)"`), niet als
+  karakteristiek. Onze parser las alleen karakteristieken → 313 kaartjes zonder ward.
+- **Regiment-opties kunnen voorwaardelijk zijn** (`<modifier field="category" type="add">`, bijv.
+  "Eager Lout" bij Sons of Behemat). Dat kan de parser niet oplossen → heroes zonder bruikbare
+  opties, een leeg regiment. Raakte 29 heroes, o.a. 9 Ogors.
+- **Dezelfde wapennaam als ranged én melee** (werpspiezen, de Moonclan Bow) voegde de importer
+  samen → 14 ontbrekende wapenprofielen.
+- Battle formations stonden hardcoded in `AOS_FACTIONS` → na een nieuw boek namen zonder regels.
+  De set-up en battle set-up lezen ze nu uit de gedeelde database.
 
-⚠️ **Regiment-opties uit BSData zijn niet te vertrouwen bij nieuwe boeken.** BSData kent
-voorwaardelijke categorieën (`<modifier field="category" type="add">`, bijv. "Eager Lout" bij
-Sons of Behemat) die onze XML-parser niet kan oplossen; je houdt dan een hero over met opties
-die nergens op matchen — en dus een leeg regiment. Sigdex heeft ze expliciet in
-`battleProfile.regiment_options` (keywords / nonKeywords / subhero_categories / unit_names).
-Na een nieuw boek dus altijd `fix-regiment-options.mjs` draaien en de controle erachteraan:
-tel per faction de heroes waarvoor `canTakeInRegiment` niets toestaat — dat hoort 0 te zijn.
-Let op de **Armies of Renown**: dezelfde unit kan daar andere opties hebben, dus het hoofdleger
-gaat vóór bij het matchen.
+### Scripts
+Draaien op de Pi in `~/ko-import` (kopiëren met `scp`; de map is gitignored en staat lokaal in
+`C:\Users\lucde\ko-import`). Alles wat schrijft heeft `REPORT=1` voor een rapport zonder te
+schrijven, maakt vooraf een `db.json.bak-*` en schrijft **via de API** (appsync houdt de database
+in het geheugen). ⚠️ Een REPORT-run direct na een echte run kan nog oude data lezen: appsync
+schrijft met 250 ms vertraging naar schijf.
 
-⚠️ **Battle formations stonden hardcoded in `AOS_FACTIONS`.** Een nieuw boek hernoemt ze (de
-SoB-tribes werden Looting Leviathans e.d.), waarna de keuzelijst namen toonde die in de
-database niet bestaan → "lege subfaction". De set-up en de battle set-up lezen de namen nu uit
-de gedeelde database (`AOS_FACTIONS` is alleen nog terugval zolang die laadt), en een al
-gekozen formation blijft in de lijst staan ook als het boek hem niet meer kent.
+| Script | Wat |
+|---|---|
+| `refresh-<faction>.mjs` (`refresh-ogor`, `refresh-sob`) | Nieuw battletome: hele faction-blob opnieuw uit BSData, handmatige SoA-content (`soa:true`) blijft |
+| `audit-points-sigdex.mjs` | Punten: onze database vs Sigdex (read-only, lokaal met dumps) |
+| `update-points-sigdex.mjs` | Punten van units en Regiments of Renown bijwerken |
+| `fix-regiment-options.mjs` | Regiment-opties + sub-hero-keywords uit Sigdex (hoofdleger gaat vóór Armies of Renown) |
+| `audit-warscrolls-sigdex.mjs "<faction>"` | Kaartjes vs Sigdex: stats, wapens, abilities, keywords (read-only) |
+| `fix-warscroll-gaps.mjs` | Aanvullen: ward, ontbrekende abilities, keywords, champion/musician/banner |
+| `fix-weapons.mjs` | Wapens: koppelen, hernoemen, stats, weapon abilities, ontbrekende toevoegen |
+| `fix-timings.mjs` | Fases van abilities afleiden uit hun timing (regels hieronder) |
+| `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
+
+### Werkwijze bij een puntenupdate of nieuw boek
+1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`).
+2. **Sigdex-export** maken (zie boven) en `update-points-sigdex.mjs` + `fix-regiment-options.mjs`.
+3. `fix-warscroll-gaps.mjs`, `fix-weapons.mjs`, `fix-timings.mjs` — elk eerst met `REPORT=1`.
+4. Controle: `audit-warscrolls-sigdex.mjs` per faction, en tel per faction de heroes waarvoor
+   `canTakeInRegiment` niets toestaat (hoort 0 te zijn).
+5. **Opgeslagen legers** bijtrekken (`update-army-*`). Een leger bewaart een kopie van elk
+   kaartje; zonder deze stap rekent het met oude punten en mist het nieuwe wards/abilities.
+6. Luc laten weten dat hij open apps opnieuw moet openen.
+
+### Vaste afspraken in de scripts
+- **Alleen aanvullen, nooit weghalen.** Eigen keywords (EAGER LOUT, GUILD OFFICER, LEGENDS)
+  blijven staan, wapens die alleen bij ons bestaan ook (vaak een wapenoptie).
+- **Bestaande ability-teksten niet aanraken.** De verschillen met Sigdex zijn bijna altijd
+  leestekens, en wij hebben het dan vaak beter: Sigdex heeft "big eads", wij "big 'eads".
+- **Onze typografie blijft.** Hernoem een wapen alleen als de *genormaliseerde* naam verschilt;
+  een apostrof, streepje of hoofdletter is geen reden.
+- **Hernoemd wapen = ook `weaponOptions` (`name`/`replaces`) en `weaponLoadout` in legers**,
+  anders raakt een gekozen loadout los.
+- **Ranged en melee apart vergelijken.** Sigdex heeft soms een ranged wapen óók als melee met
+  dezelfde naam terwijl BSData daar iets anders heeft (Eyes of the Nine). Zo'n naam koppelen we
+  niet "bij uitsluiting", en voegen we niet toe als wij in die soort al een eigen wapen hebben.
+- **Leger-kopieën alleen bijwerken als ze nog gelijk waren aan de oude databasewaarde** — wat
+  je gepersonaliseerd hebt, blijft van jou.
+- **Sigdex-data niet blind volgen.** Bekende fouten: "Infatry", "Relentless Discipline (n)"
+  als keyword, de dubbele melee-bolt. Bij twijfel BSData erbij pakken.
+
+### Fases (timing) — `fix-timings.mjs`
+De `phases` van een ability bepalen in welke fase hij in de speelmodus verschijnt.
+- **Your X Phase** → alleen jouw fase (`own-x`); **Enemy X Phase** → alleen die van de
+  tegenstander; **Any X Phase** → allebei. Idem End/Start of Your/Enemy/Any Turn;
+  Deployment → `deployment`; Start of Battle Round → `startOfRound`.
+- **Reactions** in de fase waarop gereageerd wordt: "Opponent declared a SPELL" → `enemy-hero`,
+  "You declared a SHOOT" → `own-shooting`, een **Fight** altijd beide combat phases.
+  "Picked as the target of an ability" kan altijd en krijgt bewust geen fase.
+- **Passive** wordt afgeleid uit de tekst en **alleen aangevuld**, nooit vervangen (sommige
+  regels doen in meerdere fases iets, zoals Under the Light of the Bad Moon):
+  iets met **save/ward** → shooting én combat (beide spelers), tenzij de tekst alleen shooting-
+  of alleen combat-attacks noemt; **pile-in/fight/combat attacks/melee** → combat;
+  **shooting attacks/ranged** → shooting. Matcht er niets, dan blijft het zoals het is.
+- In de speelmodus verschijnt een `[Passive]`-ability **mét** fases in die fases én in het
+  passives-blad; een passive zonder fases alleen in het blad.
 
 ## Lijst plakken (`js/listimport.js`)
 `parseListText(text, {factions})` leest een **geëxporteerde lijst** (onze eigen export is de
