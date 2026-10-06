@@ -312,7 +312,8 @@ laadt dezelfde URL.
     6 enhancements elk) — die zijn uit BSData bijgeplaatst. ⚠️ BSData heeft **geen punten voor
     SoA-enhancements**: die van Lumineth/DoK staan daarom op 0 en moeten nog uit de Battle
     Profiles-xlsx komen. Twee namen zijn gelijkgetrokken met BSData ("Kurnoth Hunters with
-    **Kurnoth** Greatswords", "Infernal Enrapturess**, Herald of Slaanesh**"). Let op: BSData
+    **Kurnoth** Greatswords", "Infernal Enrapturess**, Herald of Slaanesh**"); de Kurnoth Hunters
+    heten sinds okt 2026 weer naar Sigdex ("with Greatswords", zie `rename-warscrolls-sigdex.mjs`). Let op: BSData
     bevat ook echte fouten (OBR "Reaper**'** Blades" mist een s) — niet blind overnemen.
 - **Nieuw battletome voor een BSData-faction** (bijv. Ogor Mawtribes, Aug 2026): als BSData
   (`age-of-sigmar-4th`) het nieuwe boek al heeft, ververs je de hele faction-blob met
@@ -930,7 +931,8 @@ schrijft met 250 ms vertraging naar schijf.
 | `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
-| `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen; bij afwijkende warscrollnaam (Gelgus Pust, Kurnoth Hunters, Hobgrot Vandalz) alleen de tekst |
+| `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
+| `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
 | `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
 
 ### Werkwijze bij een puntenupdate of nieuw boek
