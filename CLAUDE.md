@@ -862,7 +862,8 @@ melee = rood) en de sectiekoppen in de warscroll-popup. Eén fase = één kleur,
 
 **Lange teksten**: `richText()` maakt van regels als "1 Glyph of Shyish: …" een opsomming met
 het nummer in de marge en het deel vóór de dubbele punt vet; `maybeClamp()` klapt alles boven
-280 tekens in met een **lees-meer**. Dat laatste is bewust een checkbox + label (geen
+280 tekens in met een **lees-meer**. Elke `•` begint een eigen regel: Sigdex zet opsommingen
+vaak midden in de lopende tekst, en zo worden ze een ingesprongen lijst. Dat laatste is bewust een checkbox + label (geen
 JavaScript), zodat elke plek die deze HTML als string invoegt het gratis meekrijgt — let op:
 de ids komen uit een teller, dus de HTML moet in het document terechtkomen, niet gedupliceerd.
 Declare/Effect zijn omkaderde blokken waarin het label als koprand aan zijn eigen tekst
@@ -925,6 +926,8 @@ schrijft met 250 ms vertraging naar schijf.
 | `fix-warscroll-gaps.mjs` | Aanvullen: ward, ontbrekende abilities, keywords, champion/musician/banner |
 | `fix-weapons.mjs` | Wapens: koppelen, hernoemen, stats, weapon abilities, ontbrekende toevoegen |
 | `fix-timings.mjs` | Fases van abilities afleiden uit hun timing (regels hieronder) |
+| `sync-ability-text.mjs` | Ability-teksten (kaartjes, faction rules, enhancements) **letterlijk** van Sigdex, mét originele timing; ook in opgeslagen legers |
+| `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
 
 ### Werkwijze bij een puntenupdate of nieuw boek
@@ -940,8 +943,10 @@ schrijft met 250 ms vertraging naar schijf.
 ### Vaste afspraken in de scripts
 - **Alleen aanvullen, nooit weghalen.** Eigen keywords (EAGER LOUT, GUILD OFFICER, LEGENDS)
   blijven staan, wapens die alleen bij ons bestaan ook (vaak een wapenoptie).
-- **Bestaande ability-teksten niet aanraken.** De verschillen met Sigdex zijn bijna altijd
-  leestekens, en wij hebben het dan vaak beter: Sigdex heeft "big eads", wij "big 'eads".
+- **Ability-teksten letterlijk zoals in Sigdex** (Luc wil ze precies zo kunnen lezen):
+  `[timing]` + `Used By:`/`Declare:`/`Effect:`, alleen de markdown (`**`, `^^`) eraf. De
+  `phases` blijven bepalen *waar* een ability in de speelmodus staat. Teksten zonder
+  Sigdex-bron (±50, vaak een tikfout in de naam) blijven zoals ze zijn.
 - **Onze typografie blijft.** Hernoem een wapen alleen als de *genormaliseerde* naam verschilt;
   een apostrof, streepje of hoofdletter is geen reden.
 - **Hernoemd wapen = ook `weaponOptions` (`name`/`replaces`) en `weaponLoadout` in legers**,

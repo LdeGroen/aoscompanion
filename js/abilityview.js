@@ -121,7 +121,10 @@ const LIST_RE = /^\s*(?:([0-9]{1,2})\s*[.):]?|[•\-*‣])\s+(.+)$/;
 // Tekst met alinea's en opsommingen. Werkt op de ruwe (nog niet ge-escapete) tekst
 // en escapet zelf, zodat de opmaak nooit uit de data kan komen.
 function richText(text, esc) {
-  const lines = String(text || "").split("\n");
+  // Sigdex zet opsommingen vaak midden in de lopende tekst ("…otherwise. • Pick an
+  // enemy unit… • If the target…"). Elk • begint een eigen regel, zodat het
+  // hieronder als ingesprongen lijst wordt opgemaakt in plaats van als één alinea.
+  const lines = String(text || "").replace(/[ \t]*•[ \t]*/g, "\n• ").split("\n");
   const out = [];
   let list = null;
 
