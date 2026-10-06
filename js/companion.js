@@ -347,13 +347,27 @@ export function renderCompanion(ctx) {
     </div>`);
     app.appendChild(oppCard);
     const subSel = oppCard.querySelector("#opp-subfaction");
+    // Net als in de set-up: de database is leidend, de vaste lijst is terugval.
+    let oppSubs = [];
     const fillSubs = () => {
+      const namen = oppSubs.length ? [...oppSubs] : [...(AOS_FACTIONS[opp.faction] || [])];
+      if (opp.subfaction && !namen.includes(opp.subfaction)) namen.unshift(opp.subfaction);
       subSel.innerHTML = `<option value="">— geen —</option>`;
-      for (const s of AOS_FACTIONS[opp.faction] || []) {
+      for (const s of namen) {
         subSel.appendChild(el(`<option ${s === opp.subfaction ? "selected" : ""}>${esc(s)}</option>`));
       }
     };
     fillSubs();
+    if (opp.faction) {
+      sharedb.loadFactionDb(opp.faction)
+        .then(({ db }) => {
+          const namen = Object.keys(db.subfactions || {});
+          if (!namen.length || !subSel.isConnected) return;
+          oppSubs = namen;
+          fillSubs();
+        })
+        .catch(() => {});
+    }
     oppCard.querySelector("#opp-name").addEventListener("input", (e) => { opp.name = e.target.value; saveData(); });
     oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; fillSubs(); saveData(); });
     subSel.addEventListener("change", (e) => { opp.subfaction = e.target.value; saveData(); });

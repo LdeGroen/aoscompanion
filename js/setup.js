@@ -597,6 +597,9 @@ export function renderSetup(ctx) {
     applyFactionDefaults().then(() => { saveData(); rerender(); });
   }
 
+  // Battle formations van de gekozen faction, zoals ze in de database staan.
+  let dbSubfactions = [];
+
   // sub-state binnen set-up
   let editing = null; // null | model object dat bewerkt wordt
   const collapsedTypes = new Set(); // ingeklapte type-groepen (blijft staan tijdens rerenders)
@@ -1037,13 +1040,28 @@ export function renderSetup(ctx) {
     for (const f of Object.keys(AOS_FACTIONS)) {
       facSel.appendChild(el(`<option value="${esc(f)}" ${f === army.faction ? "selected" : ""}>${esc(f)}</option>`));
     }
+    // De namen komen uit de gedeelde database; AOS_FACTIONS is de terugval zolang
+    // die nog laadt (en vult aan wat de database niet kent). Zo verschijnen nieuwe
+    // battle formations uit een nieuw boek vanzelf, zonder code-wijziging.
     const fillSubs = () => {
+      const namen = dbSubfactions.length ? [...dbSubfactions] : [...(AOS_FACTIONS[army.faction] || [])];
+      // Wat dit leger al gekozen heeft blijft in de lijst staan, ook als het boek
+      // die formation inmiddels niet meer kent — anders verdwijnt hij stilletjes.
+      if (army.subfaction && !namen.includes(army.subfaction)) namen.unshift(army.subfaction);
       subSel.innerHTML = `<option value="">— geen —</option>`;
-      for (const s of AOS_FACTIONS[army.faction] || []) {
+      for (const s of namen) {
         subSel.appendChild(el(`<option value="${esc(s)}" ${s === army.subfaction ? "selected" : ""}>${esc(s)}</option>`));
       }
     };
     fillSubs();
+    sharedb.loadFactionDb(army.faction)
+      .then(({ db }) => {
+        const namen = Object.keys(db.subfactions || {});
+        if (!namen.length || namen.join("|") === dbSubfactions.join("|")) return;
+        dbSubfactions = namen;
+        if (subSel.isConnected) fillSubs();
+      })
+      .catch(() => { /* offline: de vaste lijst volstaat */ });
     base.querySelector("#army-name").addEventListener("input", (e) => { army.name = e.target.value; saveData(); });
     // Bij het kiezen van een (sub)faction worden de bijbehorende rules en
     // enhancements automatisch uit de gedeelde database gekopieerd.

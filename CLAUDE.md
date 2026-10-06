@@ -872,6 +872,43 @@ vastzit.
 er is een droogloop over alle 2538 teksten gedaan (0 tekstverlies). Verander je de regexes,
 draai die controle dan opnieuw.
 
+## Data-updates: Sigdex ≠ BSData
+Sigdex zegt "displays data from BSData", maar zet daar **een aparte Battle Profiles-bron voor
+punten** overheen. Gevolg: BSData is de bron voor warscrolls, regels en formations, maar de
+**punten in BSData lopen achter**. Een puntenaudit tegen BSData meldt dan vrolijk "alles
+gelijk" terwijl er 178 verschillen zijn (meegemaakt 24-09-2026).
+
+Sigdex' eigen data zit niet in zijn publieke bestanden (`.../aos-data/manifest.json` kent wel
+`warscrolls.json`/`factions.json`, maar **zonder punten**); de samengestelde set staat in de
+IndexedDB van sigdex.io onder `scrolldex → aosData` (`armies`, `units`, `regimentsOfRenown`,
+`version.battleProfiles`). Exporteren zonder alles door de chat te halen: op sigdex.io
+`window.name = JSON.stringify(payload)` zetten, naar `http://localhost:<poort>` navigeren
+(window.name overleeft een cross-origin navigatie) en daar naar een lokale ontvanger POSTen —
+rechtstreeks van https naar http://localhost blokkeert de browser als mixed content.
+
+Scripts in `ko-import/`:
+- `audit-points-sigdex.mjs` — onze punten vs Sigdex (read-only)
+- `update-points-sigdex.mjs` — punten in de gedeelde database bijwerken
+- `update-army-points.mjs` — punten in **opgeslagen legers** bijtrekken (een leger bewaart een
+  kopie van elk kaartje, dus die lopen anders achter)
+- `fix-regiment-options.mjs` — regiment-opties en sub-hero-keywords uit Sigdex
+
+⚠️ **Regiment-opties uit BSData zijn niet te vertrouwen bij nieuwe boeken.** BSData kent
+voorwaardelijke categorieën (`<modifier field="category" type="add">`, bijv. "Eager Lout" bij
+Sons of Behemat) die onze XML-parser niet kan oplossen; je houdt dan een hero over met opties
+die nergens op matchen — en dus een leeg regiment. Sigdex heeft ze expliciet in
+`battleProfile.regiment_options` (keywords / nonKeywords / subhero_categories / unit_names).
+Na een nieuw boek dus altijd `fix-regiment-options.mjs` draaien en de controle erachteraan:
+tel per faction de heroes waarvoor `canTakeInRegiment` niets toestaat — dat hoort 0 te zijn.
+Let op de **Armies of Renown**: dezelfde unit kan daar andere opties hebben, dus het hoofdleger
+gaat vóór bij het matchen.
+
+⚠️ **Battle formations stonden hardcoded in `AOS_FACTIONS`.** Een nieuw boek hernoemt ze (de
+SoB-tribes werden Looting Leviathans e.d.), waarna de keuzelijst namen toonde die in de
+database niet bestaan → "lege subfaction". De set-up en de battle set-up lezen de namen nu uit
+de gedeelde database (`AOS_FACTIONS` is alleen nog terugval zolang die laadt), en een al
+gekozen formation blijft in de lijst staan ook als het boek hem niet meer kent.
+
 ## Lijst plakken (`js/listimport.js`)
 `parseListText(text, {factions})` leest een **geëxporteerde lijst** (onze eigen export is de
 maat, maar hij is tolerant: hoofdletters, `•`/`-`/`*` als bullet, onbekende regels). Hij haalt
