@@ -990,6 +990,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
 | `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |
 | `add-modelcount-sigdex.mjs` | `model.modelCount` (unitgrootte) uit Sigdex, ook in leger- en RoR-kopieën — nodig voor models/wounds per leger |
+| `repair-reverted-armies.mjs` | Herstel van legerkopieën die een apparaat had teruggedraaid (09-10-2026: 113 teksten, 57 modelaantallen, 2 units zonder wapens bij Luc). Ook bruikbaar als controle: met `REPORT=1` toont het wat er in legers afwijkt van de database |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
 | `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
