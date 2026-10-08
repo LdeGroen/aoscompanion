@@ -943,6 +943,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `sync-ability-text.mjs` | Ability-teksten (kaartjes, faction rules, enhancements) **letterlijk** van Sigdex, mét originele timing; ook in opgeslagen legers |
 | `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
+| `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
 | `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
