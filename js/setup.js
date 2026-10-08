@@ -46,25 +46,88 @@ export function renderSetup(ctx) {
   // vorm, warscrolls de volledige — dus vergelijken we ook op het deel vóór de komma.
   const nameAlias = (s) => String(s || "").toLowerCase().split(",")[0].replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
 
-  function canTakeInRegiment(leader, unit) {
-    const opts = leader && leader.regimentOptions;
-    if (!opts || !opts.length) return true;
+  // Past een unit bij één regiment-optie ({names, max})?
+  function matchesOption(opt, unit) {
     const nm = (unit.name || "").toLowerCase();
     const kw = (unit.keywords || []).map((k) => k.toLowerCase());
     const hk = (unit.heroKeywords || []).map((k) => k.toLowerCase()); // hero-keywords (bijv. Guild Officer)
     const hero = isHero(unit);
-    for (const opt of opts) {
-      for (const o of opt.names || []) {
-        const lo = o.toLowerCase();
-        if (nm === lo || nameAlias(nm) === nameAlias(lo)) return true; // unit/hero-naam (kort of volledig)
-        if (hero) { if (hk.includes(lo)) return true; continue; } // heroes alleen via naam of hero-keyword (niet via brede keywords als "Infantry")
-        const nonM = lo.match(/^non-(\S+)\s+(.+)/); // bijv. "non-Monster Skink"
-        if (nonM) { if (!kw.includes(nonM[1]) && nonM[2].split(/\s+/).every((p) => kw.includes(p))) return true; continue; }
-        if (kw.includes(lo)) return true; // hele keyword (ook met spatie, bijv. "kharadron overlords")
-        if (lo.includes(" ") && lo.split(/\s+/).every((p) => kw.includes(p))) return true; // compound van losse keywords
-      }
+    for (const o of opt.names || []) {
+      const lo = o.toLowerCase();
+      if (nm === lo || nameAlias(nm) === nameAlias(lo)) return true; // unit/hero-naam (kort of volledig)
+      if (hero) { if (hk.includes(lo)) return true; continue; } // heroes alleen via naam of hero-keyword (niet via brede keywords als "Infantry")
+      const nonM = lo.match(/^non-(\S+)\s+(.+)/); // bijv. "non-Monster Skink"
+      if (nonM) { if (!kw.includes(nonM[1]) && nonM[2].split(/\s+/).every((p) => kw.includes(p))) return true; continue; }
+      if (kw.includes(lo)) return true; // hele keyword (ook met spatie, bijv. "kharadron overlords")
+      if (lo.includes(" ") && lo.split(/\s+/).every((p) => kw.includes(p))) return true; // compound van losse keywords
     }
     return false;
+  }
+
+  function canTakeInRegiment(leader, unit) {
+    const opts = leader && leader.regimentOptions;
+    if (!opts || !opts.length) return true;
+    return opts.some((opt) => matchesOption(opt, unit));
+  }
+
+  // Verdeelt de units van een regiment over de opties van de leider, met hun maximum
+  // ("0-1 Skyvessel" = max 1; max 0 = onbeperkt). Een unit die bij meerdere opties past
+  // (een Skyvessel is ook Kharadron Overlords) mag elke plek innemen; we zoeken de
+  // verdeling waarin zoveel mogelijk units een plek hebben. Regimenten zijn klein, dus
+  // gewoon alles proberen.
+  //   → { perOption: [{opt, units}], full: [units die passen maar geen plek meer hebben],
+  //       noMatch: [units die bij geen enkele optie passen] }
+  function regimentSlots(leader, units) {
+    const opts = (leader && leader.regimentOptions) || [];
+    const perOption = opts.map((opt) => ({ opt, units: [] }));
+    if (!opts.length) return { perOption, full: [], noMatch: [] };
+    const noMatch = [], kand = [];
+    for (const u of units) {
+      const idx = opts.map((o, i) => (matchesOption(o, u) ? i : -1)).filter((i) => i >= 0);
+      if (idx.length) kand.push({ u, idx }); else noMatch.push(u);
+    }
+    // Units met de minste keuze eerst: dat vindt sneller de beste verdeling.
+    kand.sort((a, b) => a.idx.length - b.idx.length);
+    const cap = opts.map((o) => (parseInt(o.max) > 0 ? parseInt(o.max) : Infinity));
+    let best = null, bestPlaced = -1;
+    const cur = new Array(kand.length).fill(-1);
+    const used = opts.map(() => 0);
+    const walk = (i, placed) => {
+      if (bestPlaced === kand.length) return;
+      if (placed + (kand.length - i) <= bestPlaced) return;
+      if (i === kand.length) { bestPlaced = placed; best = [...cur]; return; }
+      for (const o of kand[i].idx) {
+        if (used[o] >= cap[o]) continue;
+        used[o]++; cur[i] = o;
+        walk(i + 1, placed + 1);
+        used[o]--; cur[i] = -1;
+      }
+      walk(i + 1, placed);
+    };
+    walk(0, 0);
+    const full = [];
+    kand.forEach(({ u }, i) => { if (best[i] >= 0) perOption[best[i]].units.push(u); else full.push(u); });
+    return { perOption, full, noMatch };
+  }
+  const optLabel = (opt) => (opt.names || []).join(" of ");
+  // Chips per optie: "Skyvessel 1/1" (goud = vol, rood = erover), "Infantry 2 · onbeperkt".
+  const regOptChips = (slots) => slots.perOption.map((s) => {
+    const max = parseInt(s.opt.max) || 0;
+    const over = slots.full.filter((u) => matchesOption(s.opt, u)).length;
+    const cls = max && over ? "over" : max && s.units.length >= max ? "vol" : "";
+    const n = s.units.length + (max ? over : 0);
+    return `<span class="chip regopt ${cls}">${esc(optLabel(s.opt))} <b>${max ? `${n}/${max}` : `${n} · onbeperkt`}</b></span>`;
+  }).join("");
+  const optCount = (slot) => (parseInt(slot.opt.max) > 0 ? `${slot.units.length}/${parseInt(slot.opt.max)}` : `${slot.units.length} · onbeperkt`);
+
+  // Waarom past deze unit (nu) niet in het regiment? "" = hij past.
+  function regimentBlock(leader, units, unit) {
+    if (!canTakeInRegiment(leader, unit)) return "past niet bij de regiment-opties";
+    if (!regimentSlots(leader, [...units, unit]).full.includes(unit)) return "";
+    const vol = regimentSlots(leader, units).perOption
+      .filter((s) => matchesOption(s.opt, unit) && parseInt(s.opt.max) > 0)
+      .map((s) => `${optLabel(s.opt)} ${optCount(s)}`);
+    return `vol: ${vol.join(", ")}`;
   }
 
   function copyForArmy(m) {
@@ -160,8 +223,10 @@ export function renderSetup(ctx) {
   // Modal-picker: kies een warscroll uit de gedeelde database (gefilterd).
   // `restrict` (optioneel) = strengere filter (regiment-opties); een checkbox
   // laat de speler die negeren en alles tonen.
-  async function pickModel({ title, filter, onPick, restrict = null }) {
-    const wrap = el(`<div><h2>${esc(title)}</h2>${restrict ? `<label class="subtitle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" data-all> Toon alle units (negeer regiment-opties)</label>` : ""}<div data-body></div></div>`);
+  // `restrict` mag ook een tekst teruggeven: dan staat de unit er wel, maar uitgegrijsd
+  // met die reden (bijv. "vol: Skyvessel 1/1") en is hij alleen te kiezen met "toon alle".
+  async function pickModel({ title, filter, onPick, restrict = null, intro = "" }) {
+    const wrap = el(`<div><h2>${esc(title)}</h2>${intro}${restrict ? `<label class="subtitle" style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" data-all> Toon alle units (negeer regiment-opties)</label>` : ""}<div data-body></div></div>`);
     const body = wrap.querySelector("[data-body]");
     body.appendChild(el(`<p class="empty">Database laden…</p>`));
     const overlay = openModal(wrap, el);
@@ -188,18 +253,20 @@ export function renderSetup(ctx) {
       // Warhammer Legends alleen tonen als dit leger daarvoor gekozen heeft.
     const filtered = models.filter((m) => filter(m) && !COMPANION_NAMES.has(normNm(m.name))
       && (army.showLegends || !m.legends)
-      && (showAll || !restrict || restrict(m)));
+      && (showAll || !restrict || restrict(m) !== false));
       body.innerHTML = "";
       if (!filtered.length) { body.appendChild(el(`<p class="empty">${restrict && !showAll ? "Geen units die in dit regiment passen — vink hierboven aan om alles te tonen." : `Niets beschikbaar in de ${esc(army.faction)}-database.`}</p>`)); return; }
       for (const [typeLabel, group] of groupByType(filtered)) {
         const det = el(`<details class="type-group" open><summary>${esc(typeLabel)} <span class="count">(${group.length})</span></summary><div data-items></div></details>`);
         const items = det.querySelector("[data-items]");
         for (const m of group) {
-          const row = el(`<div class="card-header clickable" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}</span>
+          const r = restrict ? restrict(m) : true;
+          const blocked = typeof r === "string" && !showAll ? r : "";
+          const row = el(`<div class="card-header ${blocked ? "pick-blocked" : "clickable"}" style="padding:8px 0;border-bottom:1px dashed var(--border)">
+            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${blocked ? `<div class="regopt-warn">${esc(blocked)}</div>` : ""}</span>
             <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
           </div>`);
-          row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
+          if (!blocked) row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
           items.appendChild(row);
         }
         body.appendChild(det);
@@ -233,9 +300,15 @@ export function renderSetup(ctx) {
       if (!isHero(leader)) w.push(`Leider van een regiment is geen hero: ${leader.name}.`);
       const heroes = inReg.filter((m) => !m.isLeader && isHero(m));
       if (heroes.length > 1) w.push(`Regiment ${leader.name}: meer dan 1 extra hero.`);
-      for (const u of inReg) {
-        if (u.isLeader) continue;
-        if (!canTakeInRegiment(leader, u)) w.push(`${u.name} past niet in het regiment van ${leader.name} (regiment-opties).`);
+      const slots = regimentSlots(leader, inReg.filter((m) => !m.isLeader));
+      for (const u of slots.noMatch) w.push(`${u.name} past niet in het regiment van ${leader.name} (regiment-opties).`);
+      // Elke unit zonder plek één keer melden, bij de eerste beperkte optie waar hij bij past.
+      const limited = slots.perOption.filter((s) => parseInt(s.opt.max) > 0);
+      for (const s of limited) {
+        const extra = slots.full.filter((u) => limited.find((x) => matchesOption(x.opt, u)) === s);
+        if (extra.length) {
+          w.push(`${leader.name} mag maar ${parseInt(s.opt.max)}× ${optLabel(s.opt)} in zijn regiment, er zitten er ${s.units.length + extra.length} in (${[...s.units, ...extra].map((u) => u.name).join(", ")}).`);
+        }
       }
     }
     return w;
@@ -271,10 +344,11 @@ export function renderSetup(ctx) {
   }
 
   // Compacte rij voor één model in de roster
-  function modelRow(m, { leader = false } = {}) {
+  function modelRow(m, { leader = false, warn = "" } = {}) {
     const isManif = m.type === "Manifestation", isTerrain = m.type === "Faction terrain";
-    const card = el(`<div class="card inner clickable" style="margin:6px 0">
+    const card = el(`<div class="card inner clickable ${warn ? "over-limit" : ""}" style="margin:6px 0">
       <div class="card-header"><div>
+        ${warn ? `<div class="regopt-warn">${icon("flag", 12)} ${esc(warn)}</div>` : ""}
         <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
         <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}${hasWeaponOptions(m) && loadoutSummary(m) ? ` · ${esc(loadoutSummary(m))}` : ""}</div>
       </div></div>
@@ -337,14 +411,30 @@ export function renderSetup(ctx) {
       army.regiments = army.regiments.filter((r) => r.id !== reg.id);
       saveData(); rerender();
     });
+    // Wat deze leider in zijn regiment mag, met hoeveel er al van gebruikt is.
+    const slots = regimentSlots(leader, units);
+    if (slots.perOption.length) card.querySelector("[data-leader]").appendChild(el(`<div class="regopts">
+      <span class="subtitle">Mag in het regiment:</span>
+      ${regOptChips(slots)}
+    </div>`));
     const uwrap = card.querySelector("[data-units]");
     if (!units.length) uwrap.appendChild(el(`<p class="empty">Nog geen units in dit regiment.</p>`));
-    for (const u of units) uwrap.appendChild(modelRow(u, {}));
+    for (const u of units) {
+      const warn = slots.noMatch.includes(u) ? "Past niet bij de regiment-opties"
+        : slots.full.includes(u) ? `Boven het maximum (${slots.perOption.filter((s) => matchesOption(s.opt, u) && parseInt(s.opt.max) > 0).map((s) => `${optLabel(s.opt)} max ${parseInt(s.opt.max)}`).join(", ")})` : "";
+      uwrap.appendChild(modelRow(u, { warn }));
+    }
     card.querySelector("[data-add]").addEventListener("click", () => pickModel({
       title: "Unit toevoegen aan regiment",
+      intro: leader && slots.perOption.length
+        ? `<div class="regopts"><span class="subtitle">${esc(leader.name)} mag kiezen:</span> ${regOptChips(slots)}</div>` : "",
       // heroes mogen ook (regimental heroes), maar alleen als de leider ze toestaat
       filter: (m) => m.type !== "Faction terrain" && m.type !== "Manifestation" && !(m.isLeader),
-      restrict: (m) => canTakeInRegiment(leader, m),
+      // false = verbergen; tekst = tonen maar niet kiesbaar (plek vol), met de reden
+      restrict: (m) => {
+        const why = regimentBlock(leader, units, m);
+        return !why ? true : why.startsWith("vol") ? why : false;
+      },
       onPick: (u) => { u.regimentId = reg.id; u.isLeader = false; army.models.push(u); },
     }));
     app.appendChild(card);

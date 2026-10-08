@@ -794,3 +794,13 @@ table.statgrid tbody tr:hover td { background: var(--bg-input); }
 .fav-btn.on svg { fill: var(--gold-bright); }
 details.army-group > summary { display: flex; align-items: center; gap: 6px; }
 details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
+
+/* --- Regiment-opties: wat een leider mag, met telling --- */
+.regopts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 4px 0 8px; }
+.chip.regopt { background: var(--bg-card-2); border: 1px solid var(--border); color: var(--text); }
+.chip.regopt b { margin-left: 4px; }
+.chip.regopt.vol { border-color: var(--gold); color: var(--gold-dark); }
+.chip.regopt.over { border-color: var(--red); color: var(--red); background: transparent; }
+.regopt-warn { color: var(--red); font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.card.inner.over-limit { border-left: 3px solid var(--red); }
+.pick-blocked { opacity: 0.55; cursor: not-allowed; }

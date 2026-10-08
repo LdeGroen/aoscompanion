@@ -338,6 +338,14 @@ laadt dezelfde URL.
   unit-naam matcht (named heroes). Heroes mogen alleen via een named-optie (max 1). Bij een
   overtreding verschijnt een waarschuwing in `rosterWarnings`. De regiment-opties zijn per
   warscroll bewerkbaar in de model-editor (lijst van keywords/unit-namen + max).
+- **Maximum per regiment-optie** (`regimentSlots` in setup.js): `canTakeInRegiment` zegt alleen
+  óf een unit past; `regimentSlots(leader, units)` verdeelt de units over de opties met hun
+  `max` (een Skyvessel past ook onder "Kharadron Overlords"/onbeperkt, dus we zoeken de verdeling
+  met de meeste geplaatste units — alles proberen, regimenten zijn klein). Resultaat: per optie
+  de units, plus `full` (past wel, maar geen plek meer) en `noMatch`. Gebruikt op drie plekken:
+  chips op de regimentskaart ("Skyvessel 1/1", goud = vol, rood = erover), een rode markering op
+  de unit die te veel is, de unit-kiezer (`restrict` mag een tekst teruggeven → unit uitgegrijsd
+  met de reden, alleen kiesbaar met "toon alle") en `rosterWarnings`.
 - **Regiments of Renown in de database**: de `regimentsofrenown`-blob heeft een eigen
   weergave in het database-scherm (`drawRoR`/`buildRoREditor` in database.js). RoR staan
   niet onder elke faction, maar onder een eigen pseudo-faction `ROR_VIEW` ("★ Regiments of
