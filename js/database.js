@@ -391,6 +391,8 @@ export function renderDatabase(ctx) {
     for (const r of arr(ror?.list)) {
       const inScope = searchScope === "all" || faction === ROR_VIEW;
       if (!inScope) continue;
+      // De warscrolls zelf ook vindbaar (vooral die alleen in een RoR bestaan, zoals Gotrek).
+      for (const u of arr(r.units)) if (u.model) pushModel(`RoR · ${r.name}`, `${u.model.type || "Warscroll"}${u.model.rorOnly ? " · alleen in RoR" : ""}`, u.model);
       if (hit(r.name) || arr(r.units).some((u) => hit(u.name))) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, otype: "ror", obj: r });
       else { const via = abHit(r.abilities) || arr(r.units).map((u) => abHit(u.model?.abilities)).find(Boolean); if (via) results.push({ faction: "RoR", kind: "Regiment of Renown", name: r.name, via, otype: "ror", obj: r }); }
     }
@@ -672,7 +674,7 @@ export function renderDatabase(ctx) {
         const item = el(`<div class="card inner">
           <div class="card-header"><h3>${esc(rr.name || "(naamloos)")}</h3><span class="subtitle">${parseInt(rr.points) || 0} pts</span></div>
           <div class="subtitle">Facties: ${(rr.allowedArmies || []).map(esc).join(", ") || "—"}</div>
-          <div class="subtitle">Units: ${(rr.units || []).map((u) => `${u.count > 1 ? u.count + "× " : ""}${esc(u.name)}`).join(", ") || "—"}</div>
+          <div class="ror-units"><span class="subtitle">Units:</span> ${(rr.units || []).map((u, i) => `<span class="chip tag ${u.model ? "clickable" : ""}" data-unit="${i}">${u.count > 1 ? u.count + "× " : ""}${esc(u.name)}${u.model?.rorOnly ? ' <b class="ror-only">alleen in RoR</b>' : ""}</span>`).join(" ") || "—"}</div>
           ${(rr.abilities || []).length ? `<div class="muted-list">${rr.abilities.map((a) => `<strong>${esc(a.name || "(naamloos)")}</strong>${a.description ? "\n" + esc(a.description) : ""}`).join("\n\n")}</div>` : `<div class="subtitle">Nog geen regels.</div>`}
           <div class="subtitle">${ownerLabel(rr)}</div>
           <div class="btnrow">
@@ -680,6 +682,11 @@ export function renderDatabase(ctx) {
             <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>` : ""}
           </div>
         </div>`);
+        // Units openen hun warscroll, net als elders in de database.
+        for (const chip of item.querySelectorAll("[data-unit]")) {
+          const u = (rr.units || [])[parseInt(chip.dataset.unit)];
+          if (u?.model) chip.addEventListener("click", () => openModal(buildModelPopupContent(u.model, { el, esc, extraTag: u.model.rorOnly ? `Alleen in ${rr.name}` : "" }), el));
+        }
         const eb = item.querySelector('[data-act="edit"]');
         if (eb) eb.addEventListener("click", () => startEdit("ror", rr, ror.list, false, persistRoR));
         const delb = item.querySelector('[data-act="del"]');
@@ -712,7 +719,8 @@ export function renderDatabase(ctx) {
       <div class="chips" data-armies>${Object.keys(AOS_FACTIONS).map((f) => `<label class="chip"><input type="checkbox" value="${esc(f)}" ${(rr.allowedArmies || []).includes(f) ? "checked" : ""}/> ${esc(f)}</label>`).join("")}</div>
       <label>Units (naam + aantal)</label>
       <div data-units></div>
-      <button class="small" data-add-unit>${icon("plus")} Unit toevoegen</button>
+      <div class="btnrow"><button class="small" data-add-unit>${icon("plus")} Unit toevoegen</button>
+        <button class="small" data-new-unit>${icon("plus")} Eigen RoR-warscroll maken</button></div>
       <label>Regels (RoR-eigen abilities)</label>
       <div data-abs></div>
       <button class="small" data-add-ab>${icon("plus")} Regel toevoegen</button>
@@ -729,11 +737,13 @@ export function renderDatabase(ctx) {
       if (!rr.units.length) uWrap.appendChild(el(`<p class="empty">Geen units.</p>`));
       rr.units.forEach((u, i) => {
         const row = el(`<div class="card inner" style="margin:4px 0">
-          <div class="card-header"><div><strong>${esc(u.name || "(kies een warscroll)")}</strong>${u.model ? "" : ' <span class="chip tag">geen warscroll gekoppeld</span>'}</div>
+          <div class="card-header"><div><strong>${esc(u.name || "(kies een warscroll)")}</strong>${u.model ? (u.model.rorOnly ? ' <span class="chip tag"><b class="ror-only">alleen in RoR</b></span>' : "") : ' <span class="chip tag">geen warscroll gekoppeld</span>'}</div>
             <span style="display:flex;gap:6px;align-items:center"><label class="subtitle">aantal</label><input type="number" data-uc min="1" value="${esc(u.count || 1)}" style="width:60px"/></span></div>
-          <div class="btnrow"><button class="small" data-pick>${icon("edit")} Warscroll kiezen</button><button class="danger small" data-del>${icon("trash")} Verwijderen</button></div>
+          <div class="btnrow">${u.model ? `<button class="small" data-editws>${icon("edit")} Warscroll bewerken</button>` : ""}<button class="small" data-pick>${icon("book")} Warscroll kiezen</button><button class="danger small" data-del>${icon("trash")} Verwijderen</button></div>
         </div>`);
         row.querySelector("[data-uc]").addEventListener("change", (e) => { u.count = parseInt(e.target.value) || 1; editSaveSoon(); });
+        const ew = row.querySelector("[data-editws]");
+        if (ew) ew.addEventListener("click", () => editRoRWarscroll(rr, u, drawU));
         row.querySelector("[data-pick]").addEventListener("click", () => pickWarscroll((picked) => { u.name = picked.name; u.model = picked.model; drawU(); editSaveSoon(); }));
         row.querySelector("[data-del]").addEventListener("click", () => { rr.units.splice(i, 1); drawU(); editSaveSoon(); });
         uWrap.appendChild(row);
@@ -741,6 +751,16 @@ export function renderDatabase(ctx) {
     };
     drawU();
     wrap.querySelector("[data-add-unit]").addEventListener("click", () => pickWarscroll((picked) => { rr.units.push({ name: picked.name, count: 1, model: picked.model }); drawU(); editSaveSoon(); }));
+    // Een warscroll die alleen in deze RoR bestaat (zoals Gotrek of de Outlaw Cogfords):
+    // geen faction-kaartje, maar een eigen kaartje op de RoR-unit zelf.
+    wrap.querySelector("[data-new-unit]").addEventListener("click", () => {
+      const m = blankModel();
+      m.rorOnly = true;
+      const u = { name: "", count: 1, model: m };
+      rr.units.push(u);
+      drawU();
+      editRoRWarscroll(rr, u, drawU);
+    });
 
     rr.abilities = rr.abilities || [];
     const aWrap = wrap.querySelector("[data-abs]");
@@ -764,6 +784,26 @@ export function renderDatabase(ctx) {
     delBtn.addEventListener("click", () => { if (!confirm(`"${rr.name || "(naamloos)"}" verwijderen? Dit geldt voor alle accounts.`)) return; const i = ror.list.indexOf(rr); if (i >= 0) ror.list.splice(i, 1); clearTimeout(editSaveTimer); editing = null; draw(true); sharedb.saveSharedBlob("regimentsofrenown", ror).catch(() => {}); });
     actions.appendChild(delBtn);
     return wrap;
+  }
+
+  // De warscroll van een RoR-unit bewerken (zelfde editor als faction-kaartjes). Het kaartje
+  // staat op de RoR zelf; bij een gekoppelde faction-warscroll is dit de RoR-kopie, de
+  // faction-database verandert niet. De unitnaam volgt de warscrollnaam.
+  function editRoRWarscroll(rr, u, redraw) {
+    const wrap = el(`<div><h2>${icon("edit")} Warscroll — ${esc(rr.name || "Regiment of Renown")}</h2>
+      <p class="subtitle">${u.model.rorOnly ? "Deze warscroll bestaat alleen in dit Regiment of Renown." : "Dit is de kopie in dit Regiment of Renown; het faction-kaartje verandert niet."}</p>
+      <div data-ed></div></div>`);
+    const editor = buildModelEditor({ container: wrap.querySelector("[data-ed]"), m: u.model, el, esc, onChange: () => { u.name = u.model.name; editSaveSoon(); } });
+    const overlay = openModal(wrap, el);
+    const done = el(`<button class="primary bigbtn">${icon("check")} Klaar</button>`);
+    done.addEventListener("click", () => {
+      if (editor && editor.commit) editor.commit();
+      u.name = u.model.name;
+      overlay.remove();
+      redraw();
+      editSaveSoon();
+    });
+    wrap.appendChild(done);
   }
 
   // Kies een warscroll uit de database (faction naar keuze) voor een RoR-unit.

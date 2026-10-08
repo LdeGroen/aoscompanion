@@ -365,6 +365,14 @@ laadt dezelfde URL.
   RoR-kaart klikbaar (`showRoRRules`): dat opent een popup met de RoR-regel(s) — los van de
   warscroll-popups van de units. `addRoR` zet de abilities mee op `reg.ror` zodat de popup
   ook midden in een potje werkt.
+- **Warscrolls die alleen in een RoR bestaan** (`model.rorOnly`, gezet door
+  `ko-import/mark-ror-only.mjs`): Gotrek Gurnisson, Lorai, Mask of the Deceiver, Outlaw Cannonade
+  Cogford (Rogue Engine) en Outlaw Conqueror Cogfort (Cogfort Raiders). Ze staan niet in een
+  faction-blob, alleen als `unit.model` in de `regimentsofrenown`-blob. In het RoR-scherm van de
+  database zijn de units klikbare chips (warscroll-popup, "alleen in RoR"); de RoR-editor heeft
+  per unit **Warscroll bewerken** (`editRoRWarscroll`, gewone `buildModelEditor`, auto-save) en
+  **Eigen RoR-warscroll maken**. De zoekfunctie vindt RoR-warscrolls op naam en ability. ⚠ Een
+  leger houdt een kopie: een wijziging hier geldt voor RoR's die je daarna aan een leger toevoegt.
 - **Regiments of Renown**: vaste warbands uit BSData (`Regiments of Renown.cat` voor units +
   abilities, `Age of Sigmar 4.0.gst` voor punten + toegestane facties — gekoppeld via de
   forceEntry-id). Opgeslagen in de gedeelde blob **`regimentsofrenown`**

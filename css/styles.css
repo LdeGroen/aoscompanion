@@ -819,3 +819,7 @@ details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
 .ws-info-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .ws-info-k { color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px; min-width: 110px; font-weight: 600; }
 .ws-info .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+/* --- Regiments of Renown: units als klikbare chips --- */
+.ror-units { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0; }
+.ror-only { color: var(--gold-dark); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 4px; }
