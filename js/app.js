@@ -10,6 +10,7 @@ import { renderTournament } from "./tournament.js";
 import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
 import { openModal } from "./modelview.js";
+import { armyTotalsHtml } from "./armystats.js";
 
 const app = document.getElementById("app");
 
@@ -361,12 +362,12 @@ function renderHome() {
   // de groepen (`army.group`, uitklapbaar) en als laatste de legers zonder groep.
   // Favoriet en groep staan op het leger zelf en syncen dus mee.
   const armyCard = (army) => {
-    const modelCount = army.models.length;
     const card = el(`<div class="card">
       <div class="card-header">
         <div>
           <h3>${esc(army.name || "(naamloos)")}</h3>
-          <div class="subtitle">${esc(army.faction)}${army.subfaction ? " — " + esc(army.subfaction) : ""} · ${modelCount} model${modelCount === 1 ? "" : "s"}${army.favorite && army.group ? ` · ${icon("folder", 12)} ${esc(army.group)}` : ""}</div>
+          <div class="subtitle">${esc(army.faction)}${army.subfaction ? " — " + esc(army.subfaction) : ""}${army.favorite && army.group ? ` · ${icon("folder", 12)} ${esc(army.group)}` : ""}</div>
+          <div class="subtitle">${armyTotalsHtml(army, esc)}</div>
         </div>
         <button class="small fav-btn ${army.favorite ? "on" : ""}" data-act="fav" title="${army.favorite ? "Geen favoriet meer" : "Favoriet maken"}">${icon("star")}</button>
       </div>

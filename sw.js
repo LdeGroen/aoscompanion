@@ -18,6 +18,7 @@ const SHELL = [
   "css/styles.css",
   "js/abilityview.js",
   "js/armymenus.js",
+  "js/armystats.js",
   "js/app.js",
   "js/archive.js",
   "js/backend.js",

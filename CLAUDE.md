@@ -628,6 +628,14 @@ een groep zetten of eruit halen gaat via de knop **Groep** (`openGroupPicker`); 
 de groepskop hernoemt de groep (leeg = groep opheffen, legers blijven). Welke groepen
 ingeklapt zijn is een apparaat-voorkeur in `localStorage["aoscomp_home_groups_closed"]`.
 
+## Units, models en wounds per leger (`js/armystats.js`)
+`armyTotals(army)` telt units, models (`modelCount` × 2 bij reinforced) en wounds (models ×
+health, mét health-enhancements); manifestaties en faction terrain tellen niet mee. Getoond op
+de legerkaart op het startscherm en onder de punten in de set-up. `model.modelCount` komt uit
+Sigdex (`ko-import/add-modelcount-sigdex.mjs`, 08-10-2026: alle 894 kaartjes + kopieën in legers
+en RoR; helden zonder Sigdex-bron = 1). Een unit zonder `modelCount` telt als 1 model en de
+weergave zet er dan "≥" voor. ⚠ Bij een nieuw boek dat script opnieuw draaien.
+
 ## Naslag-knoppen in speelmodus én set-up (`js/armymenus.js`)
 `createArmyMenus({army, game, el, esc, saveData, onChange})` levert de topbar-menu's
 (Tegenstander, Schade, Battleplan, Battle tactics, Spells, Rules, Enhancements, Units,
@@ -965,6 +973,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
 | `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |
+| `add-modelcount-sigdex.mjs` | `model.modelCount` (unitgrootte) uit Sigdex, ook in leger- en RoR-kopieën — nodig voor models/wounds per leger |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
 | `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
@@ -973,7 +982,8 @@ schrijft met 250 ms vertraging naar schijf.
 ### Werkwijze bij een puntenupdate of nieuw boek
 1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`).
 2. **Sigdex-export** maken (zie boven) en `update-points-sigdex.mjs` + `fix-regiment-options.mjs`.
-3. `fix-warscroll-gaps.mjs`, `fix-weapons.mjs`, `fix-timings.mjs` — elk eerst met `REPORT=1`.
+3. `fix-warscroll-gaps.mjs`, `fix-weapons.mjs`, `fix-timings.mjs`, `sync-ability-text.mjs`,
+   `fix-legends-sigdex.mjs`, `add-modelcount-sigdex.mjs` — elk eerst met `REPORT=1`.
 4. Controle: `audit-warscrolls-sigdex.mjs` per faction, en tel per faction de heroes waarvoor
    `canTakeInRegiment` niets toestaat (hoort 0 te zijn).
 5. **Opgeslagen legers** bijtrekken (`update-army-*`). Een leger bewaart een kopie van elk

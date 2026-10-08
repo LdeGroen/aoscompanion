@@ -9,6 +9,7 @@ import { uid } from "./storage.js";
 import { icon } from "./icons.js";
 import { abilityBodyHtml } from "./abilityview.js";
 import { createArmyMenus } from "./armymenus.js";
+import { armyTotalsHtml } from "./armystats.js";
 
 // Set-up mode: leger samenstellen, models invoeren, enhancements, lores en faction rules.
 export function renderSetup(ctx) {
@@ -503,6 +504,7 @@ export function renderSetup(ctx) {
     const warns = rosterWarnings();
     app.appendChild(el(`<div class="card">
       <div class="scoreline"><span>Punten</span> <strong style="color:${over ? "var(--red)" : "var(--gold)"}">${total}</strong> <span class="subtitle">/ ${POINTS_LIMIT}</span></div>
+      <div class="subtitle">${armyTotalsHtml(army, esc)}</div>
       ${warns.length ? `<div class="muted-list" style="color:var(--red)">⚠ ${warns.map(esc).join("<br>⚠ ")}</div>` : ""}
     </div>`));
 

@@ -804,3 +804,7 @@ details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
 .regopt-warn { color: var(--red); font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .card.inner.over-limit { border-left: 3px solid var(--red); }
 .pick-blocked { opacity: 0.55; cursor: not-allowed; }
+
+/* --- Units / models / wounds per leger --- */
+.army-totals { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.army-totals .ic { opacity: 0.7; }
