@@ -346,6 +346,9 @@ laadt dezelfde URL.
   chips op de regimentskaart ("Skyvessel 1/1", goud = vol, rood = erover), een rode markering op
   de unit die te veel is, de unit-kiezer (`restrict` mag een tekst teruggeven → unit uitgegrijsd
   met de reden, alleen kiesbaar met "toon alle") en `rosterWarnings`.
+- **Maximaal 3 units per regiment, 4 in dat van de general** (`regimentMax`; alles naast de
+  leider telt, ook regimental heroes). Zelfde drie plekken: een "Units 3/3"-chip, een rode
+  markering op de units boven het maximum, en in de kiezer "regiment vol" bij elke unit.
 - **Regiments of Renown in de database**: de `regimentsofrenown`-blob heeft een eigen
   weergave in het database-scherm (`drawRoR`/`buildRoREditor` in database.js). RoR staan
   niet onder elke faction, maar onder een eigen pseudo-faction `ROR_VIEW` ("★ Regiments of

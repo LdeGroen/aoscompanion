@@ -110,6 +110,10 @@ export function renderSetup(ctx) {
     return { perOption, full, noMatch };
   }
   const optLabel = (opt) => (opt.names || []).join(" of ");
+  // Een regiment: de leider plus maximaal 3 units, of 4 in het regiment van de general.
+  const regimentMax = (leader) => (leader?.isGeneral ? 4 : 3);
+  const unitCountChip = (n, max) =>
+    `<span class="chip regopt ${n > max ? "over" : n === max ? "vol" : ""}">Units <b>${n}/${max}</b></span>`;
   // Chips per optie: "Skyvessel 1/1" (goud = vol, rood = erover), "Infantry 2 · onbeperkt".
   const regOptChips = (slots) => slots.perOption.map((s) => {
     const max = parseInt(s.opt.max) || 0;
@@ -300,7 +304,10 @@ export function renderSetup(ctx) {
       if (!isHero(leader)) w.push(`Leider van een regiment is geen hero: ${leader.name}.`);
       const heroes = inReg.filter((m) => !m.isLeader && isHero(m));
       if (heroes.length > 1) w.push(`Regiment ${leader.name}: meer dan 1 extra hero.`);
-      const slots = regimentSlots(leader, inReg.filter((m) => !m.isLeader));
+      const others = inReg.filter((m) => !m.isLeader);
+      const max = regimentMax(leader);
+      if (others.length > max) w.push(`Regiment ${leader.name}: ${others.length} units, maximaal ${max}${leader.isGeneral ? " (regiment van de general)" : " (4 alleen in het regiment van de general)"}.`);
+      const slots = regimentSlots(leader, others);
       for (const u of slots.noMatch) w.push(`${u.name} past niet in het regiment van ${leader.name} (regiment-opties).`);
       // Elke unit zonder plek één keer melden, bij de eerste beperkte optie waar hij bij past.
       const limited = slots.perOption.filter((s) => parseInt(s.opt.max) > 0);
@@ -411,29 +418,33 @@ export function renderSetup(ctx) {
       army.regiments = army.regiments.filter((r) => r.id !== reg.id);
       saveData(); rerender();
     });
-    // Wat deze leider in zijn regiment mag, met hoeveel er al van gebruikt is.
+    // Wat deze leider in zijn regiment mag, met hoeveel er al van gebruikt is, plus het
+    // totaal aantal units (3 naast de leider, 4 in het regiment van de general).
     const slots = regimentSlots(leader, units);
-    if (slots.perOption.length) card.querySelector("[data-leader]").appendChild(el(`<div class="regopts">
-      <span class="subtitle">Mag in het regiment:</span>
-      ${regOptChips(slots)}
+    const max = regimentMax(leader);
+    const chips = `${unitCountChip(units.length, max)}${regOptChips(slots)}`;
+    card.querySelector("[data-leader]").appendChild(el(`<div class="regopts">
+      <span class="subtitle">Mag in het regiment:</span> ${chips}
     </div>`));
     const uwrap = card.querySelector("[data-units]");
     if (!units.length) uwrap.appendChild(el(`<p class="empty">Nog geen units in dit regiment.</p>`));
-    for (const u of units) {
+    units.forEach((u, i) => {
       const warn = slots.noMatch.includes(u) ? "Past niet bij de regiment-opties"
-        : slots.full.includes(u) ? `Boven het maximum (${slots.perOption.filter((s) => matchesOption(s.opt, u) && parseInt(s.opt.max) > 0).map((s) => `${optLabel(s.opt)} max ${parseInt(s.opt.max)}`).join(", ")})` : "";
+        : slots.full.includes(u) ? `Boven het maximum (${slots.perOption.filter((s) => matchesOption(s.opt, u) && parseInt(s.opt.max) > 0).map((s) => `${optLabel(s.opt)} max ${parseInt(s.opt.max)}`).join(", ")})`
+        : i >= max ? `Te veel units in dit regiment (max ${max})` : "";
       uwrap.appendChild(modelRow(u, { warn }));
-    }
+    });
     card.querySelector("[data-add]").addEventListener("click", () => pickModel({
       title: "Unit toevoegen aan regiment",
-      intro: leader && slots.perOption.length
-        ? `<div class="regopts"><span class="subtitle">${esc(leader.name)} mag kiezen:</span> ${regOptChips(slots)}</div>` : "",
+      intro: `<div class="regopts"><span class="subtitle">${leader ? esc(leader.name) + " mag kiezen" : "Regiment"}:</span> ${chips}</div>`,
       // heroes mogen ook (regimental heroes), maar alleen als de leider ze toestaat
       filter: (m) => m.type !== "Faction terrain" && m.type !== "Manifestation" && !(m.isLeader),
       // false = verbergen; tekst = tonen maar niet kiesbaar (plek vol), met de reden
       restrict: (m) => {
         const why = regimentBlock(leader, units, m);
-        return !why ? true : why.startsWith("vol") ? why : false;
+        if (why && !why.startsWith("vol")) return false;
+        if (units.length >= max) return `regiment vol: ${units.length}/${max} units`;
+        return why || true;
       },
       onPick: (u) => { u.regimentId = reg.id; u.isLeader = false; army.models.push(u); },
     }));
