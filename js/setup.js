@@ -8,6 +8,7 @@ import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
 import { abilityBodyHtml } from "./abilityview.js";
+import { createArmyMenus } from "./armymenus.js";
 
 // Set-up mode: leger samenstellen, models invoeren, enhancements, lores en faction rules.
 export function renderSetup(ctx) {
@@ -965,14 +966,27 @@ export function renderSetup(ctx) {
 
   // ===================== Leger-overzicht =====================
   function renderArmyOverview() {
+    // Dezelfde naslag-knoppen als in de speelmodus (armymenus.js). Loopt er een potje met
+    // dit leger, dan horen tegenstander, battleplan en einde spel daar ook bij.
+    const game = army.game || null;
+    const menus = createArmyMenus({ army, game, el, esc, saveData, onChange: () => rerender() });
     const header = el(`<div class="topbar">
       <span class="title">Set-up mode</span>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        ${menus.buttonsHtml()}
+        ${game ? `<button class="small" id="btn-endgame">${icon("flag")} Einde spel</button>` : ""}
         <button class="small" id="btn-export">${icon("share")} Exporteren</button>
         <button class="small" id="btn-db">${icon("book")} Database</button>
         <button class="small" id="btn-back">${icon("back")} Mijn legers</button>
       </div>
     </div>`);
+    menus.wireButtons(header);
+    header.querySelector("#btn-endgame")?.addEventListener("click", () => {
+      if (!confirm("Spel beëindigen? De spelstatus wordt gewist.")) return;
+      delete army.game;
+      saveData();
+      rerender();
+    });
     header.querySelector("#btn-back").addEventListener("click", () => { saveData(); navigate("home"); });
     header.querySelector("#btn-db").addEventListener("click", () => { saveData(); navigate("database", { armyId: army.id, dbReturn: "setup" }); });
     header.querySelector("#btn-export").addEventListener("click", showExport);

@@ -17,6 +17,7 @@ const SHELL = [
   "manifest.webmanifest",
   "css/styles.css",
   "js/abilityview.js",
+  "js/armymenus.js",
   "js/app.js",
   "js/archive.js",
   "js/backend.js",

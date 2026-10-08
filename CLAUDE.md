@@ -607,6 +607,19 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
   (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
+## Naslag-knoppen in speelmodus én set-up (`js/armymenus.js`)
+`createArmyMenus({army, game, el, esc, saveData, onChange})` levert de topbar-menu's
+(Tegenstander, Schade, Battleplan, Battle tactics, Spells, Rules, Enhancements, Units,
+Regiments) plus `makeClickable`, `showTacticSteps`, `enhDetail`, `loreCard` en
+`renderLoresDisplay`. Companion en set-up gebruiken dezelfde module, zodat je in beide
+hetzelfde ziet; `buttonsHtml()` + `wireButtons(root)` zetten de knoppen in een topbar.
+In de set-up is `game` = `army.game` of `null`. **Zonder potje** tellen alle units mee,
+komen je battle tactics uit `army.battleTactics` en de seasonal rules uit gamedata, kun je
+in Units niets uit/aan zetten, rekent Schade op een rekenblad zonder tegenstander-kaartjes
+(alleen deze sessie), en ontbreken Tegenstander/Battleplan/Einde spel. **Loopt er een potje**
+met dit leger, dan staan die er wel. (Een toernooigame staat op het toernooi en niet op
+`army.game`; die ziet de set-up dus niet.)
+
 ## Companion: topbar-knoppen + enhancement-volgorde
 - **Battle tactics-knop** in de companion-topbar (naast Tegenstander): `showTacticsMenu` toont jouw
   battle tactics (bovenaan, uit `game.tactics`) en die van de tegenstander (`game.enemyTactics`),
