@@ -10,7 +10,8 @@ export function armyTotals(army) {
   const t = { units: 0, models: 0, wounds: 0, unknown: 0 };
   for (const m of army.models || []) {
     if (m.type === "Manifestation" || m.type === "Faction terrain") continue;
-    const count = parseInt(m.modelCount) || 0;
+    // Een hero is altijd één model, ook zonder modelCount (eigen kaartje, oude kopie).
+    const count = parseInt(m.modelCount) || (/hero/i.test(m.type || "") ? 1 : 0);
     if (!count) t.unknown++;
     const n = (count || 1) * (m.reinforced ? 2 : 1);
     const hp = parseInt(effectiveModel(army, m).model.health) || 0;

@@ -634,7 +634,10 @@ health, mét health-enhancements); manifestaties en faction terrain tellen niet 
 de legerkaart op het startscherm en onder de punten in de set-up. `model.modelCount` komt uit
 Sigdex (`ko-import/add-modelcount-sigdex.mjs`, 08-10-2026: alle 894 kaartjes + kopieën in legers
 en RoR; helden zonder Sigdex-bron = 1). Een unit zonder `modelCount` telt als 1 model en de
-weergave zet er dan "≥" voor. ⚠ Bij een nieuw boek dat script opnieuw draaien.
+weergave zet er dan "≥" voor — behalve bij een hero, die is altijd 1 model. ⚠ Bij een nieuw
+boek dat script opnieuw draaien. De warscroll-popup (`unitInfoHtml` in modelview.js) toont
+onder de stats de **unitgrootte** (en reinforced/kan reinforced), de **regiment-opties** van
+een hero (`0-1 Skyvessel`, `Infantry onbeperkt`) en zijn `heroKeywords` ("Mag mee als").
 
 ## Naslag-knoppen in speelmodus én set-up (`js/armymenus.js`)
 `createArmyMenus({army, game, el, esc, saveData, onChange})` levert de topbar-menu's

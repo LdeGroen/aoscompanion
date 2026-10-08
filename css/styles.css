@@ -813,3 +813,9 @@ details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
 /* --- Abilities die command points kosten, in lijsten --- */
 .cp-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .cp-list .tchip { font-size: 0.72rem; }
+
+/* --- Warscroll-popup: unitgrootte en regiment-opties --- */
+.ws-info { margin: 8px 0 4px; padding: 8px 10px; background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px; display: grid; gap: 6px; font-size: 0.88rem; }
+.ws-info-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.ws-info-k { color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px; min-width: 110px; font-weight: 600; }
+.ws-info .chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }

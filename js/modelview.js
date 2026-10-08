@@ -83,6 +83,35 @@ export function openModal(contentEl, el) {
 // opts.army: leger waaruit enhancements verwerkt worden (optioneel — zonder
 //   army gewoon de ruwe stats, zoals in de database).
 // opts.extraTag: extra statuslabel, bijv. "Uit de battle" / "Niet gesummend".
+// Unitgrootte en regiment-opties: list-building-informatie die je wilt zien zonder de
+// set-up te openen. `modelCount` komt uit Sigdex; `regimentOptions` = [{names, max}]
+// (max 0 = onbeperkt); `heroKeywords` = als welke soort hero deze unit zelf in een
+// regiment van een ander mag (bijv. Guild Officer).
+function unitInfoHtml(m, esc) {
+  const rows = [];
+  const isUnit = m.type !== "Manifestation" && m.type !== "Faction terrain";
+  const count = parseInt(m.modelCount) || (/hero/i.test(m.type || "") ? 1 : 0);
+  if (isUnit && count) {
+    const size = m.reinforced
+      ? `<b>${count * 2} models</b> (reinforced, normaal ${count})`
+      : `<b>${count} model${count === 1 ? "" : "s"}</b>${m.reinforceable ? ` · kan reinforced: ${count * 2}` : ""}`;
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("users", 14)} Unitgrootte</span><span>${size}</span></div>`);
+  }
+  const opts = m.regimentOptions || [];
+  if (opts.length) {
+    const chips = opts.map((o) => {
+      const max = parseInt(o.max) || 0;
+      return `<span class="chip regopt">${esc((o.names || []).join(" of "))} <b>${max ? `0-${max}` : "onbeperkt"}</b></span>`;
+    }).join("");
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("layers", 14)} Regiment</span><span class="chips">${chips}</span></div>`);
+  }
+  const hk = m.heroKeywords || [];
+  if (hk.length) {
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("shield", 14)} Mag mee als</span><span class="chips">${hk.map((k) => `<span class="chip regopt">${esc(k)}</span>`).join("")}</span></div>`);
+  }
+  return rows.length ? `<div class="ws-info">${rows.join("")}</div>` : "";
+}
+
 export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" } = {}) {
   const e = effectiveModel(army || { enhancements: [] }, m);
   const M = e.model;
@@ -116,6 +145,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
       ${ward ? stat("ward", ward, e.changed.has("ward"), "ward") : ""}
       ${m.banishment ? stat("banish", m.banishment, false) : ""}
     </div>
+    ${unitInfoHtml(m, esc)}
     <div data-body></div>
   </div>`);
   const body = wrap.querySelector("[data-body]");
