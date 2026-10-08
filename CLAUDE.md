@@ -864,9 +864,18 @@ Aanleiding (13-09-2026): na 5 gespeelde GT-games stond het toernooi weer op 0/5.
 archiefrecords waren er nog (die worden per stuk samengevoegd), maar een apparaat dat het
 toernooi nog als onbegonnen kende won op id-niveau en wiste de `done`-vlaggen.
 
-Bewuste keuzes: bij hetzelfde id wint verder de **lokale** versie (dat zie je op je scherm), en
-een verwijdering op het ene apparaat kan via het andere terugkomen. Data terugkrijgen is
-minder erg dan data kwijtraken.
+Bij hetzelfde id is het een **driewegvergelijking** met `syncBase` (app.js): de versie die dit
+apparaat het laatst van de server kreeg of erheen pushte (`rememberBase`, ook na elke geslaagde
+push via `backend.setPushHandler`). Is het item hier ongewijzigd t.o.v. die basis maar op de
+server wel veranderd, dan wint de **server**; anders de **lokale** versie (dat heb je op je
+scherm aangepast). Een verwijdering op het ene apparaat kan via het andere terugkomen. Data
+terugkrijgen is minder erg dan data kwijtraken.
+
+Aanleiding (08-10-2026): vóór de driewegvergelijking won lokaal altijd. Een apparaat dat de app
+nog open had, draaide zo de modelaantallen terug die `add-modelcount-sigdex.mjs` net in de
+opgeslagen legers had gezet (6 van Lucs 7 legers). ⚠ **Server-scripts die legerkopieën
+aanpassen** werken dus pas betrouwbaar als alle apparaten deze versie draaien; laat na zo'n
+script controleren of het bleef staan.
 
 ⚠️ Dit werkt alleen met een appsync die `baseUpdatedAt` kent (commit "optimistic locking").
 Een oudere backend negeert het veld en dan is er geen bescherming — bij het uitrollen dus

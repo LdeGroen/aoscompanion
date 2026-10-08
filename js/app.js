@@ -37,16 +37,40 @@ export function saveData() {
 
 // ---------- Samenvoegen in plaats van overschrijven ----------
 // Voegt lijsten samen op id: alles wat op de server staat maar hier niet, komt
-// erbij. Bij hetzelfde id wint de lokale versie (dat is wat je op je scherm ziet).
-// Gevolg: iets wat je op één apparaat verwijdert kan via een ander apparaat
+// erbij. Gevolg: iets wat je op één apparaat verwijdert kan via een ander apparaat
 // terugkomen. Dat is bewust — data terugkrijgen is erger dan een dubbele regel.
-function mergeLists(local, remote) {
-  const out = [...(local || [])];
+//
+// Bij hetzelfde id kijken we naar `syncBase`: de versie die dit apparaat het laatst
+// van de server kreeg (of erheen stuurde). Is het item hier sindsdien niet veranderd,
+// maar op de server wel, dan wint de server. Anders wint de lokale versie (dat is wat
+// je op je scherm hebt aangepast). Zonder die basis wonnen lokale kopieën altijd, en
+// draaide een apparaat met oude gegevens elke serverupdate van een leger terug —
+// zo verdwenen op 08-10-2026 de modelaantallen uit 6 legers.
+const LIST_KEYS = ["armies", "gameArchive", "tournaments", "modelLibrary"];
+let syncBase = null; // { [lijst]: Map(id → JSON) }
+function rememberBase(data) {
+  syncBase = {};
+  for (const key of LIST_KEYS) {
+    syncBase[key] = new Map((data?.[key] || []).filter((x) => x && x.id).map((x) => [x.id, JSON.stringify(x)]));
+  }
+}
+backend.setPushHandler((pushed) => rememberBase(pushed));
+
+function mergeLists(local, remote, base = null) {
+  const remoteById = new Map((remote || []).filter((x) => x && x.id).map((x) => [x.id, x]));
+  let replaced = 0;
+  const out = (local || []).map((item) => {
+    const r = item && item.id ? remoteById.get(item.id) : null;
+    const b = r && base ? base.get(item.id) : undefined;
+    if (b === undefined) return item;
+    if (JSON.stringify(item) === b && JSON.stringify(r) !== b) { replaced++; return r; }
+    return item;
+  });
   const have = new Set(out.map((x) => x && x.id).filter(Boolean));
   for (const item of remote || []) {
     if (item && item.id && !have.has(item.id)) { out.push(item); have.add(item.id); }
   }
-  return out;
+  return { list: out, replaced };
 }
 
 // Twee versies van hetzelfde toernooi: de slots slot-voor-slot bijwerken, want
@@ -76,10 +100,10 @@ function mergeTournament(local, remote) {
 function mergeRemoteData(remote) {
   if (!remote || !state.data) return false;
   let changed = false;
-  for (const key of ["armies", "gameArchive", "tournaments", "modelLibrary"]) {
-    const merged = mergeLists(state.data[key], remote[key]);
-    if (merged.length !== (state.data[key] || []).length) changed = true;
-    state.data[key] = merged;
+  for (const key of LIST_KEYS) {
+    const { list, replaced } = mergeLists(state.data[key], remote[key], syncBase?.[key]);
+    if (replaced || list.length !== (state.data[key] || []).length) changed = true;
+    state.data[key] = list;
   }
   // Toernooien die beide kanten kennen alsnog inhoudelijk samenvoegen
   for (const rt of remote.tournaments || []) {
@@ -87,6 +111,9 @@ function mergeRemoteData(remote) {
     if (lt && mergeTournament(lt, rt)) changed = true;
   }
   if (reconcileTournaments(state.data)) changed = true;
+  // Wat er nu op de server staat is de nieuwe basis; wat hier afwijkt is een eigen
+  // wijziging en gaat met de push hieronder mee.
+  rememberBase(remote);
   if (changed) {
     store.saveUserData(state.user.name, state.data);
     backend.pushData(state.data); // nu op basis van de nieuwe serverversie
@@ -113,6 +140,7 @@ async function login(name, isAdmin) {
       if (remote) {
         state.data = remote;
         store.saveUserData(name, remote);
+        rememberBase(remote);
       } else if (state.data.armies.length) {
         // Eerste keer online met bestaande lokale data: upload die
         backend.pushData(state.data);

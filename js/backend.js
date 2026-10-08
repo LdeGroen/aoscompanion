@@ -51,8 +51,10 @@ export function logout() {
 // gegevens in het geheugen staat nooit meer je archief wegvagen.
 let baseUpdatedAt = null;
 let onConflict = null; // (remoteData) => void — gezet door app.js
+let onPushed = null;   // (pushedData) => void — dit staat nu op de server
 
 export function setConflictHandler(fn) { onConflict = fn; }
+export function setPushHandler(fn) { onPushed = fn; }
 export function getBaseUpdatedAt() { return baseUpdatedAt; }
 export function markBase(updatedAt) { baseUpdatedAt = updatedAt || null; }
 
@@ -74,6 +76,7 @@ export function pushData(data) {
     try {
       const res = await call("setData", { app: APP_KEY, data: JSON.parse(snapshot), baseUpdatedAt }, true, token);
       baseUpdatedAt = res.updatedAt || baseUpdatedAt;
+      if (onPushed) onPushed(JSON.parse(snapshot));
     } catch (e) {
       if (e.status === 409 && e.payload?.conflict) {
         // Iemand anders (of dit apparaat in een ander tabblad) was ons voor.
