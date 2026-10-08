@@ -786,3 +786,11 @@ table.statgrid tbody tr:hover td { background: var(--bg-input); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold-dark); }
+
+/* --- Startscherm: favorieten en groepen --- */
+.home-section { color: var(--gold); margin: 14px 0 6px; display: flex; align-items: center; gap: 6px; }
+.fav-btn { color: var(--text-dim); }
+.fav-btn.on { color: var(--gold); }
+.fav-btn.on svg { fill: var(--gold-bright); }
+details.army-group > summary { display: flex; align-items: center; gap: 6px; }
+details.army-group > summary button { margin-left: auto; padding: 2px 8px; }

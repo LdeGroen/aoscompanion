@@ -607,6 +607,16 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
   (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
+## Startscherm: favorieten en groepen (`renderHome` in app.js)
+Twee velden op het leger zelf (synct dus mee): `army.favorite` (true of afwezig) en
+`army.group` (naam of afwezig). Een groep bestaat zolang er een leger in zit; er is geen
+aparte lijst met groepen. Volgorde: **Favorieten** bovenaan (meerdere mogelijk, staan níét
+nog eens in hun groep — de groepskop telt ze wel mee: "waarvan 1 bij favorieten"), dan de
+groepen alfabetisch als uitklapbare `details.army-group`, dan **Overige legers**. Een leger in
+een groep zetten of eruit halen gaat via de knop **Groep** (`openGroupPicker`); het potlood in
+de groepskop hernoemt de groep (leeg = groep opheffen, legers blijven). Welke groepen
+ingeklapt zijn is een apparaat-voorkeur in `localStorage["aoscomp_home_groups_closed"]`.
+
 ## Naslag-knoppen in speelmodus én set-up (`js/armymenus.js`)
 `createArmyMenus({army, game, el, esc, saveData, onChange})` levert de topbar-menu's
 (Tegenstander, Schade, Battleplan, Battle tactics, Spells, Rules, Enhancements, Units,

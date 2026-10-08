@@ -9,6 +9,7 @@ import { renderArchive } from "./archive.js";
 import { renderTournament } from "./tournament.js";
 import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
+import { openModal } from "./modelview.js";
 
 const app = document.getElementById("app");
 
@@ -279,6 +280,57 @@ function renderLogin() {
   nameInput.focus();
 }
 
+// ---------- Groepen op het startscherm ----------
+// Een groep is niets meer dan een naam op het leger (`army.group`); hij bestaat zolang er
+// een leger in zit. Welke groepen ingeklapt zijn is een apparaat-voorkeur (synct niet).
+const GROUPS_CLOSED_KEY = "aoscomp_home_groups_closed";
+const armyGroups = () => [...new Set(state.data.armies.map((a) => a.group).filter(Boolean))]
+  .sort((a, b) => a.localeCompare(b, "nl"));
+function closedGroups() {
+  try { return JSON.parse(localStorage.getItem(GROUPS_CLOSED_KEY)) || []; } catch { return []; }
+}
+function setGroupClosed(name, isClosed) {
+  const list = closedGroups().filter((g) => g !== name);
+  if (isClosed) list.push(name);
+  try { localStorage.setItem(GROUPS_CLOSED_KEY, JSON.stringify(list)); } catch { /* geen opslag: dan maar open */ }
+}
+
+// Popup om een leger in een (nieuwe of bestaande) groep te zetten of eruit te halen.
+function openGroupPicker(army) {
+  const wrap = el(`<div>
+    <h2>${icon("folder")} Groep voor ${esc(army.name || "dit leger")}</h2>
+    <div data-list></div>
+    <label style="margin-top:10px">Nieuwe groep</label>
+    <div style="display:flex;gap:6px"><input type="text" placeholder="Bijv. Ogor Mawtribes" style="flex:1" />
+      <button class="primary" data-act="new">${icon("plus")} Maak</button></div>
+  </div>`);
+  const overlay = openModal(wrap, el);
+  const close = () => overlay.remove();
+  const choose = (name) => {
+    if (name) army.group = name; else delete army.group;
+    saveData();
+    close();
+    render();
+  };
+  const list = overlay.querySelector("[data-list]");
+  for (const g of armyGroups()) {
+    const b = el(`<button class="${army.group === g ? "primary" : ""}" style="display:block;width:100%;text-align:left;margin:4px 0">${icon("folder")} ${esc(g)}${army.group === g ? " (huidig)" : ""}</button>`);
+    b.addEventListener("click", () => choose(g));
+    list.appendChild(b);
+  }
+  if (army.group) {
+    const b = el(`<button class="small" style="margin:4px 0">${icon("undo")} Uit de groep halen</button>`);
+    b.addEventListener("click", () => choose(""));
+    list.appendChild(b);
+  }
+  if (!list.children.length) list.appendChild(el(`<p class="empty">Nog geen groepen. Maak er hieronder een.</p>`));
+  const input = overlay.querySelector("input");
+  const make = () => { const n = input.value.trim(); if (n) choose(n); };
+  overlay.querySelector('[data-act="new"]').addEventListener("click", make);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") make(); });
+  input.focus();
+}
+
 function renderHome() {
   const header = el(`<div class="topbar">
     <span class="title">${icon("sword", 18)} AoS Companion</span>
@@ -305,23 +357,34 @@ function renderHome() {
     app.appendChild(el(`<p class="empty">Nog geen legers. Maak je eerste leger aan!</p>`));
   }
 
-  for (const army of state.data.armies) {
+  // Favorieten staan bovenaan (in hun eigen blok, niet nog eens in hun groep); daaronder
+  // de groepen (`army.group`, uitklapbaar) en als laatste de legers zonder groep.
+  // Favoriet en groep staan op het leger zelf en syncen dus mee.
+  const armyCard = (army) => {
     const modelCount = army.models.length;
     const card = el(`<div class="card">
       <div class="card-header">
         <div>
-          <h3>${esc(army.name)}</h3>
-          <div class="subtitle">${esc(army.faction)}${army.subfaction ? " — " + esc(army.subfaction) : ""} · ${modelCount} model${modelCount === 1 ? "" : "s"}</div>
+          <h3>${esc(army.name || "(naamloos)")}</h3>
+          <div class="subtitle">${esc(army.faction)}${army.subfaction ? " — " + esc(army.subfaction) : ""} · ${modelCount} model${modelCount === 1 ? "" : "s"}${army.favorite && army.group ? ` · ${icon("folder", 12)} ${esc(army.group)}` : ""}</div>
         </div>
+        <button class="small fav-btn ${army.favorite ? "on" : ""}" data-act="fav" title="${army.favorite ? "Geen favoriet meer" : "Favoriet maken"}">${icon("star")}</button>
       </div>
       <div class="btnrow">
         <button class="primary" data-act="play">${icon("play")} Spelen</button>
         <button data-act="edit">${icon("edit")} Set-up</button>
+        <button class="small" data-act="group">${icon("folder")} Groep</button>
         <button class="danger small" data-act="del">${icon("trash")} Verwijderen</button>
       </div>
     </div>`);
     card.querySelector('[data-act="play"]').addEventListener("click", () => navigate("companion", { armyId: army.id, tournamentRef: null }));
     card.querySelector('[data-act="edit"]').addEventListener("click", () => navigate("setup", { armyId: army.id }));
+    card.querySelector('[data-act="fav"]').addEventListener("click", () => {
+      if (army.favorite) delete army.favorite; else army.favorite = true;
+      saveData();
+      render();
+    });
+    card.querySelector('[data-act="group"]').addEventListener("click", () => openGroupPicker(army));
     card.querySelector('[data-act="del"]').addEventListener("click", () => {
       if (confirm(`Leger "${army.name}" verwijderen?`)) {
         state.data.armies = state.data.armies.filter((a) => a.id !== army.id);
@@ -329,8 +392,43 @@ function renderHome() {
         render();
       }
     });
-    app.appendChild(card);
+    return card;
+  };
+
+  const armies = state.data.armies;
+  const favs = armies.filter((a) => a.favorite);
+  const rest = armies.filter((a) => !a.favorite);
+  const groups = armyGroups();
+  const closed = closedGroups();
+
+  if (favs.length) {
+    app.appendChild(el(`<h3 class="home-section">${icon("star")} Favorieten</h3>`));
+    for (const a of favs) app.appendChild(armyCard(a));
   }
+  for (const g of groups) {
+    const inGroup = rest.filter((a) => a.group === g);
+    const favCount = favs.filter((a) => a.group === g).length;
+    const det = el(`<details class="type-group army-group" ${closed.includes(g) ? "" : "open"}>
+      <summary>${icon("folder")} ${esc(g)} <span class="count">(${inGroup.length + favCount}${favCount ? `, waarvan ${favCount} bij favorieten` : ""})</span>
+        <button class="small" data-act="rename" title="Groep hernoemen">${icon("edit")}</button></summary>
+    </details>`);
+    det.addEventListener("toggle", () => setGroupClosed(g, !det.open));
+    det.querySelector('[data-act="rename"]').addEventListener("click", (e) => {
+      e.preventDefault();
+      const name = prompt("Nieuwe naam voor deze groep (leeg = groep opheffen, de legers blijven bestaan):", g);
+      if (name === null) return;
+      for (const a of armies) if (a.group === g) { if (name.trim()) a.group = name.trim(); else delete a.group; }
+      if (closedGroups().includes(g)) { setGroupClosed(g, false); if (name.trim()) setGroupClosed(name.trim(), true); }
+      saveData();
+      render();
+    });
+    if (!inGroup.length) det.appendChild(el(`<p class="empty">Alle legers van deze groep staan bij de favorieten.</p>`));
+    for (const a of inGroup) det.appendChild(armyCard(a));
+    app.appendChild(det);
+  }
+  const loose = rest.filter((a) => !a.group);
+  if (loose.length && (favs.length || groups.length)) app.appendChild(el(`<h3 class="home-section">Overige legers</h3>`));
+  for (const a of loose) app.appendChild(armyCard(a));
 
   const newBtn = el(`<button class="primary bigbtn">${icon("plus")} Nieuw leger</button>`);
   newBtn.addEventListener("click", () => {
