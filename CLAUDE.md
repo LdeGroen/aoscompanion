@@ -892,6 +892,13 @@ een gewone openingszin verdwijnen. Heeft een ability geen timing in de tekst, da
 zijn `phases`-velden als chips in dezelfde kleuren. `markNumbers()` accentueert afstanden
 (12"), dobbelstenen (D3, 2D6) en rolresultaten (4+).
 
+**CP-kosten** (`cpCost`) staan als gevulde gouden chip **vooraan** in de timing-rij
+(`.tchip.t-cp`), niet meer onderaan tussen de keywords; `abilityBodyHtml` doet dat overal,
+dus companion toont geen aparte `abilityTagsHtml`/`costTag` meer (dat gaf dubbele chips). In
+lijsten (set-up-roster, unit-kiezer) zet `cpAbilitiesHtml(m)` de CP-abilities van een unit en
+zijn enhancements erbij, zodat je het ziet zodra je hem toevoegt. Bron: Sigdex
+(`ko-import/sync-cpcost-sigdex.mjs`).
+
 **Weapon abilities** (`weaponAbilities`/`weaponAbilityClass` in modelview.js) staan als chip
 **in de aanvalsrij** in plaats van als voetnoot: crits rood (vol vlak — die doen het werk),
 Anti-X violet, Charge oranje, Shoot in Combat amber, Companion neutraal grijs. Eén `bonuses`-

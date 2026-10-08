@@ -7,7 +7,7 @@ import { loadGamedata } from "./battleplans.js";
 import * as sharedb from "./sharedb.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
-import { abilityBodyHtml } from "./abilityview.js";
+import { abilityBodyHtml, cpAbilitiesHtml } from "./abilityview.js";
 import { createArmyMenus } from "./armymenus.js";
 import { armyTotalsHtml } from "./armystats.js";
 
@@ -268,7 +268,7 @@ export function renderSetup(ctx) {
           const r = restrict ? restrict(m) : true;
           const blocked = typeof r === "string" && !showAll ? r : "";
           const row = el(`<div class="card-header ${blocked ? "pick-blocked" : "clickable"}" style="padding:8px 0;border-bottom:1px dashed var(--border)">
-            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${blocked ? `<div class="regopt-warn">${esc(blocked)}</div>` : ""}</span>
+            <span><strong>${esc(m.name)}</strong>${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${blocked ? `<div class="regopt-warn">${esc(blocked)}</div>` : ""}${cpAbilitiesHtml(m, esc)}</span>
             <span class="subtitle">${m.points != null ? m.points + " pts" : "—"}${m.reinforceable ? " · reinf." : ""}</span>
           </div>`);
           if (!blocked) row.addEventListener("click", () => { onPick(copyForArmy(m)); overlay.remove(); saveData(); rerender(); });
@@ -359,6 +359,7 @@ export function renderSetup(ctx) {
         ${warn ? `<div class="regopt-warn">${icon("flag", 12)} ${esc(warn)}</div>` : ""}
         <strong>${esc(m.name)}</strong>${m.isGeneral ? ' <span class="chip tag">★ General</span>' : ""}${m.unique ? ' <span class="chip tag">Unique</span>' : ""}${m.legends ? ' <span class="chip legends">Legends</span>' : ""}${(m.keywords || []).some((k) => String(k).toLowerCase() === "paragon") ? ` <span class="chip paragon">${icon("star")} Paragon</span>` : ""}
         <div class="subtitle">${pointsOf(m)} pts${m.reinforced ? " · reinforced" : ""}${(m.enhancements || []).length ? ` · ${m.enhancements.length} enh` : ""}${hasWeaponOptions(m) && loadoutSummary(m) ? ` · ${esc(loadoutSummary(m))}` : ""}</div>
+        ${cpAbilitiesHtml(m, esc)}
       </div></div>
       <div class="btnrow" data-actions></div>
     </div>`);

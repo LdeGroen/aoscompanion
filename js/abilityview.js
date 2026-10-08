@@ -166,14 +166,29 @@ function maybeClamp(html, plain, esc) {
   </div>`;
 }
 
+// Chips voor de abilities van een unit (en zijn enhancements) die command points kosten:
+// "Locus of Slaanesh 1 CP". Voor in lijsten (roster, unit-kiezer), zodat je het ziet
+// zodra je een unit of enhancement toevoegt, zonder de warscroll te openen.
+export function cpAbilitiesHtml(m, esc) {
+  const list = [...(m?.abilities || []), ...(m?.enhancements || [])]
+    .filter((a) => (parseInt(a.cpCost) || 0) > 0);
+  if (!list.length) return "";
+  return `<span class="cp-list">${list.map((a) =>
+    `<span class="tchip t-cp" title="${esc(a.name)} kost ${parseInt(a.cpCost)} command point${parseInt(a.cpCost) === 1 ? "" : "s"}">${esc(a.name)} · ${parseInt(a.cpCost)} CP</span>`).join("")}</span>`;
+}
+
 // De hele body van een ability: timing, blokken, keywords. De kop (naam, knoppen)
 // blijft van de aanroeper, want die verschilt per scherm.
 export function abilityBodyHtml(ab, esc, { keywords = true, phases = true } = {}) {
   const { timing, intro, blocks } = parseAbility(ab?.description);
   const parts = [];
-  parts.push(timing.length
-    ? timingHtml(timing, esc)
-    : (phases ? phaseChipsHtml(ab?.phases, esc) : ""));
+  // Kost de ability command points, dan staat dat vooraan tussen de timing — dat wil je
+  // weten vóór je hem plant, niet pas onderaan tussen de keywords.
+  const cp = parseInt(ab?.cpCost) || 0;
+  const cpChip = cp ? `<span class="tchip t-cp" title="Kost ${cp} command point${cp === 1 ? "" : "s"}">${cp} CP</span>` : "";
+  let timingRow = timing.length ? timingHtml(timing, esc) : (phases ? phaseChipsHtml(ab?.phases, esc) : "");
+  if (cpChip) timingRow = timingRow ? timingRow.replace('<div class="ab-timing">', `<div class="ab-timing">${cpChip}`) : `<div class="ab-timing">${cpChip}</div>`;
+  parts.push(timingRow);
   if (intro) parts.push(maybeClamp(richText(intro, esc), intro, esc));
   for (const b of blocks) {
     const kind = b.label.toLowerCase().replace(/\s+/g, "-");
@@ -186,7 +201,6 @@ export function abilityBodyHtml(ab, esc, { keywords = true, phases = true } = {}
     const chips = (ab?.keywords || []).map(
       (k) => `<span class="chip kw${isCoreActionKeyword(k) ? " core" : ""}">${esc(k)}</span>`
     );
-    if (ab?.cpCost) chips.push(`<span class="chip kw cp">${ab.cpCost} CP</span>`);
     if (chips.length) parts.push(`<div class="chips ability-tags">${chips.join("")}</div>`);
   }
   return parts.filter(Boolean).join("");

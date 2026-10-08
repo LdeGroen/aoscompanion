@@ -446,6 +446,7 @@ table.weapons td.name { min-width: 118px; }
 .tchip.t-deploy { background: var(--ph-deploy-bg); color: var(--ph-deploy); border-color: var(--ph-deploy); }
 .tchip.t-reaction { background: var(--ph-react-bg); color: var(--ph-react); border-color: var(--ph-react); }
 .tchip.t-limit { background: var(--gold-soft); color: var(--gold-dark); border-color: var(--gold-dark); }
+.tchip.t-cp { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); font-weight: 700; }
 .tchip.t-other { background: var(--bg-input); color: var(--text-dim); border-color: var(--border-strong); }
 
 /* Declare / Effect: één blok waarin het label vastzit aan zijn eigen tekst, zodat
@@ -808,3 +809,7 @@ details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
 /* --- Units / models / wounds per leger --- */
 .army-totals { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .army-totals .ic { opacity: 0.7; }
+
+/* --- Abilities die command points kosten, in lijsten --- */
+.cp-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cp-list .tchip { font-size: 0.72rem; }

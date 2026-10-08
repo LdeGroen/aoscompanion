@@ -1,4 +1,4 @@
-import { PHASES, AOS_FACTIONS, groupByType, phaseLabel, enhancementCategoryLabel, abilityTagsHtml } from "./factions.js";
+import { PHASES, AOS_FACTIONS, groupByType, phaseLabel, enhancementCategoryLabel } from "./factions.js";
 import { effectiveModel, enhancementSource, migrateModelEnhancements, modLabel } from "./enhancements.js";
 import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
@@ -1376,12 +1376,10 @@ export function renderCompanion(ctx) {
   function abilityCard(ab) {
     const typeClass = ab.type === "faction" ? "faction" : ab.type === "enhancement" ? "enhancement" : ab.type === "battleplan" ? "battleplan" : "";
     const cost = parseInt(ab.cpCost) || 0;
-    const costTag = cost > 0 ? ` <span class="ccost">(${cost} CP)</span>` : "";
     if (!ab.oncePerBattle) {
       const card = el(`<div class="ability ${typeClass}">
         <div class="owner">${esc(ab.source)}</div>
-        <span class="aname">${esc(ab.name)}</span>${costTag}
-        ${abilityTagsHtml(ab, esc)}
+        <span class="aname">${esc(ab.name)}</span>
         ${abilityBodyHtml(ab, esc)}
         <div data-cp></div>
       </div>`);
@@ -1417,9 +1415,8 @@ export function renderCompanion(ctx) {
     const used = !!game.usedAbilities[key];
     const card = el(`<div class="ability ${typeClass} ${used ? "used" : ""}">
       <div class="owner">${esc(ab.source)}</div>
-      <span class="aname">${esc(ab.name)}</span>${costTag}
+      <span class="aname">${esc(ab.name)}</span>
       <span class="chip tag ${used ? "dim" : ""}">Once per battle</span>
-      ${abilityTagsHtml(ab, esc)}
       ${abilityBodyHtml(ab, esc)}
       <div class="btnrow">
         <button class="small ${used ? "" : "primary"}">${used ? `${icon("undo")} Toch niet gebruikt` : `${icon("zap")} Gebruik (once per battle)`}</button>
