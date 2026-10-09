@@ -619,8 +619,13 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   Formaat: `"<naam> <punten>/2000 pts"`, dan faction, battle formation (`army.aor || army.subfaction`),
   `Drops: <n>` (= regiments + RoR + auxiliary units), de spell/prayer/manifestation-lores
   (`<Soort> Lore - <naam>`), `Battle Tactic Cards: a, b`, dan **General's Regiment** eerst en daarna
-  `Regiment 1..N` (leider eerst), elke unit als `<naam> (<pointsOf>)` met `•`-bullets voor General /
+  `Regiment 1..N` (leider eerst), elke unit als `<naam> (<punten>)` met `•`-bullets voor General /
   Reinforced / enhancements, gevolgd door Auxiliary Units, Regiment of Renown en Faction Terrain.
+  **Punten staan apart** (sinds okt 2026): de unitregel heeft alleen de unitpunten (× 2 bij
+  reinforced, zónder enhancements); een enhancement, lore of battle formation die punten kost
+  krijgt zijn eigen `(N)` erachter. Het totaal bovenaan telt alles. `parseListText` haalt zo'n
+  `(N)` er bij het plakken weer af (`stripPoints`), anders matcht de naam niet. ⚠ De sectiekop
+  "Manifestations" mag niet op "Manifestation Lore - …" matchen (was een bug: die lore ging verloren).
 - **Battle tactic cards bij de lijst**: `army.battleTactics` (max 2 namen), gekozen via een picker in
   de set-up (`renderBattleTactics`/`showTacticPicker`, tactics uit `loadGamedata().db.tactics`),
   gepositioneerd **direct onder faction/subfaction**. Zowel in de gekozen-weergave als in de picker

@@ -13,7 +13,8 @@ const SECTIONS = [
   [/^regiment\s*\d*\b/i, "Regiment"],
   [/^auxiliary\s+units?\b/i, "Auxiliary Units"],
   [/^faction\s+terrain\b/i, "Faction Terrain"],
-  [/^manifestations?\b/i, "Manifestations"],
+  // Niet "Manifestation Lore - …": dat is een lore-regel, geen sectiekop.
+  [/^manifestations?\b(?!\s+lore\b)/i, "Manifestations"],
   [/^terrain\b/i, "Faction Terrain"],
 ];
 
@@ -32,6 +33,8 @@ const META = [
 
 const isBullet = (line) => /^[•\-\*•‣▪·]\s*/.test(line);
 const stripBullet = (line) => line.replace(/^[•\-\*•‣▪·]\s*/, "").trim();
+// Onze export zet de punten achter een enhancement, lore of battle formation: "Hammer Throw (20)".
+const stripPoints = (s) => String(s || "").replace(/\s*\(\d+\)\s*$/, "").trim();
 
 // Namen vergelijken: hoofdletters, aanhalingstekens en dubbele spaties negeren.
 export function normName(s) {
@@ -65,7 +68,7 @@ export function parseListText(text, { factions = {} } = {}) {
 
     // Bullet → hoort bij de vorige unit
     if (isBullet(line)) {
-      const b = stripBullet(line);
+      const b = stripPoints(stripBullet(line));
       if (!current) { out.ignored.push(line); continue; }
       if (/^general$/i.test(b)) { current.general = true; continue; }
       if (/^reinforced$/i.test(b)) { current.reinforced = true; continue; }
@@ -87,7 +90,7 @@ export function parseListText(text, { factions = {} } = {}) {
 
     // Meta-regels
     const lore = /^(spell|prayer|manifestation)\s+lore\s*[:\-]\s*(.+)$/i.exec(line);
-    if (lore) { out.lores[lore[1].toLowerCase()] = lore[2].trim(); continue; }
+    if (lore) { out.lores[lore[1].toLowerCase()] = stripPoints(lore[2]); continue; }
     const drops = /^drops\s*[:\-]\s*(\d+)/i.exec(line);
     if (drops) { out.drops = Number(drops[1]); continue; }
     const bt = /^battle\s+tactic\s+cards?\s*[:\-]\s*(.+)$/i.exec(line);
@@ -96,11 +99,12 @@ export function parseListText(text, { factions = {} } = {}) {
 
     // Faction / subfaction (alleen vóór de eerste sectie, daar staan ze)
     if (!seenSection) {
-      const fac = factionNames.find((f) => normName(f) === normName(line));
+      const kaal = stripPoints(line);
+      const fac = factionNames.find((f) => normName(f) === normName(kaal));
       if (fac) { out.faction = fac; continue; }
-      const subOwner = factionNames.find((f) => (factions[f] || []).some((sf) => normName(sf) === normName(line)));
+      const subOwner = factionNames.find((f) => (factions[f] || []).some((sf) => normName(sf) === normName(kaal)));
       if (subOwner) {
-        out.subfaction = (factions[subOwner] || []).find((sf) => normName(sf) === normName(line));
+        out.subfaction = (factions[subOwner] || []).find((sf) => normName(sf) === normName(kaal));
         if (!out.faction) out.faction = subOwner;
         continue;
       }

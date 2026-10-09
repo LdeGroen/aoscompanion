@@ -1003,11 +1003,14 @@ export function renderSetup(ctx) {
     const aux = army.models.filter((m) => !m.regimentId && !m.isLeader && !FREE_TYPES.has(m.type) && !m.fromTerrain).length;
     return regs + aux;
   }
+  // Punten apart zichtbaar: de unit met alleen zijn eigen punten, een enhancement (of lore,
+  // formation) die punten kost met zijn eigen bedrag erachter. Het totaal bovenaan telt alles.
+  const ptsSuffix = (p) => ((parseInt(p) || 0) > 0 ? ` (${parseInt(p)})` : "");
   function unitExportLines(m) {
-    const out = [`${m.name} (${pointsOf(m)})`];
+    const out = [`${m.name} (${Math.max(0, pointsOf(m) - enhPoints(m))})`];
     if (m.isGeneral) out.push(" • General");
     if (m.reinforced) out.push(" • Reinforced");
-    for (const e of (m.enhancements || [])) out.push(` • ${e.name}`);
+    for (const e of (m.enhancements || [])) out.push(` • ${e.name}${ptsSuffix(e.points)}`);
     const wl = loadoutSummary(m);
     if (wl) out.push(` • ${wl}`);
     return out;
@@ -1018,11 +1021,11 @@ export function renderSetup(ctx) {
     L.push("");
     if (army.faction) L.push(army.faction);
     const formation = army.aor || army.subfaction;
-    if (formation) L.push(formation);
+    if (formation) L.push(`${formation}${army.aor ? "" : ptsSuffix(subfactionPoints())}`);
     L.push(`Drops: ${dropCount()}`);
-    if (army.spellLore?.name) L.push(`Spell Lore - ${army.spellLore.name}`);
-    if (army.prayerLore?.name) L.push(`Prayer Lore - ${army.prayerLore.name}`);
-    if (army.manifestationLore?.name) L.push(`Manifestation Lore - ${army.manifestationLore.name}`);
+    if (army.spellLore?.name) L.push(`Spell Lore - ${army.spellLore.name}${ptsSuffix(army.spellLore.points)}`);
+    if (army.prayerLore?.name) L.push(`Prayer Lore - ${army.prayerLore.name}${ptsSuffix(army.prayerLore.points)}`);
+    if (army.manifestationLore?.name) L.push(`Manifestation Lore - ${army.manifestationLore.name}${ptsSuffix(army.manifestationLore.points)}`);
     if ((army.battleTactics || []).length) { L.push(""); L.push(`Battle Tactic Cards: ${army.battleTactics.join(", ")}`); }
 
     // Regiments: generals regiment eerst, daarna genummerd
