@@ -12,7 +12,14 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-async function call(action, body = {}, withToken = true, tokenOverride = null) {
+// Een token kan ongeldig worden (de admin heeft alle tokens vernieuwd, zie rotateTokens).
+// Dan vraagt de app via deze handler een nieuw token op — een gewone gebruiker logt
+// gewoon opnieuw in met zijn naam — en proberen we het verzoek nog één keer.
+let onAuthLost = null; // () => Promise<string|null> — gezet door app.js
+let reauth = null;     // lopende herinlog, gedeeld door gelijktijdige verzoeken
+export function setAuthLostHandler(fn) { onAuthLost = fn; }
+
+async function call(action, body = {}, withToken = true, tokenOverride = null, retried = false) {
   const headers = { "Content-Type": "application/json" };
   const token = tokenOverride || getToken();
   if (withToken && token) headers["Authorization"] = `Bearer ${token}`;
@@ -22,6 +29,11 @@ async function call(action, body = {}, withToken = true, tokenOverride = null) {
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
+  if (res.status === 401 && withToken && token && !retried && onAuthLost && token === getToken()) {
+    reauth = reauth || onAuthLost().finally(() => { reauth = null; });
+    const fresh = await reauth;
+    if (fresh) return call(action, body, withToken, fresh, true);
+  }
   if (!json.ok) {
     const err = new Error(json.error || `Backend-fout (${res.status})`);
     err.status = res.status;
@@ -118,4 +130,12 @@ export async function deleteAccount(name) {
 
 export async function setAdminPassword(password) {
   await call("setAdminPassword", { password });
+}
+
+// Admin: alle inlogtokens van deze app (en het eigen admin-token) vernieuwen. De server
+// geeft ons nieuwe token terug, zodat deze sessie gewoon doorloopt.
+export async function rotateTokens() {
+  const result = await call("rotateTokens", {});
+  localStorage.setItem(TOKEN_KEY, result.token);
+  return result.count;
 }

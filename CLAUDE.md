@@ -775,6 +775,12 @@ battleround, dan zet dat de stage op `roundSetup` van die ronde. `renderScoringC
   gaat debounced (800 ms). ⚠️ De debounced push legt het token vast bij het inplannen en
   wordt geannuleerd bij uitloggen — anders kon data van de vorige gebruiker onder het
   account van de volgende belanden (echte bug geweest, niet opnieuw introduceren).
+- **Inlogtokens vernieuwen**: Accountbeheer → "Alle tokens vernieuwen" (`backend.rotateTokens`,
+  appsync-actie `rotateTokens`). Alle AoS-accounts + de superadmin krijgen een nieuw token. Krijgt
+  een apparaat daarna 401, dan roept `call()` in backend.js de handler uit `setAuthLostHandler`
+  aan (app.js): een gewone gebruiker logt stil opnieuw in met zijn naam en het verzoek wordt
+  herhaald; de superadmin krijgt een melding, wordt uitgelogd en de pagina herlaadt (anders
+  tekent een scherm dat nog laadde zich opnieuw zonder sessie). D&D-accounts blijven ongemoeid.
 - **Superadmin-wachtwoord staat NIET in de code.** Met backend bepaalt de server het
   (als salted hash in `config.json` op de Pi — `admin_password_hash`, zie appsync). Je wijzigt
   het via **Accountbeheer → "Mijn superadmin-wachtwoord wijzigen"** (`backend.setAdminPassword`

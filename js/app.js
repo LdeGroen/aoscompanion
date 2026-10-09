@@ -221,6 +221,26 @@ function logout() {
   navigate("login");
 }
 
+// Het token is ongeldig geworden (de superadmin heeft alle tokens vernieuwd). Een gewone
+// gebruiker logt gewoon opnieuw in met zijn naam en merkt niets; de superadmin heeft een
+// wachtwoord nodig en gaat terug naar het inlogscherm.
+backend.setAuthLostHandler(async () => {
+  if (!state.user) return null;
+  // Na uitloggen herladen: een scherm dat nog aan het laden was (set-up, database) zou
+  // zich anders opnieuw tekenen zonder ingelogde gebruiker.
+  const opnieuwInloggen = () => { logout(); location.reload(); return null; };
+  if (state.user.isAdmin) {
+    alert("Je inlogtoken is vernieuwd. Log opnieuw in met je wachtwoord.");
+    return opnieuwInloggen();
+  }
+  try {
+    const res = await backend.login(state.user.name);
+    return res.token;
+  } catch {
+    return opnieuwInloggen();
+  }
+});
+
 // ---------- Helpers ----------
 export function el(html) {
   const t = document.createElement("template");
@@ -540,6 +560,29 @@ function renderAdmin() {
       e.textContent = "Wijzigen mislukt: " + err.message;
     }
   });
+
+  // Inlogtokens vernieuwen: nodig als ze ergens uitgelekt zijn. Gewone gebruikers merken
+  // er niets van (de app logt ze met hun naam opnieuw in); op andere apparaten waar jij als
+  // superadmin bent ingelogd, moet je opnieuw je wachtwoord invoeren.
+  if (backend.hasBackend()) {
+    const tokCard = el(`<div class="card">
+      <h3>Inlogtokens vernieuwen</h3>
+      <p class="subtitle">Geeft alle AoS-accounts en jouw superadmin-account een nieuw inlogtoken; de oude werken daarna niet meer. Gebruik dit als tokens ergens zichtbaar zijn geworden. Spelers merken er niets van; op je andere apparaten log je opnieuw in met je wachtwoord. De D&amp;D-app blijft ongemoeid.</p>
+      <button class="danger" id="tok-rotate">${icon("refresh")} Alle tokens vernieuwen</button>
+      <p class="subtitle" id="tok-msg"></p>
+    </div>`);
+    app.appendChild(tokCard);
+    tokCard.querySelector("#tok-rotate").addEventListener("click", async () => {
+      if (!confirm("Alle inlogtokens van AoS Companion vernieuwen? Op je andere apparaten moet je daarna opnieuw inloggen met je wachtwoord.")) return;
+      const msg = tokCard.querySelector("#tok-msg");
+      try {
+        const n = await backend.rotateTokens();
+        msg.textContent = `Klaar: ${n} account${n === 1 ? "" : "s"} plus jouw superadmin-account hebben een nieuw token.`;
+      } catch (err) {
+        msg.textContent = "Vernieuwen mislukt: " + err.message;
+      }
+    });
+  }
 
   const list = el(`<div class="card"><h3>Bestaande accounts</h3><div id="acc-list"></div></div>`);
   app.appendChild(list);
