@@ -35,13 +35,14 @@ export function renderStats(ctx) {
   const all = state.data.gameArchive || [];
 
   let armyFilter = null;              // null = alle legers
-  let scope = "all";                  // all | tournament | casual
+  let scope = "all";                  // all | tournament | team | casual
 
   function selection() {
     return all.filter((r) => {
       if (armyFilter && armyOf(r) !== armyFilter) return false;
       if (scope === "tournament" && !r.tournamentId) return false;
-      if (scope === "casual" && r.tournamentId) return false;
+      if (scope === "team" && !r.teamEventId) return false;
+      if (scope === "casual" && (r.tournamentId || r.teamEventId)) return false;
       return true;
     });
   }
@@ -103,7 +104,8 @@ export function renderStats(ctx) {
 
     const scopeBox = wrap.querySelector("[data-scope]");
     const nTour = all.filter((r) => r.tournamentId).length;
-    for (const [key, label] of [["all", `Alles (${all.length})`], ["tournament", `Toernooi (${nTour})`], ["casual", `Los (${all.length - nTour})`]]) {
+    const nTeam = all.filter((r) => r.teamEventId).length;
+    for (const [key, label] of [["all", `Alles (${all.length})`], ["tournament", `Toernooi (${nTour})`], ["team", `Team games (${nTeam})`], ["casual", `Los (${all.length - nTour - nTeam})`]]) {
       const c = el(`<button class="chip${scope === key ? " active" : ""}">${esc(label)}</button>`);
       c.addEventListener("click", () => { scope = key; draw(); });
       scopeBox.appendChild(c);
@@ -358,7 +360,7 @@ export function renderStats(ctx) {
     const endBonus = recs.filter((x) => x.endBonus);
     const endBonusMine = endBonus.filter((x) => x.endBonus.owner === "player");
 
-    const tourn = recs.filter((x) => x.tournamentId), casual = recs.filter((x) => !x.tournamentId);
+    const tourn = recs.filter((x) => x.tournamentId), teamRecs = recs.filter((x) => x.teamEventId), casual = recs.filter((x) => !x.tournamentId && !x.teamEventId);
 
     let inner = statBlocks([
       ["punten uit objectives", pct(objTotal, grand)],
@@ -367,6 +369,7 @@ export function renderStats(ctx) {
       anyUnderdog.length ? ["winst% met underdog-ronde", record(anyUnderdog).rate] : null,
       endBonus.length ? ["end bonus gepakt", pct(endBonusMine.length, endBonus.length)] : null,
       tourn.length ? ["winst% toernooi", record(tourn).rate] : null,
+      teamRecs.length ? ["winst% team games", record(teamRecs).rate] : null,
       casual.length ? ["winst% los", record(casual).rate] : null,
       ["eerste game", new Date(chrono[0].date).toLocaleDateString("nl-NL")],
     ]);

@@ -7,6 +7,7 @@ import { renderCompanion } from "./companion.js";
 import { renderDatabase } from "./database.js";
 import { renderArchive } from "./archive.js";
 import { renderTournament } from "./tournament.js";
+import { renderTeamGames, reconcileTeamEvents } from "./teamgames.js";
 import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
 import { openModal } from "./modelview.js";
@@ -46,7 +47,7 @@ export function saveData() {
 // je op je scherm hebt aangepast). Zonder die basis wonnen lokale kopieën altijd, en
 // draaide een apparaat met oude gegevens elke serverupdate van een leger terug —
 // zo verdwenen op 08-10-2026 de modelaantallen uit 6 legers.
-const LIST_KEYS = ["armies", "gameArchive", "tournaments", "modelLibrary"];
+const LIST_KEYS = ["armies", "gameArchive", "tournaments", "teamEvents", "modelLibrary"];
 let syncBase = null; // { [lijst]: Map(id → JSON) }
 function rememberBase(data) {
   syncBase = {};
@@ -111,6 +112,7 @@ function mergeRemoteData(remote) {
     if (lt && mergeTournament(lt, rt)) changed = true;
   }
   if (reconcileTournaments(state.data)) changed = true;
+  if (reconcileTeamEvents(state.data)) changed = true;
   // Wat er nu op de server staat is de nieuwe basis; wat hier afwijkt is een eigen
   // wijziging en gaat met de push hieronder mee.
   rememberBase(remote);
@@ -206,6 +208,7 @@ function migrateUserData(data) {
   }
   for (const rec of data.gameArchive || []) { fixList(rec.tactics); fixList(rec.enemyTactics); }
   if (reconcileTournaments(data)) changed = true;
+  if (reconcileTeamEvents(data)) changed = true;
   for (const t of data.tournaments || []) for (const g of t.games || []) { fixList(g.game?.tactics); fixList(g.game?.enemyTactics); }
   if (changed) saveData();
 }
@@ -243,6 +246,7 @@ function render() {
     case "archive": return renderArchive({ state, app, navigate, saveData, el, esc });
     case "stats": return renderStats({ state, app, navigate, saveData, el, esc });
     case "tournament": return renderTournament({ state, app, navigate, saveData, el, esc });
+    case "teamgames": return renderTeamGames({ state, app, navigate, saveData, el, esc });
   }
 }
 
@@ -365,6 +369,7 @@ function renderHome() {
     <span class="title">${icon("sword", 18)} AoS Companion</span>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       <button class="small" id="btn-tournament">${icon("trophy")} Toernooi</button>
+      <button class="small" id="btn-teams">${icon("users")} Team games</button>
       <button class="small" id="btn-archive">${icon("flag")} Archief</button>
       <button class="small" id="btn-stats">${icon("chart")} Statistieken</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
@@ -378,6 +383,7 @@ function renderHome() {
   header.querySelector("#btn-archive").addEventListener("click", () => navigate("archive"));
   header.querySelector("#btn-stats").addEventListener("click", () => navigate("stats"));
   header.querySelector("#btn-tournament").addEventListener("click", () => navigate("tournament", { tournamentOpenId: null }));
+  header.querySelector("#btn-teams").addEventListener("click", () => navigate("teamgames", { teamOpenId: null }));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 
   app.appendChild(el(`<h2>Mijn legers</h2>`));

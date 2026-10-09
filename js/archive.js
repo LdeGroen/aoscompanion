@@ -70,13 +70,19 @@ export function renderArchive(ctx) {
       return;
     }
 
-    // Losse games apart; toernooi-games gegroepeerd per toernooi achter een uitvouw.
-    const solo = games.filter((r) => !r.tournamentId);
-    const groups = new Map(); // tournamentId -> { name, recs }
+    // Losse games apart; toernooi- en teamgames gegroepeerd per toernooi / scrimdag /
+    // teamtoernooi achter een uitvouw.
+    const solo = games.filter((r) => !r.tournamentId && !r.teamEventId);
+    const groups = new Map(); // id -> { name, icon, recs }
     for (const r of games) {
-      if (!r.tournamentId) continue;
-      if (!groups.has(r.tournamentId)) groups.set(r.tournamentId, { name: r.tournamentName || "Toernooi", recs: [] });
-      groups.get(r.tournamentId).recs.push(r);
+      const id = r.tournamentId || r.teamEventId;
+      if (!id) continue;
+      if (!groups.has(id)) {
+        groups.set(id, r.teamEventId
+          ? { name: `${r.teamEventKind === "scrim" ? "Scrimdag" : "Teamtoernooi"}: ${r.teamEventName || ""}`, icon: r.teamEventKind === "scrim" ? "users" : "trophy", recs: [] }
+          : { name: r.tournamentName || "Toernooi", icon: "trophy", recs: [] });
+      }
+      groups.get(id).recs.push(r);
     }
 
     for (const rec of solo) app.appendChild(recCard(rec));
@@ -84,7 +90,7 @@ export function renderArchive(ctx) {
     for (const grp of groups.values()) {
       const wins = grp.recs.filter((r) => r.totals.player > r.totals.enemy).length;
       const det = el(`<details class="type-group" open style="margin-top:6px">
-        <summary>${icon("trophy")} ${esc(grp.name)} <span class="count">(${grp.recs.length} games · ${wins} gewonnen)</span></summary>
+        <summary>${icon(grp.icon)} ${esc(grp.name)} <span class="count">(${grp.recs.length} games · ${wins} gewonnen)</span></summary>
         <div data-grp></div>
       </details>`);
       const box = det.querySelector("[data-grp]");

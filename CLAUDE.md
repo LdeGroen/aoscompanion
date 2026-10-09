@@ -626,6 +626,32 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
   (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
+## Team games (`js/teamgames.js`, route `teamgames`)
+Derde spelmodus naast losse games en toernooien, knop **Team games** op home.
+`state.data.teamEvents = [{id, kind: "scrim"|"teamTournament", name, date (ISO), location,
+teamSize, notes, myTeam: {name, players}, …}]`.
+- **Scrimdag**: `opponents: {name, players}` + `games: [slot]`. Een game maak je aan tegen een
+  speler van het andere team, met een leger naar keuze (standaard het leger van "ik").
+- **Teamtoernooi**: toernooivelden (`organization`, `days`, `armyId`, `list` = één lijst voor
+  het hele toernooi) + `rounds: [slot + {opponentTeam: {name, players}, notes}]`. Per ronde kies
+  je je eigen tegenstander uit dat team (`opponentPlayerId`) of typ je alleen een naam
+  (`opponentName`) — alles mag leeg blijven en later aangevuld worden.
+- **Speler** = `{id, name, faction, subfaction, armyName, isMe, armyId, listText, list}`. In je
+  eigen team is één speler `isMe`, gekoppeld aan een van je legers. Een geplakte lijst wordt met
+  `parseListText` ingelezen (vult faction/subfaction/legernaam aan als die leeg waren).
+- **Slot** = `{id, name, armyId, opponentPlayerId, opponentName, battleplanId, game, done,
+  archivedId}`. Spelen gaat via `state.tournamentRef = {kind: "team", eid, gid}`; companion
+  haalt het slot op met `teamGameContext` en gebruikt dezelfde game-host als bij toernooien.
+  Bij de start staan naam/faction/subfaction van de tegenstander al ingevuld en zijn lijsttekst
+  klaar onder "Lijst plakken" (`game.opponentListText`).
+- **Archief**: records krijgen `teamEventId`, `teamEventName`, `teamEventKind`, `gameLabel`,
+  `opponentTeam`, `myTeam`; het archief groepeert ze per scrimdag/teamtoernooi, de statistieken
+  hebben een filter **Team games**. `reconcileTeamEvents` (app.js, bij login en na elke merge)
+  koppelt records terug aan hun slot via `teamEventId` + `gameLabel`. `teamEvents` staat in
+  `LIST_KEYS` van de sync.
+- Keuzelijsten met spelers van de tegenstander worden bij openen vers gevuld: je typt die namen
+  vaak net erboven in, zonder dat het scherm opnieuw getekend wordt.
+
 ## Startscherm: favorieten en groepen (`renderHome` in app.js)
 Twee velden op het leger zelf (synct dus mee): `army.favorite` (true of afwezig) en
 `army.group` (naam of afwezig). Een groep bestaat zolang er een leger in zit; er is geen

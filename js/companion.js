@@ -7,6 +7,7 @@ import * as sharedb from "./sharedb.js";
 import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { createArmyMenus } from "./armymenus.js";
+import { teamGameContext } from "./teamgames.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { parseListText, resolveList } from "./listimport.js";
 import { snapshotFromParsedList } from "./gamelist.js";
@@ -34,27 +35,46 @@ export function renderCompanion(ctx) {
   // Spelstatus wordt normaal op het leger bewaard (army.game). Voor een
   // toernooi-game staat de spelstatus op het toernooi-game-slot; de "game host"
   // abstraheert waar de game leeft, zodat de rest van de companion onveranderd blijft.
+  // Een teamgame (scrimdag of teamtoernooi, zie teamgames.js) werkt hetzelfde: de game
+  // leeft op het slot. `tournament` is dan het team-event; `tgame` het slot.
   const tref = state.tournamentRef || null;
-  const tournament = tref ? (state.data.tournaments || []).find((t) => t.id === tref.tid) : null;
-  const tgame = tournament ? (tournament.games || []).find((g) => g.id === tref.gid) : null;
+  const team = teamGameContext(state.data, tref);
+  const tournament = team ? team.ev : tref ? (state.data.tournaments || []).find((t) => t.id === tref.tid) : null;
+  const tgame = team ? team.slot : tournament ? (tournament.games || []).find((g) => g.id === tref.gid) : null;
   const isTournament = !!tgame;
+  // Eén vaste lijst voor alle games: bij een (team)toernooi wel, bij een scrimdag niet
+  // (daar kan elke game met een ander leger).
+  const fixedList = isTournament && !(team && team.ev.kind === "scrim");
   const host = tgame
     ? { get: () => tgame.game, set: (g) => { tgame.game = g; }, clear: () => { tgame.game = null; } }
     : { get: () => army.game, set: (g) => { army.game = g; }, clear: () => { delete army.game; } };
-  // Waar "terug"/"home" naartoe gaat: bij een toernooi-game terug naar het toernooi.
-  const goBack = () => isTournament
-    ? navigate("tournament", { tournamentOpenId: tournament.id, tournamentRef: null })
-    : navigate("home");
+  // Waar "terug"/"home" naartoe gaat: bij een toernooi- of teamgame terug naar dat scherm.
+  const goBack = () => team
+    ? navigate("teamgames", { teamOpenId: tournament.id, tournamentRef: null })
+    : isTournament
+      ? navigate("tournament", { tournamentOpenId: tournament.id, tournamentRef: null })
+      : navigate("home");
 
   if (!host.get()) {
     host.set(newGame());
     // Een toernooi speel je met één lijst. Die leggen we vast zodra de eerste game
     // begint — dát is de lijst waarmee je het toernooi in gaat — en elke game van
     // dit toernooi krijgt hem mee, ook als je het leger er later nog in bewerkt.
-    if (isTournament && !tournament.list) tournament.list = buildListSnapshot(army);
+    if (fixedList && !tournament.list) tournament.list = buildListSnapshot(army);
     // Ligt het battleplan van deze ronde al vast (ingevuld bij het toernooi), dan
     // staat het in de battle set-up meteen goed.
     if (isTournament && tgame.battleplanId) host.get().setupBattleplanId = tgame.battleplanId;
+    // Teamgame: de tegenstander is al bekend — naam, faction en (als die er is) zijn lijst.
+    // De lijsttekst staat klaar in "Lijst plakken", zodat je de kaartjes er in één tik bij hebt.
+    if (team) {
+      const p = team.player;
+      const opp = host.get().opponent;
+      opp.name = p?.name || tgame.opponentName || "";
+      opp.faction = p?.faction || "";
+      opp.subfaction = p?.subfaction || "";
+      if (p?.list) opp.list = p.list;
+      if (p?.listText) host.get().opponentListText = p.listText;
+    }
     saveData();
   }
   const game = host.get();
@@ -524,7 +544,8 @@ export function renderCompanion(ctx) {
     const opp = game.opponent;
     const wrap = el(`<div><h2>${icon("import")} Lijst van je tegenstander plakken</h2>
       <p class="subtitle">Plak een geëxporteerde lijst. De app zoekt de kaartjes en enhancements erbij; wat hij niet herkent, laat hij staan en meldt hij.</p>
-      <textarea data-text style="min-height:180px;font-family:monospace;font-size:0.8rem" placeholder="Plak hier de lijst…"></textarea>
+      <textarea data-text style="min-height:180px;font-family:monospace;font-size:0.8rem" placeholder="Plak hier de lijst…">${esc(game.opponentListText || "")}</textarea>
+      ${game.opponentListText ? `<p class="subtitle">Deze lijst kwam mee uit de team game — druk op "Lijst inlezen".</p>` : ""}
       <div class="btnrow"><button class="primary" data-read>${icon("check")} Lijst inlezen</button></div>
       <div data-result></div>
     </div>`);
@@ -982,10 +1003,19 @@ export function renderCompanion(ctx) {
       let rec = state.data.gameArchive.find((x) => x.id === game.archivedId);
       if (!rec) {
         rec = buildGameRecord(army, game, state.user.name);
-        if (isTournament) {
+        if (team) {
+          rec.teamEventId = tournament.id;
+          rec.teamEventName = tournament.name;
+          rec.teamEventKind = tournament.kind;
+          rec.gameLabel = tgame.name;
+          if (tgame.opponentTeam?.name || tournament.opponents?.name) rec.opponentTeam = tgame.opponentTeam?.name || tournament.opponents.name;
+          if (tournament.myTeam?.name) rec.myTeam = tournament.myTeam.name;
+        } else if (isTournament) {
           rec.tournamentId = tournament.id;
           rec.tournamentName = tournament.name;
           rec.gameLabel = tgame.name;
+        }
+        if (fixedList) {
           // De toernooilijst wint van de lijst-van-nu, zodat alle games van één
           // toernooi dezelfde lijst tonen.
           if (!tournament.list) tournament.list = rec.list;
@@ -1017,7 +1047,7 @@ export function renderCompanion(ctx) {
       app.appendChild(newGameBtn);
     }
 
-    const homeBtn = el(`<button class="${isTournament ? "primary " : ""}bigbtn">${icon("back")} ${isTournament ? "Terug naar het toernooi" : "Terug naar mijn legers"}</button>`);
+    const homeBtn = el(`<button class="${isTournament ? "primary " : ""}bigbtn">${icon("back")} ${team ? `Terug naar ${team.ev.kind === "scrim" ? "de scrimdag" : "het teamtoernooi"}` : isTournament ? "Terug naar het toernooi" : "Terug naar mijn legers"}</button>`);
     homeBtn.addEventListener("click", () => {
       // Normaal potje: army.game wissen zodat het leger vrij is voor een nieuw
       // potje. Toernooi-game: de afgeronde game op het slot laten staan.

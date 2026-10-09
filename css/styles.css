@@ -823,3 +823,18 @@ details.army-group > summary button { margin-left: auto; padding: 2px 8px; }
 /* --- Regiments of Renown: units als klikbare chips --- */
 .ror-units { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0; }
 .ror-only { color: var(--gold-dark); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 4px; }
+
+/* --- Team games: spelers, rondes, nieuwe game --- */
+details.card > summary { cursor: pointer; list-style: none; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary h3 { margin: 0; }
+.player-row { border-bottom: 1px dashed var(--border); padding: 8px 0; display: grid; gap: 6px; }
+.player-row.me { background: var(--bg-card-2); border-radius: 8px; padding: 8px; }
+.player-main { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.player-sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.player-sub input { flex: 1; min-width: 140px; }
+.player-main input, .player-main select { margin: 0; }
+.new-game { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 8px; }
+.new-game h4 { margin: 0 0 4px; color: var(--gold); }
+.round-card > summary .chip { margin-left: 6px; }
+@media (max-width: 480px) { .player-main { grid-template-columns: 1fr; } }
