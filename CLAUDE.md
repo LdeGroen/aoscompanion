@@ -1038,6 +1038,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |
 | `add-modelcount-sigdex.mjs` | `model.modelCount` (unitgrootte) uit Sigdex, ook in leger- en RoR-kopieën — nodig voor models/wounds per leger |
 | `repair-reverted-armies.mjs` | Herstel van legerkopieën die een apparaat had teruggedraaid (09-10-2026: 113 teksten, 57 modelaantallen, 2 units zonder wapens bij Luc). Ook bruikbaar als controle: met `REPORT=1` toont het wat er in legers afwijkt van de database |
+| `fix-enhancement-points.mjs` (`FACTION="…"`) | Enhancement-punten van één faction gelijk aan BSData (kosten op de selectionEntry zelf, geen kosten = 0; SoA blijft); ook de kopieën op `model.enhancements`. ⚠ `refresh-<faction>.mjs` neemt enhancement-punten **niet** mee — na een nieuw boek dit script draaien (09-10-2026: Sons of Behemat had bij 21 enhancements geen punten) |
 | `fix-universal-lore-points.mjs` | Punten van de universal manifestation lores (vaste lijst uit BSData `Lores.cat`). Op 09-10-2026: Aetherwrought Machineries 20, Twilit Sorceries 10, Krondspine Incarnate 20 — **Sigdex had 0, liep achter op BSData**. Ook de kopie op `army.manifestationLore` |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
@@ -1045,7 +1046,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
 
 ### Werkwijze bij een puntenupdate of nieuw boek
-1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`).
+1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`), daarna `fix-enhancement-points.mjs` voor die faction.
 2. **Sigdex-export** maken (zie boven) en `update-points-sigdex.mjs` + `fix-regiment-options.mjs`.
 3. `fix-warscroll-gaps.mjs`, `fix-weapons.mjs`, `fix-timings.mjs`, `sync-ability-text.mjs`,
    `fix-legends-sigdex.mjs`, `add-modelcount-sigdex.mjs` — elk eerst met `REPORT=1`.
