@@ -1033,6 +1033,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `fix-weapons.mjs` | Wapens: koppelen, hernoemen, stats, weapon abilities, ontbrekende toevoegen |
 | `fix-timings.mjs` | Fases van abilities afleiden uit hun timing (regels hieronder) |
 | `sync-ability-text.mjs` | Ability-teksten (kaartjes, faction rules, enhancements) **letterlijk** van Sigdex, mét originele timing; ook in opgeslagen legers |
+| `sync-lore-text.mjs` | Lore-entries (spells, prayers, manifestation-spells, ook de universal lores) letterlijk van Sigdex (`https://api.sigdex.xyz/blob?name=main`, `lores.{spell,prayer,manifestation}` en `universal`): `[timing]`/Declare/Effect, `value` = Sigdex-`cost`, keywords op `entry.keywords` (als chips getoond). Ook leger-kopieën. 09-10-2026: alle 200 entries |
 | `sync-formation-text.mjs <export.json>` | Hetzelfde voor battle formation-regels (bron: Sigdex-export uit de IndexedDB) |
 | `find-unsourced-text.mjs` | Read-only: teksten zonder Sigdex-bron, met de dichtstbijzijnde Sigdex-naam (tikfout of echt eigen?) |
 | `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |

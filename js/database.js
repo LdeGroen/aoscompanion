@@ -422,7 +422,7 @@ export function renderDatabase(ctx) {
       if ((o.phases || []).length) body.appendChild(el(`<div class="subtitle">Phases: ${o.phases.map((p) => esc(phaseLabel(p))).join(", ")}${o.oncePerBattle ? " · once per battle" : ""}</div>`));
       body.appendChild(el(`<div>${abilityBodyHtml({ description: o.description }, esc, { keywords: false, phases: false })}</div>`));
     } else if (r.otype === "lore") {
-      for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? abilityBodyHtml({ description: e.description }, esc, { keywords: false, phases: false }) : ""}</div>`));
+      for (const e of (o.entries || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(e.name)}</h3>${e.value ? `<span class="chip tag">${esc(e.value)}</span>` : ""}</div>${e.description ? abilityBodyHtml({ description: e.description, keywords: e.keywords }, esc, { phases: false }) : ""}</div>`));
     } else if (r.otype === "ror") {
       if ((o.units || []).length) body.appendChild(el(`<div class="subtitle">Units: ${(o.units || []).map((u) => esc(u.name)).join(", ")}${o.points ? ` · ${o.points} pts` : ""}</div>`));
       for (const ab of (o.abilities || [])) body.appendChild(el(`<div class="card inner"><div class="card-header"><h3>${esc(ab.name)}</h3></div>${abilityBodyHtml(ab, esc)}</div>`));

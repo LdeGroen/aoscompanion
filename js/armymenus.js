@@ -117,7 +117,7 @@ export function createArmyMenus({ army, game = null, el, esc, saveData = () => {
           <strong class="${manif ? "lore-link" : ""}">${esc(entry.name)}</strong>
           ${entry.value ? `<span class="lval">${valuePrefix} ${esc(entry.value)}</span>` : ""}
         </div>
-        ${abilityBodyHtml({ description: entry.description }, esc, { keywords: false, phases: false })}
+        ${abilityBodyHtml({ description: entry.description, keywords: entry.keywords }, esc, { phases: false })}
       </div>`);
       if (manif) row.querySelector("strong").addEventListener("click", () => openModal(buildModelPopupContent(manif, { el, esc }), el));
       entries.appendChild(row);
