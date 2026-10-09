@@ -1038,6 +1038,7 @@ schrijft met 250 ms vertraging naar schijf.
 | `audit-legends-sigdex.mjs` / `fix-legends-sigdex.mjs` | `model.legends` gelijk aan Sigdex' `legends`-veld (niet aan het LEGENDS-keyword: Gutter Runners hebben dat maar zijn geen Legends); ook RoR- en leger-kopieën. Op 08-10-2026: 84 aan, Fatemaster uit |
 | `add-modelcount-sigdex.mjs` | `model.modelCount` (unitgrootte) uit Sigdex, ook in leger- en RoR-kopieën — nodig voor models/wounds per leger |
 | `repair-reverted-armies.mjs` | Herstel van legerkopieën die een apparaat had teruggedraaid (09-10-2026: 113 teksten, 57 modelaantallen, 2 units zonder wapens bij Luc). Ook bruikbaar als controle: met `REPORT=1` toont het wat er in legers afwijkt van de database |
+| `fix-universal-lore-points.mjs` | Punten van de universal manifestation lores (vaste lijst uit BSData `Lores.cat`). Op 09-10-2026: Aetherwrought Machineries 20, Twilit Sorceries 10, Krondspine Incarnate 20 — **Sigdex had 0, liep achter op BSData**. Ook de kopie op `army.manifestationLore` |
 | `remove-stale-abilities.mjs` | Expliciete lijst (met Luc doorgenomen): oude abilities weg die onder een nieuwe Sigdex-naam al op het kaartje stonden — een uitzondering op "nooit weghalen" |
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
 | `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
@@ -1075,7 +1076,10 @@ schrijft met 250 ms vertraging naar schijf.
 - **Leger-kopieën alleen bijwerken als ze nog gelijk waren aan de oude databasewaarde** — wat
   je gepersonaliseerd hebt, blijft van jou.
 - **Sigdex-data niet blind volgen.** Bekende fouten: "Infatry", "Relentless Discipline (n)"
-  als keyword, de dubbele melee-bolt. Bij twijfel BSData erbij pakken.
+  als keyword, de dubbele melee-bolt. Bij twijfel BSData erbij pakken. Sigdex draait bovendien
+  op een vaste BSData-commit (`version.bsdata` in `https://api.sigdex.xyz/blob?name=main`) en
+  kan achterlopen: in okt 2026 had het 0 punten voor drie universal manifestation lores die in
+  BSData al punten kostten. Het label `battleProfiles` zegt niets over hoe vers de data is.
 
 ### Fases (timing) — `fix-timings.mjs`
 De `phases` van een ability bepalen in welke fase hij in de speelmodus verschijnt.
