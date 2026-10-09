@@ -31,7 +31,7 @@ export const AOS_FACTIONS = {
   "Kruleboyz": ["Light Finga", "Trophy Finga", "Kruleboyz Klaw", "Middul Finga", "Swamphorde Bullies", "Badmouthing Baiterz"],
   "Gloomspite Gitz": ["Troggherd", "Squigalanche", "Gitmob Pack", "Gloomspite Horde", "Sunbiter Pack", "Gittish Tide"],
   "Ogor Mawtribes": ["Hunger-Filled Tribe", "Vanguard of the Mawpath", "Hinterland Hunters", "Maw-Cult Fanatics", "Mawpath Menaces", "Greedy Eaters"],
-  "Sons of Behemat": ["Looting Leviathans", "Conquering Stomp", "Eager Louts", "Heirs of the Old Ways", "Manskittle Mob", "Big Toes"],
+  "Sons of Behemat": ["Looting Leviathans", "Conquering Stomp", "Eager Louts", "Heirs of the Old Ways"],
 };
 
 // Phases bestaan dubbel: eigen beurt en beurt van de tegenstander
