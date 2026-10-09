@@ -276,6 +276,10 @@ laadt dezelfde URL.
   (spell/prayer/manifestation) én `subfactions` (battle formations, gekeyd op naam). 107 entries
   verwijderd over alle facties, **Hedonites of Slaanesh overgeslagen** (net opnieuw geïmporteerd).
   Bestaande legers behouden hun kopie; SoG is alleen niet meer toe te voegen.
+  **SoG-battle formations** waren daarbij gemist (twee per faction): op 09-10-2026 alsnog
+  weggehaald, 38 in 19 facties, uit de database én `AOS_FACTIONS`. Controle:
+  `ko-import/audit-sog-formations.mjs` (BSData-conditie `f079-501a-2738-6845` per formation);
+  weghalen: `remove-sog-formations.mjs`. Geen enkel leger of archief-record gebruikte ze.
 - **Scourge of Aqshy (SoA)**: de opvolger van SoG (zelfde mechaniek). In **3 batches** zijn nu
   **alle 23 faction-PDF's** ingevoerd met `ko-import/seed-soa.mjs` (+ `data-soa/<faction>.json` per
   faction): batch 1 = 7 Order-facties (Cities, Fyreslayers, Idoneth, Kharadron Overlords, Seraphon,

@@ -2,35 +2,35 @@
 export const AOS_FACTIONS = {
   // --- ORDER ---
   "Stormcast Eternals": ["Vanguard Wing", "Sentinels of the Bleak Citadels", "Thunderhead Host", "Lightning Echelon", "Sacrosanct Convocation"],
-  "Cities of Sigmar": ["Stalwart Guardians", "Collegiate Exemplars", "Zealous Hordes", "Swift Reinforcements", "Thrall Warhost", "Grudgebound War Throng", "Veteran Cannoneers", "Fearless Exemplars"],
+  "Cities of Sigmar": ["Stalwart Guardians", "Collegiate Exemplars", "Zealous Hordes", "Swift Reinforcements", "Thrall Warhost", "Grudgebound War Throng"],
   "Seraphon": ["Thunderquake Starhost", "Eternal Starhost", "Shadowstrike Starhost", "Sunclaw Starhost"],
-  "Sylvaneth": ["Lords of the Clan", "Followers of Kurnoth", "Glade Defenders", "Outcasts", "Wargrove of the Burgeoning", "Wargrove of Everdusk"],
+  "Sylvaneth": ["Lords of the Clan", "Followers of Kurnoth", "Glade Defenders", "Outcasts"],
   "Lumineth Realm-lords": ["Scinari Council", "Pilgrims of Haixiah", "Warhost of Duality", "Aelementor Guardians"],
-  "Daughters of Khaine": ["Coven of Blood", "Frenzied Devotees", "Cold-Hearted Murderers", "Fervent Ritualists", "Coven Zealots", "Arena Veterans"],
-  "Idoneth Deepkin": ["Soul-raid Ambushers", "Namarti Corps", "Isharann Council", "Akhelian Beastmasters", "Deep-Sea Stalkers", "Ethersea Predators"],
+  "Daughters of Khaine": ["Coven of Blood", "Frenzied Devotees", "Cold-Hearted Murderers", "Fervent Ritualists"],
+  "Idoneth Deepkin": ["Soul-raid Ambushers", "Namarti Corps", "Isharann Council", "Akhelian Beastmasters"],
   "Kharadron Overlords": ["Endrineers Guild Expeditionary Force", "Veteran Ground Troops", "Rapid Redeployment Squadron", "Pioneers and Scavengers"],
   "Fyreslayers": ["Forge Brethren", "Scales of Vulcatrix", "Warrior Kinband", "Lords of the Lodge"],
 
   // --- CHAOS ---
-  "Slaves to Darkness": ["Darkoath Horde", "Legion of Chaos", "Despoilers", "Godswrath Warband", "Chaos Horde", "Champions of Chaos"],
-  "Skaven": ["Warpcog Convocation", "Fleshmeld Menagerie", "Virulent Procession", "Claw-horde", "Kill‑Pack", "Envoys of the Deepengnaw", "Gathering of the Clans"],
-  "Blades of Khorne": ["Brass Stampede", "Khornate Legion", "Murderhost", "Bloodbound Warhorde", "Tournament of Skulls", "The Goretide"],
-  "Disciples of Tzeentch": ["Fated Blades", "Malevolent Schemers", "Denizens of the Silver Tower", "Mutants and Mad Things", "Masters of Fate", "Spellweaver Coven"],
+  "Slaves to Darkness": ["Darkoath Horde", "Legion of Chaos", "Despoilers", "Godswrath Warband"],
+  "Skaven": ["Warpcog Convocation", "Fleshmeld Menagerie", "Virulent Procession", "Claw-horde", "Kill‑Pack"],
+  "Blades of Khorne": ["Brass Stampede", "Khornate Legion", "Murderhost", "Bloodbound Warhorde"],
+  "Disciples of Tzeentch": ["Fated Blades", "Malevolent Schemers", "Denizens of the Silver Tower", "Mutants and Mad Things"],
   "Maggotkin of Nurgle": ["Affliction Cyst", "Tallyband of Nurgle", "Nurgle's Menagerie", "Plague Cyst"],
-  "Hedonites of Slaanesh": ["Depraved Carnival", "Godseeker Cavalcade", "Artisans of Torment", "Lurid Dreamers", "Pretenders", "Invaders"],
-  "Helsmiths of Hashut": ["Hashutite Host", "Castigation Battery", "The Bullfather's Horns", "Daemonsmith Cabal", "Domination Force", "Industrial Polluters"],
+  "Hedonites of Slaanesh": ["Depraved Carnival", "Godseeker Cavalcade", "Artisans of Torment", "Lurid Dreamers"],
+  "Helsmiths of Hashut": ["Hashutite Host", "Castigation Battery", "The Bullfather's Horns", "Daemonsmith Cabal"],
 
   // --- DEATH ---
-  "Soulblight Gravelords": ["Deathstench Drove", "Bacchanal of Blood", "Deathmarch", "Legion of Shyish", "Legions of Ulfenkarn", "Cryptmasters", "Skinshifters"],
-  "Ossiarch Bonereapers": ["Border Guards", "The Inevitable Empire", "Ruthless Legion", "Remorseless Conquerors", "Tithe Guards", "Hekatos Drillmasters"],
-  "Nighthaunt": ["Quicksilver Gheists", "Death Stalkers", "Royal Procession", "Shrieker Host", "Hungry Nexus", "Deathrust Gheists"],
-  "Flesh-eater Courts": ["Royal Menagerie", "Knightly Echelon", "The Royal Hunt", "Lords of the Manor", "Impassioned Serfs", "Questing Courtiers"],
+  "Soulblight Gravelords": ["Deathstench Drove", "Bacchanal of Blood", "Deathmarch", "Legion of Shyish", "Legions of Ulfenkarn"],
+  "Ossiarch Bonereapers": ["Border Guards", "The Inevitable Empire", "Ruthless Legion", "Remorseless Conquerors"],
+  "Nighthaunt": ["Quicksilver Gheists", "Death Stalkers", "Royal Procession", "Shrieker Host"],
+  "Flesh-eater Courts": ["Royal Menagerie", "Knightly Echelon", "The Royal Hunt", "Lords of the Manor"],
 
   // --- DESTRUCTION ---
-  "Ironjawz": ["Weirdfist", "Ironjawz Brawl", "Grunta Stampede", "Ironfist", "Brutefist", "Bigsnikkaz"],
-  "Kruleboyz": ["Light Finga", "Trophy Finga", "Kruleboyz Klaw", "Middul Finga", "Swamphorde Bullies", "Badmouthing Baiterz"],
-  "Gloomspite Gitz": ["Troggherd", "Squigalanche", "Gitmob Pack", "Gloomspite Horde", "Sunbiter Pack", "Gittish Tide"],
-  "Ogor Mawtribes": ["Hunger-Filled Tribe", "Vanguard of the Mawpath", "Hinterland Hunters", "Maw-Cult Fanatics", "Mawpath Menaces", "Greedy Eaters"],
+  "Ironjawz": ["Weirdfist", "Ironjawz Brawl", "Grunta Stampede", "Ironfist"],
+  "Kruleboyz": ["Light Finga", "Trophy Finga", "Kruleboyz Klaw", "Middul Finga"],
+  "Gloomspite Gitz": ["Troggherd", "Squigalanche", "Gitmob Pack", "Gloomspite Horde"],
+  "Ogor Mawtribes": ["Hunger-Filled Tribe", "Vanguard of the Mawpath", "Hinterland Hunters", "Maw-Cult Fanatics"],
   "Sons of Behemat": ["Looting Leviathans", "Conquering Stomp", "Eager Louts", "Heirs of the Old Ways"],
 };
 
