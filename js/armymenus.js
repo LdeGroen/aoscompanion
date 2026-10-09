@@ -327,7 +327,7 @@ export function createArmyMenus({ army, game = null, el, esc, saveData = () => {
     const o = game?.opponent || {};
     const wrap = el(`<div>
       <h2>${esc(o.name || "Tegenstander")}</h2>
-      ${o.faction ? `<p class="subtitle">${esc(o.faction)}${o.subfaction ? " — " + esc(o.subfaction) : ""}</p>` : ""}
+      ${o.faction ? `<p class="subtitle">${esc(o.faction)}${o.aor ? " — Army of Renown: " + esc(o.aor) : o.subfaction ? " — " + esc(o.subfaction) : ""}</p>` : ""}
       <div data-list></div>
     </div>`);
     const list = wrap.querySelector("[data-list]");
@@ -352,23 +352,31 @@ export function createArmyMenus({ army, game = null, el, esc, saveData = () => {
       if (enhs.length) list.appendChild(enhWrap);
       else row.style.borderBottom = "1px dashed var(--border)";
     }
-    if (o.faction) {
+    const ruleCards = (target, title, rules) => {
+      if (!rules?.length) return;
+      target.appendChild(el(`<h3>${esc(title)}</h3>`));
+      for (const r of rules) {
+        target.appendChild(el(`<div class="ability faction">
+          <span class="aname">${esc(r.name)}</span>
+          ${r.oncePerBattle ? ' <span class="chip tag">Once per battle</span>' : ""}
+          ${abilityBodyHtml(r, esc)}
+        </div>`));
+      }
+    };
+    if (o.aorData) {
+      // Army of Renown: diens battle traits vervangen de gewone faction rules (vastgelegd
+      // in de battle set-up, dus ook offline beschikbaar).
+      const box = el(`<div></div>`);
+      ruleCards(box, `Army of Renown — ${o.aorData.name}`, o.aorData.rules);
+      if (!box.children.length) box.appendChild(el(`<p class="empty">Geen regels bekend voor ${esc(o.aorData.name)}.</p>`));
+      wrap.appendChild(box);
+    } else if (o.faction) {
       const rulesWrap = el(`<div><p class="empty">Rules laden…</p></div>`);
       wrap.appendChild(rulesWrap);
       sharedb.loadFactionDb(o.faction)
         .then(({ db }) => {
           rulesWrap.innerHTML = "";
-          const addRules = (title, rules) => {
-            if (!rules?.length) return;
-            rulesWrap.appendChild(el(`<h3>${esc(title)}</h3>`));
-            for (const r of rules) {
-              rulesWrap.appendChild(el(`<div class="ability faction">
-                <span class="aname">${esc(r.name)}</span>
-                ${r.oncePerBattle ? ' <span class="chip tag">Once per battle</span>' : ""}
-                ${abilityBodyHtml(r, esc)}
-              </div>`));
-            }
-          };
+          const addRules = (title, rules) => ruleCards(rulesWrap, title, rules);
           addRules("Faction rules", db.factionRules);
           if (o.subfaction) addRules(`Subfaction rules — ${o.subfaction}`, db.subfactions?.[o.subfaction]?.rules);
           if (!rulesWrap.children.length) rulesWrap.appendChild(el(`<p class="empty">Geen rules in de ${esc(o.faction)}-database.</p>`));

@@ -723,6 +723,14 @@ met dit leger, dan staan die er wel. (Een toernooigame staat op het toernooi en 
   regiment van de general eerst, de leider (`isLeader`) bovenaan met ★ + General-chip, daarna de
   units; daarna Regiments of Renown (`reg.ror`), Auxiliary units (geen `regimentId`) en Faction
   terrain (incl. `fromTerrain`-companions). Elke unit is klikbaar naar de model-popup.
+- **Army of Renown van de tegenstander**: in de battle set-up staat onder faction/subfaction een
+  keuze uit de AoR's van zijn faction (blob `armiesofrenown`). Kiezen zet `opp.aor` en legt
+  `opp.aorData = {name, rules, enhancements}` vast op de game (offline beschikbaar); AoR en
+  subfaction sluiten elkaar uit. Het Tegenstander-menu toont dan de AoR-regels in plaats van de
+  faction rules, de enhancement-kiezer de AoR-enhancements. "Lijst plakken" herkent een AoR-naam
+  als losse regel in de lijst (zo exporteren wij hem). In het game-record staat de AoR op
+  `opponent.subfaction` (zodat archief/statistieken hem tonen) én op `opponent.aor`; voor je eigen
+  leger idem met `army.aor`.
 - **Tegenstander-enhancements**: in de battle set-up heeft elke tegenstander-unit een
   **Enhancements**-knop (`openOpponentEnhPicker`) die de enhancements van hun faction uit de
   gedeelde DB toont; gekozen enhancements komen als volledig object op `m.enhancements` van het

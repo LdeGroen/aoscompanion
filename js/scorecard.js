@@ -14,11 +14,14 @@ export function buildGameRecord(army, game, playerName) {
   return {
     id: uid(),
     date: new Date().toISOString(),
-    player: { name: playerName, faction: army.faction, subfaction: army.subfaction || "", army: army.name },
+    // Een Army of Renown staat waar anders de subfaction staat (die sluiten elkaar uit), zodat
+    // archief, export en statistieken hem zonder extra werk tonen; `aor` houdt het onderscheid vast.
+    player: { name: playerName, faction: army.faction, subfaction: army.subfaction || army.aor || "", aor: army.aor || "", army: army.name },
     opponent: {
       name: game.opponent?.name || "Tegenstander",
       faction: game.opponent?.faction || "",
-      subfaction: game.opponent?.subfaction || "",
+      subfaction: game.opponent?.subfaction || game.opponent?.aor || "",
+      aor: game.opponent?.aor || "",
     },
     battleplan: game.battleplan?.name || "",
     // Momentopname van de lijst: een leger houdt zijn naam maar de lijst ontwikkelt

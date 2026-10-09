@@ -332,9 +332,37 @@ export function renderCompanion(ctx) {
           <select id="opp-subfaction"></select>
         </div>
       </div>
+      <div data-aor style="display:none">
+        <label>Army of Renown</label>
+        <select id="opp-aor"></select>
+        <p class="subtitle">Speelt je tegenstander een Army of Renown, dan zie je tijdens de game diens regels (in plaats van de gewone faction rules) via de Tegenstander-knop.</p>
+      </div>
     </div>`);
     app.appendChild(oppCard);
     const subSel = oppCard.querySelector("#opp-subfaction");
+    // Army of Renown van de tegenstander: keuze uit de AoR's van zijn faction. AoR en
+    // subfaction sluiten elkaar uit (net als in de set-up). De regels en enhancements leggen
+    // we vast op de game (`opp.aorData`), zodat ze ook offline in het speelscherm staan.
+    const aorBox = oppCard.querySelector("[data-aor]");
+    const aorSel = oppCard.querySelector("#opp-aor");
+    let aorAll = null;
+    const fillAoR = () => {
+      const lijst = (aorAll || []).filter((a) => a.faction === opp.faction);
+      aorBox.style.display = lijst.length || opp.aor ? "" : "none";
+      aorSel.innerHTML = `<option value="">— geen —</option>` +
+        lijst.map((a) => `<option ${a.name === opp.aor ? "selected" : ""}>${esc(a.name)}</option>`).join("");
+      if (opp.aor && !lijst.some((a) => a.name === opp.aor)) aorSel.insertAdjacentHTML("beforeend", `<option selected>${esc(opp.aor)}</option>`);
+    };
+    const setAoR = (name) => {
+      const a = (aorAll || []).find((x) => x.faction === opp.faction && x.name === name) || null;
+      opp.aor = a ? a.name : "";
+      opp.aorData = a ? { name: a.name, rules: JSON.parse(JSON.stringify(a.rules || [])), enhancements: JSON.parse(JSON.stringify(a.enhancements || [])) } : null;
+      if (a) { opp.subfaction = ""; fillSubs(); }
+    };
+    sharedb.loadSharedBlob("armiesofrenown", (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] })
+      .then(({ db }) => { aorAll = db.list; if (aorSel.isConnected) fillAoR(); })
+      .catch(() => { aorAll = []; });
+    aorSel.addEventListener("change", (e) => { setAoR(e.target.value); saveData(); });
     // Net als in de set-up: de database is leidend, de vaste lijst is terugval.
     let oppSubs = [];
     const fillSubs = () => {
@@ -357,8 +385,12 @@ export function renderCompanion(ctx) {
         .catch(() => {});
     }
     oppCard.querySelector("#opp-name").addEventListener("input", (e) => { opp.name = e.target.value; saveData(); });
-    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; fillSubs(); saveData(); });
-    subSel.addEventListener("change", (e) => { opp.subfaction = e.target.value; saveData(); });
+    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; setAoR(""); fillSubs(); fillAoR(); saveData(); });
+    subSel.addEventListener("change", (e) => {
+      opp.subfaction = e.target.value;
+      if (opp.subfaction && opp.aor) { setAoR(""); fillAoR(); }
+      saveData();
+    });
 
     // --- Unieke models van de tegenstander (uit de database) ---
     opp.models = opp.models || [];
@@ -572,9 +604,17 @@ export function renderCompanion(ctx) {
         result.appendChild(el(`<p class="empty">Database niet beschikbaar: ${esc(e.message)}</p>`));
         return;
       }
+      // Army of Renown: de export zet de AoR-naam op de plek van de battle formation. Herkennen
+      // we er een van deze faction, dan zoeken we de enhancements ook in de AoR-pool.
+      let aorHit = null;
+      try {
+        const { db: aorDb } = await sharedb.loadSharedBlob("armiesofrenown", (raw) => (raw && Array.isArray(raw.list)) ? raw : { list: [] });
+        const regels = new Set(text.split(/\r?\n/).map((l) => l.replace(/\s*\(\d+\)\s*$/, "").trim().toLowerCase()).filter(Boolean));
+        aorHit = aorDb.list.find((a) => a.faction === faction && regels.has(String(a.name).toLowerCase())) || null;
+      } catch { /* zonder AoR-lijst gewoon verder */ }
       const { matched, unknown } = resolveList(parsed, {
         models: [...(db.models || []), ...(uni.models || [])],
-        enhancements: db.enhancements || [],
+        enhancements: [...(aorHit?.enhancements || []), ...(db.enhancements || [])],
       });
 
       // Dubbele units (2× dezelfde unit in een lijst) tellen we, maar we voegen
@@ -593,7 +633,7 @@ export function renderCompanion(ctx) {
         ${unknown.length ? `<div class="stat"><span class="v">${unknown.length}</span><span class="k">niet gevonden</span></div>` : ""}
       </div>`));
       if (parsed.armyName || parsed.points) {
-        result.appendChild(el(`<p class="subtitle">${esc(parsed.armyName || "Lijst")}${parsed.points ? ` · ${parsed.points} punten` : ""} · ${esc(faction)}${parsed.subfaction ? " — " + esc(parsed.subfaction) : ""}</p>`));
+        result.appendChild(el(`<p class="subtitle">${esc(parsed.armyName || "Lijst")}${parsed.points ? ` · ${parsed.points} punten` : ""} · ${esc(faction)}${aorHit ? " — Army of Renown: " + esc(aorHit.name) : parsed.subfaction ? " — " + esc(parsed.subfaction) : ""}</p>`));
       }
 
       for (const m of uniq) {
@@ -611,7 +651,11 @@ export function renderCompanion(ctx) {
       const addBtn = el(`<button class="primary bigbtn">${icon("check")} ${uniq.length} kaartje${uniq.length === 1 ? "" : "s"} toevoegen</button>`);
       addBtn.addEventListener("click", () => {
         opp.faction = faction;
-        if (parsed.subfaction) opp.subfaction = parsed.subfaction;
+        if (aorHit) {
+          opp.aor = aorHit.name;
+          opp.aorData = { name: aorHit.name, rules: JSON.parse(JSON.stringify(aorHit.rules || [])), enhancements: JSON.parse(JSON.stringify(aorHit.enhancements || [])) };
+          opp.subfaction = "";
+        } else if (parsed.subfaction) opp.subfaction = parsed.subfaction;
         // De hele lijst bewaren we ook: die gaat mee naar het archief, zodat je
         // later terugziet waartegen je gespeeld hebt.
         opp.list = snapshotFromParsedList(parsed);
@@ -641,12 +685,17 @@ export function renderCompanion(ctx) {
   async function openOpponentEnhPicker(m) {
     const opp = game.opponent;
     let enhs = [];
-    try {
-      const { db } = await sharedb.loadFactionDb(opp.faction);
-      enhs = db.enhancements || [];
-    } catch (e) {
-      alert("Database niet beschikbaar: " + e.message);
-      return;
+    if (opp.aorData) {
+      // Army of Renown: eigen enhancement-pool (vastgelegd bij het kiezen van de AoR).
+      enhs = opp.aorData.enhancements || [];
+    } else {
+      try {
+        const { db } = await sharedb.loadFactionDb(opp.faction);
+        enhs = db.enhancements || [];
+      } catch (e) {
+        alert("Database niet beschikbaar: " + e.message);
+        return;
+      }
     }
     m.enhancements = m.enhancements || [];
     const wrap = el(`<div><h2>Enhancements — ${esc(m.name)}</h2>
