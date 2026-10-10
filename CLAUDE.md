@@ -313,9 +313,9 @@ laadt dezelfde URL.
     publicationId. `ko-import/audit-soa.mjs` (veld-voor-veld diff) en `audit-soa-complete.mjs`
     (compleetheid) doen die vergelijking; `seed-soa-missing.mjs` vulde de gaten aan.
     De 23 PDF-batches misten **Lumineth Realm-lords** en **Daughters of Khaine** (2 warscrolls +
-    6 enhancements elk) — die zijn uit BSData bijgeplaatst. ⚠️ BSData heeft **geen punten voor
-    SoA-enhancements**: die van Lumineth/DoK staan daarom op 0 en moeten nog uit de Battle
-    Profiles-xlsx komen. Twee namen zijn gelijkgetrokken met BSData ("Kurnoth Hunters with
+    6 enhancements elk) — die zijn uit BSData bijgeplaatst. BSData had **geen punten voor
+    SoA-enhancements**; op 10-10-2026 zijn alle 135 SoA-enhancementpunten naast Sigdex gelegd en
+    de 9 afwijkende (o.a. die van Lumineth/DoK) gelijkgetrokken (`fix-soa-enhancement-points.mjs`). Twee namen zijn gelijkgetrokken met BSData ("Kurnoth Hunters with
     **Kurnoth** Greatswords", "Infernal Enrapturess**, Herald of Slaanesh**"); de Kurnoth Hunters
     heten sinds okt 2026 weer naar Sigdex ("with Greatswords", zie `rename-warscrolls-sigdex.mjs`). Let op: BSData
     bevat ook echte fouten (OBR "Reaper**'** Blades" mist een s) — niet blind overnemen.
