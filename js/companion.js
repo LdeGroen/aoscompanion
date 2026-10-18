@@ -1318,6 +1318,26 @@ export function renderCompanion(ctx) {
     head.querySelector("#f-enemy").addEventListener("click", () => { game.firstTurn = "enemy"; game.firstTurnByRound[game.round] = "enemy"; saveData(); rerender(); });
     app.appendChild(head);
 
+    // Command points: dezelfde teller als in de volledige modus, plus snelknoppen voor de
+    // start van een battleround (4, of 5 als je de underdog bent).
+    const cpBar = el(`<div class="turnbar">
+      <span class="who player">Command points</span>
+      <div class="cp-counter">
+        <button class="small" data-cpset="4" title="Begin van de ronde">4</button>
+        <button class="small" data-cpset="5" title="Begin van de ronde als underdog">5 (underdog)</button>
+        <button id="cp-min">−</button>
+        <span class="cp">${game.cp}</span>
+        <button id="cp-plus">+</button>
+      </div>
+    </div>`);
+    cpBar.querySelector("#cp-min").addEventListener("click", () => { if (game.cp > 0) { game.cp--; saveData(); rerender(); } });
+    cpBar.querySelector("#cp-plus").addEventListener("click", () => { game.cp++; saveData(); rerender(); });
+    for (const b of cpBar.querySelectorAll("[data-cpset]")) b.addEventListener("click", () => { game.cp = parseInt(b.dataset.cpset); saveData(); rerender(); });
+    app.appendChild(cpBar);
+
+    // Fury level + rage dice (alleen als de fury-seasonal rules in dit potje gelden).
+    renderFuryPanel({ roundStart: true });
+
     if (game.battleplan) {
       const s = calcScores(game);
       app.appendChild(el(`<div class="scoreline">
@@ -1340,7 +1360,11 @@ export function renderCompanion(ctx) {
     const nextBtn = el(`<button class="primary bigbtn">${isLast ? `${icon("flag")} Einde spel` : "Volgende battleround →"}</button>`);
     nextBtn.addEventListener("click", () => {
       if (isLast) { game.stage = "gameOver"; }
-      else { game.round++; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; game.usedCommands = {}; }
+      else {
+        game.round++; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; game.usedCommands = {};
+        // Nieuwe battleround: CP opnieuw, net als bij de start van een ronde in de volledige modus.
+        game.cp = game.underdog[game.round] === "player" ? 5 : 4;
+      }
       saveData(); rerender(true);
     });
     let prevBtn = null;
