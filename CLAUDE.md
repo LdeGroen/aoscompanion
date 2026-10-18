@@ -776,9 +776,13 @@ companion.js): één compact scherm per battleround met "wie gaat eerst" + beide
 om snel tussen beurten het scoren te overzien. De modus is een **apparaat-voorkeur**
 (`localStorage` `aoscomp_companion_mode`, synct bewust niet, net als het thema) en vervangt
 alleen de `roundSetup`- en `turn`-stages — battle set-up en game-over blijven gelijk. Score-modus
-heeft ook een **CP-teller** (− / + en snelknoppen 4 / 5-underdog; "Volgende battleround" zet hem
-op 4, of 5 als `game.underdog[round] === "player"`) en het **fury-paneel** (`renderFuryPanel`,
-alleen als de fury-seasonal rules actief zijn). Je kunt
+heeft ook **CP-tellers voor jou én je tegenstander** (`game.cp` / `game.enemyCp`; − / + en
+snelknoppen 4 / 5-underdog; "Deployment klaar" en "Volgende battleround" zetten ze op 4, of 5 voor
+wie de underdog is) en het **fury-paneel** (`renderFuryPanel`, alleen als de fury-seasonal rules
+actief zijn) met twee kolommen: `game.fury` en `game.enemyFury`. Attacker/defender zijn elkaars
+tegenpool (attacker fury 1, defender fury 2). De volledige modus toont dezelfde tellers (twee
+CP-tellers in de beurtbalk, twee CP-invoervelden bij de start van een ronde). De terugknop gaat
+vanuit ronde 1 naar de deployment en van daaruit naar de battle set-up. Je kunt
 **midden in een potje** wisselen: een snelle wissel zonder te navigeren hervat de volledige
 modus exact (stage/turn/phase blijven staan); navigeer je in score-modus naar een andere
 battleround, dan zet dat de stage op `roundSetup` van die ronde. `renderScoringCard(owner,

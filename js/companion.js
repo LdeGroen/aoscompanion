@@ -779,51 +779,79 @@ export function renderCompanion(ctx) {
   // Fury level + rage dice (General's Handbook 2026-27). Alleen tonen als die
   // seasonal rules in dit potje actief zijn.
   const furyActive = () => (game.seasonalRules || []).some((r) => /fury level/i.test(r.description || ""));
+  // Twee kolommen: jij (`game.fury`) en je tegenstander (`game.enemyFury`), elk met fury
+  // level, rage dice en dezelfde snelknoppen. De rollen zijn elkaars tegenpool: kies je
+  // attacker, dan is de tegenstander defender (en omgekeerd), met het bijbehorende fury level.
   function renderFuryPanel({ role = false, roundStart = false } = {}) {
     if (!furyActive()) return;
     game.fury = game.fury || { role: "", level: 0, rage: 0 };
-    const f = game.fury;
+    game.enemyFury = game.enemyFury || { role: "", level: 0, rage: 0 };
+    const oppName = game.opponent?.name || "Tegenstander";
     const card = el(`<div class="card"><div class="card-header"><h3>${icon("zap")} Fury</h3></div><div data-body></div></div>`);
     const body = card.querySelector("[data-body]");
+    const LEVEL = { attacker: 1, defender: 2 };
     if (role) {
-      body.appendChild(el(`<p class="subtitle">Ben jij de attacker of defender? (suggereert je fury level)</p>`));
+      body.appendChild(el(`<p class="subtitle">Ben jij de attacker of defender? (suggereert het fury level van jullie allebei)</p>`));
       const row = el(`<div class="btnrow"></div>`);
-      for (const [val, label, lvl] of [["attacker", "Attacker (fury 1)", 1], ["defender", "Defender (fury 2)", 2]]) {
-        const b = el(`<button class="small ${f.role === val ? "primary" : ""}">${label}</button>`);
-        b.addEventListener("click", () => { f.role = val; f.level = lvl; saveData(); rerender(); });
+      for (const [val, label] of [["attacker", "Ik ben attacker (fury 1)"], ["defender", "Ik ben defender (fury 2)"]]) {
+        const b = el(`<button class="small ${game.fury.role === val ? "primary" : ""}">${label}</button>`);
+        b.addEventListener("click", () => {
+          const other = val === "attacker" ? "defender" : "attacker";
+          Object.assign(game.fury, { role: val, level: LEVEL[val] });
+          Object.assign(game.enemyFury, { role: other, level: LEVEL[other] });
+          saveData(); rerender();
+        });
         row.appendChild(b);
       }
       body.appendChild(row);
     }
-    const stepper = (label, key, min, max, hint) => {
-      const r = el(`<div class="scoreline"><span>${label}${hint != null ? ` <span class="subtitle">(suggestie: ${hint})</span>` : ""}</span>
-        <span style="display:flex;align-items:center;gap:10px"><button class="small" data-dec>−</button><strong style="min-width:1.5em;text-align:center;font-size:1.1rem">${f[key] || 0}</strong><button class="small" data-inc>+</button></span></div>`);
-      r.querySelector("[data-dec]").addEventListener("click", () => { f[key] = Math.max(min, (f[key] || 0) - 1); saveData(); rerender(); });
-      r.querySelector("[data-inc]").addEventListener("click", () => { f[key] = Math.min(max, (f[key] || 0) + 1); saveData(); rerender(); });
-      body.appendChild(r);
-    };
-    stepper("Fury level", "level", 0, 7, role && f.role ? (f.role === "attacker" ? 1 : 2) : null);
-    stepper("Rage dice", "rage", 0, 99, roundStart ? f.level : null);
-    // Snelknoppen voor de samengestelde aanpassingen uit de seasonal rules
-    if (!role) {
-      const quick = (label, dLevel, dRage) => {
-        const b = el(`<button class="small">${label}</button>`);
-        b.addEventListener("click", () => { f.level = Math.max(0, Math.min(7, (f.level || 0) + dLevel)); f.rage = Math.max(0, (f.rage || 0) + dRage); saveData(); rerender(); });
-        return b;
+    const cols = el(`<div class="fury-cols"></div>`);
+    const column = (title, f) => {
+      const col = el(`<div class="fury-col"><h4>${esc(title)}${f.role ? ` <span class="subtitle">(${f.role})</span>` : ""}</h4></div>`);
+      const stepper = (label, key, min, max, hint) => {
+        const r = el(`<div class="scoreline"><span>${label}${hint != null ? ` <span class="subtitle">(suggestie: ${hint})</span>` : ""}</span>
+          <span style="display:flex;align-items:center;gap:10px"><button class="small" data-dec>−</button><strong style="min-width:1.5em;text-align:center;font-size:1.1rem">${f[key] || 0}</strong><button class="small" data-inc>+</button></span></div>`);
+        r.querySelector("[data-dec]").addEventListener("click", () => { f[key] = Math.max(min, (f[key] || 0) - 1); saveData(); rerender(); });
+        r.querySelector("[data-inc]").addEventListener("click", () => { f[key] = Math.min(max, (f[key] || 0) + 1); saveData(); rerender(); });
+        col.appendChild(r);
       };
-      const qrow = el(`<div class="btnrow" style="margin-top:6px"></div>`);
-      qrow.appendChild(quick(`${icon("zap")} Ignite Fury (+2 fury, +2 rage)`, 2, 2));
-      qrow.appendChild(quick("Fight Through the Pain (−1 fury, −1 rage)", -1, -1));
-      qrow.appendChild(quick("Rage die uitgeven (−1)", 0, -1));
-      body.appendChild(qrow);
-    }
+      stepper("Fury level", "level", 0, 7, role && f.role ? LEVEL[f.role] : null);
+      stepper("Rage dice", "rage", 0, 99, roundStart ? f.level : null);
+      // Snelknoppen voor de samengestelde aanpassingen uit de seasonal rules
+      if (!role) {
+        const quick = (label, dLevel, dRage) => {
+          const b = el(`<button class="small">${label}</button>`);
+          b.addEventListener("click", () => { f.level = Math.max(0, Math.min(7, (f.level || 0) + dLevel)); f.rage = Math.max(0, (f.rage || 0) + dRage); saveData(); rerender(); });
+          return b;
+        };
+        const qrow = el(`<div class="btnrow" style="margin-top:6px"></div>`);
+        qrow.appendChild(quick(`${icon("zap")} Ignite Fury (+2 fury, +2 rage)`, 2, 2));
+        qrow.appendChild(quick("Fight Through the Pain (−1 / −1)", -1, -1));
+        qrow.appendChild(quick("Rage die uitgeven (−1)", 0, -1));
+        col.appendChild(qrow);
+      }
+      cols.appendChild(col);
+    };
+    column("Jij", game.fury);
+    column(oppName, game.enemyFury);
+    body.appendChild(cols);
     if (roundStart) {
-      const btn = el(`<button class="small primary" style="margin-top:6px">${icon("zap")} Nieuwe battleround: ${f.level} rage dice (= fury level)</button>`);
-      btn.addEventListener("click", () => { f.rage = f.level; saveData(); rerender(); });
+      const btn = el(`<button class="small primary" style="margin-top:6px">${icon("zap")} Nieuwe battleround: rage dice = fury level (jij ${game.fury.level || 0}, ${esc(oppName)} ${game.enemyFury.level || 0})</button>`);
+      btn.addEventListener("click", () => { game.fury.rage = game.fury.level || 0; game.enemyFury.rage = game.enemyFury.level || 0; saveData(); rerender(); });
       body.appendChild(btn);
       body.appendChild(el(`<p class="subtitle">Onbestede rage dice vervallen aan het eind van de battleround.</p>`));
     }
     app.appendChild(card);
+  }
+
+  // Command points van de tegenstander (`game.enemyCp`) — net als die van jou bij te houden.
+  const startCp = (side) => (game.underdog[game.round] === side ? 5 : 4);
+  function cpCounterHtml(id, value) {
+    return `<div class="cp-counter"><button id="${id}-min">−</button><span class="cp">${value}</span><button id="${id}-plus">+</button></div>`;
+  }
+  function wireCpCounter(root, id, get, set) {
+    root.querySelector(`#${id}-min`).addEventListener("click", () => { if (get() > 0) { set(get() - 1); saveData(); rerender(); } });
+    root.querySelector(`#${id}-plus`).addEventListener("click", () => { set(get() + 1); saveData(); rerender(); });
   }
 
   function renderDeployment() {
@@ -853,6 +881,9 @@ export function renderCompanion(ctx) {
     const nextBtn = el(`<button class="primary bigbtn">${icon("play")} Deployment klaar — naar battleround 1</button>`);
     nextBtn.addEventListener("click", () => {
       game.stage = "roundSetup";
+      // Start-CP voor ronde 1 (de score-modus slaat het rondescherm met de CP-invoer over).
+      game.cp = startCp("player");
+      game.enemyCp = startCp("enemy");
       saveData();
       rerender(true);
     });
@@ -880,8 +911,12 @@ export function renderCompanion(ctx) {
         <button id="first-player" class="${game.firstTurn === "player" ? "primary" : ""}">Ik (de speler)</button>
         <button id="first-enemy" class="${game.firstTurn === "enemy" ? "primary" : ""}">De tegenstander</button>
       </div>
-      <label>Met hoeveel command points begin je deze battleround? (standaard 4, als underdog 5)</label>
-      <input type="number" id="cp-input" min="0" value="${game.underdog[game.round] === "player" ? 5 : 4}" />
+      <div class="row">
+        <div><label>Jouw command points (standaard 4, als underdog 5)</label>
+          <input type="number" id="cp-input" min="0" value="${startCp("player")}" /></div>
+        <div><label>Command points van ${esc(game.opponent?.name || "je tegenstander")}</label>
+          <input type="number" id="cp-enemy-input" min="0" value="${startCp("enemy")}" /></div>
+      </div>
       <div data-underdog></div>
     </div>`);
     app.appendChild(card);
@@ -921,6 +956,7 @@ export function renderCompanion(ctx) {
     card.querySelector("#first-enemy").addEventListener("click", () => { game.firstTurn = "enemy"; saveData(); rerender(); });
     startBtn.addEventListener("click", () => {
       game.cp = parseInt(card.querySelector("#cp-input").value) || 0;
+      game.enemyCp = parseInt(card.querySelector("#cp-enemy-input").value) || 0;
       game.stage = "turn";
       game.turnIndex = 0;
       game.phaseIndex = 0;
@@ -941,15 +977,13 @@ export function renderCompanion(ctx) {
     // Sticky balk met beurt-info en command points
     const turnbar = el(`<div class="turnbar">
       <span class="who ${owner === "player" ? "player" : "enemy"}">${ownerLabel}</span>
-      <div class="cp-counter">
-        <span class="subtitle">CP</span>
-        <button id="cp-min">−</button>
-        <span class="cp">${game.cp}</span>
-        <button id="cp-plus">+</button>
+      <div class="cp-pair">
+        <span class="subtitle">CP jij</span>${cpCounterHtml("cp", game.cp)}
+        <span class="subtitle">${esc(game.opponent?.name || "Tegenstander")}</span>${cpCounterHtml("cpe", game.enemyCp || 0)}
       </div>
     </div>`);
-    turnbar.querySelector("#cp-min").addEventListener("click", () => { if (game.cp > 0) { game.cp--; saveData(); rerender(); } });
-    turnbar.querySelector("#cp-plus").addEventListener("click", () => { game.cp++; saveData(); rerender(); });
+    wireCpCounter(turnbar, "cp", () => game.cp, (v) => { game.cp = v; });
+    wireCpCounter(turnbar, "cpe", () => game.enemyCp || 0, (v) => { game.enemyCp = v; });
     app.appendChild(turnbar);
 
     // Lopende score
@@ -1320,20 +1354,23 @@ export function renderCompanion(ctx) {
 
     // Command points: dezelfde teller als in de volledige modus, plus snelknoppen voor de
     // start van een battleround (4, of 5 als je de underdog bent).
-    const cpBar = el(`<div class="turnbar">
-      <span class="who player">Command points</span>
-      <div class="cp-counter">
-        <button class="small" data-cpset="4" title="Begin van de ronde">4</button>
-        <button class="small" data-cpset="5" title="Begin van de ronde als underdog">5 (underdog)</button>
-        <button id="cp-min">−</button>
-        <span class="cp">${game.cp}</span>
-        <button id="cp-plus">+</button>
-      </div>
+    const cpCard = el(`<div class="card cp-card">
+      <h3>Command points</h3>
+      <div class="cp-row"><span class="cp-who">Jij</span>
+        <span class="cp-quick"><button class="small" data-set="player:4">4</button><button class="small" data-set="player:5">5 (underdog)</button></span>
+        ${cpCounterHtml("cp", game.cp)}</div>
+      <div class="cp-row"><span class="cp-who">${esc(oppName)}</span>
+        <span class="cp-quick"><button class="small" data-set="enemy:4">4</button><button class="small" data-set="enemy:5">5 (underdog)</button></span>
+        ${cpCounterHtml("cpe", game.enemyCp || 0)}</div>
     </div>`);
-    cpBar.querySelector("#cp-min").addEventListener("click", () => { if (game.cp > 0) { game.cp--; saveData(); rerender(); } });
-    cpBar.querySelector("#cp-plus").addEventListener("click", () => { game.cp++; saveData(); rerender(); });
-    for (const b of cpBar.querySelectorAll("[data-cpset]")) b.addEventListener("click", () => { game.cp = parseInt(b.dataset.cpset); saveData(); rerender(); });
-    app.appendChild(cpBar);
+    wireCpCounter(cpCard, "cp", () => game.cp, (v) => { game.cp = v; });
+    wireCpCounter(cpCard, "cpe", () => game.enemyCp || 0, (v) => { game.enemyCp = v; });
+    for (const b of cpCard.querySelectorAll("[data-set]")) b.addEventListener("click", () => {
+      const [side, n] = b.dataset.set.split(":");
+      if (side === "player") game.cp = parseInt(n); else game.enemyCp = parseInt(n);
+      saveData(); rerender();
+    });
+    app.appendChild(cpCard);
 
     // Fury level + rage dice (alleen als de fury-seasonal rules in dit potje gelden).
     renderFuryPanel({ roundStart: true });
@@ -1363,15 +1400,20 @@ export function renderCompanion(ctx) {
       else {
         game.round++; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; game.usedCommands = {};
         // Nieuwe battleround: CP opnieuw, net als bij de start van een ronde in de volledige modus.
-        game.cp = game.underdog[game.round] === "player" ? 5 : 4;
+        game.cp = startCp("player");
+        game.enemyCp = startCp("enemy");
       }
       saveData(); rerender(true);
     });
-    let prevBtn = null;
-    if (game.round > 1) {
-      prevBtn = el(`<button title="Vorige battleround">${icon("back")}</button>`);
-      prevBtn.addEventListener("click", () => { game.round--; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; game.turnIndex = 0; game.phaseIndex = 0; saveData(); rerender(true); });
-    }
+    // Terug: naar de vorige battleround, of vanuit ronde 1 naar de deployment (en van daaruit
+    // met dezelfde knop naar de battle set-up) — net als in de volledige modus.
+    const prevBtn = el(`<button title="${game.round > 1 ? "Vorige battleround" : "Terug naar deployment"}">${icon("back")}</button>`);
+    prevBtn.addEventListener("click", () => {
+      if (game.round > 1) { game.round--; game.firstTurn = game.firstTurnByRound[game.round] || game.firstTurn; game.stage = "roundSetup"; }
+      else game.stage = "deployment";
+      game.turnIndex = 0; game.phaseIndex = 0;
+      saveData(); rerender(true);
+    });
     bottomBar(nextBtn, prevBtn);
   }
 

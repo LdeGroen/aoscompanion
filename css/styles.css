@@ -838,3 +838,14 @@ details.card > summary h3 { margin: 0; }
 .new-game h4 { margin: 0 0 4px; color: var(--gold); }
 .round-card > summary .chip { margin-left: 6px; }
 @media (max-width: 480px) { .player-main { grid-template-columns: 1fr; } }
+
+/* --- CP en fury van beide spelers --- */
+.cp-pair { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; justify-content: flex-end; }
+.cp-card h3 { margin: 0 0 6px; }
+.cp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+.cp-row:last-child { border-bottom: none; }
+.cp-who { font-weight: 600; min-width: 80px; flex: 1; }
+.cp-quick { display: flex; gap: 4px; }
+.fury-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fury-col h4 { margin: 4px 0; color: var(--gold); }
+@media (max-width: 560px) { .fury-cols { grid-template-columns: 1fr; } }
