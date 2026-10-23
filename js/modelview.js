@@ -44,11 +44,11 @@ function weaponAbilityChips(w, esc) {
     .join("")}</div>`;
 }
 
-export function weaponTable(weapons, el, esc, toHitTransform, kind = "") {
+export function weaponTable(weapons, el, esc, toHitTransform, kind = "", lang = "nl") {
   const wrap = el(`<div class="weapons-wrap"></div>`);
   const hasRange = weapons.some((w) => w.range);
   const table = el(`<table class="weapons ${kind}">
-    <tr><th>Wapen</th>${hasRange ? "<th>Range</th>" : ""}<th>Atk</th><th>Hit</th><th>Wnd</th><th>Rend</th><th>Dmg</th></tr>
+    <tr><th>${lang === "en" ? "Weapon" : "Wapen"}</th>${hasRange ? "<th>Range</th>" : ""}<th>Atk</th><th>Hit</th><th>Wnd</th><th>Rend</th><th>Dmg</th></tr>
   </table>`);
   for (const w of weapons) {
     const hit = toHitTransform ? toHitTransform(w.toHit) : w.toHit;
@@ -87,32 +87,38 @@ export function openModal(contentEl, el) {
 // set-up te openen. `modelCount` komt uit Sigdex; `regimentOptions` = [{names, max}]
 // (max 0 = onbeperkt); `heroKeywords` = als welke soort hero deze unit zelf in een
 // regiment van een ander mag (bijv. Guild Officer).
-function unitInfoHtml(m, esc) {
+// Labels: de Companion is Nederlands, de army repository (aosarmies.lucdegroen.nl) Engels.
+const UNIT_LABELS = {
+  nl: { size: "Unitgrootte", normal: "normaal", canReinf: "kan reinforced", unlimited: "onbeperkt", regiment: "Regiment", joinsAs: "Mag mee als", or: "of" },
+  en: { size: "Unit size", normal: "normally", canReinf: "reinforced", unlimited: "any", regiment: "Regiment", joinsAs: "Joins as", or: "or" },
+};
+function unitInfoHtml(m, esc, lang = "nl") {
+  const L = UNIT_LABELS[lang] || UNIT_LABELS.nl;
   const rows = [];
   const isUnit = m.type !== "Manifestation" && m.type !== "Faction terrain";
   const count = parseInt(m.modelCount) || (/hero/i.test(m.type || "") ? 1 : 0);
   if (isUnit && count) {
     const size = m.reinforced
-      ? `<b>${count * 2} models</b> (reinforced, normaal ${count})`
-      : `<b>${count} model${count === 1 ? "" : "s"}</b>${m.reinforceable ? ` · kan reinforced: ${count * 2}` : ""}`;
-    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("users", 14)} Unitgrootte</span><span>${size}</span></div>`);
+      ? `<b>${count * 2} models</b> (reinforced, ${L.normal} ${count})`
+      : `<b>${count} model${count === 1 ? "" : "s"}</b>${m.reinforceable ? ` · ${L.canReinf}: ${count * 2}` : ""}`;
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("users", 14)} ${L.size}</span><span>${size}</span></div>`);
   }
   const opts = m.regimentOptions || [];
   if (opts.length) {
     const chips = opts.map((o) => {
       const max = parseInt(o.max) || 0;
-      return `<span class="chip regopt">${esc((o.names || []).join(" of "))} <b>${max ? `0-${max}` : "onbeperkt"}</b></span>`;
+      return `<span class="chip regopt">${esc((o.names || []).join(` ${L.or} `))} <b>${max ? `0-${max}` : L.unlimited}</b></span>`;
     }).join("");
-    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("layers", 14)} Regiment</span><span class="chips">${chips}</span></div>`);
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("layers", 14)} ${L.regiment}</span><span class="chips">${chips}</span></div>`);
   }
   const hk = m.heroKeywords || [];
   if (hk.length) {
-    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("shield", 14)} Mag mee als</span><span class="chips">${hk.map((k) => `<span class="chip regopt">${esc(k)}</span>`).join("")}</span></div>`);
+    rows.push(`<div class="ws-info-row"><span class="ws-info-k">${icon("shield", 14)} ${L.joinsAs}</span><span class="chips">${hk.map((k) => `<span class="chip regopt">${esc(k)}</span>`).join("")}</span></div>`);
   }
   return rows.length ? `<div class="ws-info">${rows.join("")}</div>` : "";
 }
 
-export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" } = {}) {
+export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "", lang = "nl" } = {}) {
   const e = effectiveModel(army || { enhancements: [] }, m);
   const M = e.model;
 
@@ -145,7 +151,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
       ${ward ? stat("ward", ward, e.changed.has("ward"), "ward") : ""}
       ${m.banishment ? stat("banish", m.banishment, false) : ""}
     </div>
-    ${unitInfoHtml(m, esc)}
+    ${unitInfoHtml(m, esc, lang)}
     <div data-body></div>
   </div>`);
   const body = wrap.querySelector("[data-body]");
@@ -154,11 +160,11 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "" 
   const melee = filterWeapons(M.meleeAttacks || [], m);
   if (ranged.length) {
     body.appendChild(el(`<div class="ws-section ranged">${icon("zap", 16)} Ranged attacks</div>`));
-    body.appendChild(weaponTable(ranged, el, esc, null, "ranged"));
+    body.appendChild(weaponTable(ranged, el, esc, null, "ranged", lang));
   }
   if (melee.length) {
     body.appendChild(el(`<div class="ws-section melee">${icon("sword", 16)} Melee attacks</div>`));
-    body.appendChild(weaponTable(melee, el, esc, null, "melee"));
+    body.appendChild(weaponTable(melee, el, esc, null, "melee", lang));
   }
   if ((m.abilities || []).length) {
     body.appendChild(el(`<div class="ws-section abilities">${icon("star", 16)} Abilities</div>`));
