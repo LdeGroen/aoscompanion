@@ -635,6 +635,17 @@ en opent de editor; **annuleren** van een nog-naamloze entry haalt hem weer weg 
   wordt daaruit afgeleid); je kiest daar alleen nog de 2 tactics van de tegenstander
   (`game.enemyTactics`). Companion heeft een eigen `showTacticSteps` voor dezelfde stappen-popup.
 
+## AoS Army Repository (`js/armynotes.js`)
+Koppeling met de aparte site https://aosarmies.lucdegroen.nl (repo `C:\Users\lucde\aosarmies`,
+eigen CLAUDE.md): posts per army op zes vragen. Op home een knop **Army Repository** (opent de
+site). In de battle set-up (zodra de faction van de tegenstander gekozen is) en in het
+Tegenstander-menu een knop **Notities over <faction>** → popup met de posts per vraag, opgehaald
+via appsync `publicShared` (`aosarmies` / `army:<faction>`, zonder token). Posts worden opgeschoond
+met dezelfde whitelist als op de site; verwijzingen (`a.ref`, `data-ref="kind|faction|name"`)
+openen de warscroll/regel uit onze eigen database. ⚠ De site laadt `modelview.js`,
+`abilityview.js`, `factions.js`, `icons.js` en `css/styles.css` rechtstreeks uit deze repo (op de
+Pi via `/aos/…`): verander je daar exports of de `lang`-optie, check dan ook de site.
+
 ## Team games (`js/teamgames.js`, route `teamgames`)
 Derde spelmodus naast losse games en toernooien, knop **Team games** op home.
 `state.data.teamEvents = [{id, kind: "scrim"|"teamTournament", name, date (ISO), location,

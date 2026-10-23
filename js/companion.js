@@ -8,6 +8,7 @@ import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from 
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { createArmyMenus } from "./armymenus.js";
 import { teamGameContext } from "./teamgames.js";
+import { openArmyNotes } from "./armynotes.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { parseListText, resolveList } from "./listimport.js";
 import { snapshotFromParsedList } from "./gamelist.js";
@@ -332,6 +333,7 @@ export function renderCompanion(ctx) {
           <select id="opp-subfaction"></select>
         </div>
       </div>
+      <div data-notesbtn></div>
       <div data-aor style="display:none">
         <label>Army of Renown</label>
         <select id="opp-aor"></select>
@@ -340,6 +342,16 @@ export function renderCompanion(ctx) {
     </div>`);
     app.appendChild(oppCard);
     const subSel = oppCard.querySelector("#opp-subfaction");
+    // Notities over deze army uit de AoS Army Repository, zodra de faction bekend is.
+    const notesBox = oppCard.querySelector("[data-notesbtn]");
+    const drawNotesBtn = () => {
+      notesBox.innerHTML = "";
+      if (!opp.faction) return;
+      const b = el(`<button class="small" style="margin-top:8px">${icon("book")} Notities over ${esc(opp.faction)}</button>`);
+      b.addEventListener("click", () => openArmyNotes(opp.faction, { el, esc }));
+      notesBox.appendChild(b);
+    };
+    drawNotesBtn();
     // Army of Renown van de tegenstander: keuze uit de AoR's van zijn faction. AoR en
     // subfaction sluiten elkaar uit (net als in de set-up). De regels en enhancements leggen
     // we vast op de game (`opp.aorData`), zodat ze ook offline in het speelscherm staan.
@@ -385,7 +397,7 @@ export function renderCompanion(ctx) {
         .catch(() => {});
     }
     oppCard.querySelector("#opp-name").addEventListener("input", (e) => { opp.name = e.target.value; saveData(); });
-    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; setAoR(""); fillSubs(); fillAoR(); saveData(); });
+    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; setAoR(""); fillSubs(); fillAoR(); drawNotesBtn(); saveData(); });
     subSel.addEventListener("change", (e) => {
       opp.subfaction = e.target.value;
       if (opp.subfaction && opp.aor) { setAoR(""); fillAoR(); }

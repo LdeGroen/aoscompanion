@@ -849,3 +849,14 @@ details.card > summary h3 { margin: 0; }
 .fury-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .fury-col h4 { margin: 4px 0; color: var(--gold); }
 @media (max-width: 560px) { .fury-cols { grid-template-columns: 1fr; } }
+
+/* --- Notities uit de AoS Army Repository (armynotes.js) --- */
+.army-note { border-bottom: 1px dashed var(--border); padding: 8px 0; }
+.army-note:last-child { border-bottom: none; }
+.army-note .post-content { line-height: 1.5; overflow-wrap: anywhere; }
+.army-note .post-content h2 { font-size: 1.05rem; margin: 10px 0 4px; font-family: inherit; color: var(--text); }
+.army-note .post-content h3 { font-size: 0.98rem; margin: 8px 0 4px; }
+.army-note .post-content p { margin: 4px 0; }
+.army-note .post-content ul, .army-note .post-content ol { margin: 4px 0; padding-left: 20px; }
+.army-note .post-content blockquote { margin: 6px 0; padding: 4px 10px; border-left: 3px solid var(--gold); background: var(--bg-reminder); }
+.army-note a.ref { color: var(--gold-dark); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--gold); }

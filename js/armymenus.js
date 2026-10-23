@@ -7,6 +7,7 @@ import { buildBattleplanDetail } from "./battleplanview.js";
 import { openDamageCalculator } from "./damage.js";
 import * as sharedb from "./sharedb.js";
 import { abilityBodyHtml } from "./abilityview.js";
+import { openArmyNotes } from "./armynotes.js";
 
 // De naslag-menu's uit de topbar (battle tactics, spells, rules, enhancements, units,
 // regiments, tegenstander, battleplan, schade) — gedeeld door de speelmodus en de set-up,
@@ -328,8 +329,10 @@ export function createArmyMenus({ army, game = null, el, esc, saveData = () => {
     const wrap = el(`<div>
       <h2>${esc(o.name || "Tegenstander")}</h2>
       ${o.faction ? `<p class="subtitle">${esc(o.faction)}${o.aor ? " — Army of Renown: " + esc(o.aor) : o.subfaction ? " — " + esc(o.subfaction) : ""}</p>` : ""}
+      ${o.faction ? `<button class="small" data-notes>${icon("book")} Notities over ${esc(o.faction)}</button>` : ""}
       <div data-list></div>
     </div>`);
+    wrap.querySelector("[data-notes]")?.addEventListener("click", () => openArmyNotes(o.faction, { el, esc }));
     const list = wrap.querySelector("[data-list]");
     const models = o.models || [];
     if (!models.length) {

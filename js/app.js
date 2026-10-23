@@ -8,6 +8,7 @@ import { renderDatabase } from "./database.js";
 import { renderArchive } from "./archive.js";
 import { renderTournament } from "./tournament.js";
 import { renderTeamGames, reconcileTeamEvents } from "./teamgames.js";
+import { REPO_URL } from "./armynotes.js";
 import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
 import { openModal } from "./modelview.js";
@@ -390,6 +391,7 @@ function renderHome() {
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       <button class="small" id="btn-tournament">${icon("trophy")} Toernooi</button>
       <button class="small" id="btn-teams">${icon("users")} Team games</button>
+      <button class="small" id="btn-repo">${icon("book")} Army Repository</button>
       <button class="small" id="btn-archive">${icon("flag")} Archief</button>
       <button class="small" id="btn-stats">${icon("chart")} Statistieken</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
@@ -404,6 +406,7 @@ function renderHome() {
   header.querySelector("#btn-stats").addEventListener("click", () => navigate("stats"));
   header.querySelector("#btn-tournament").addEventListener("click", () => navigate("tournament", { tournamentOpenId: null }));
   header.querySelector("#btn-teams").addEventListener("click", () => navigate("teamgames", { teamOpenId: null }));
+  header.querySelector("#btn-repo").addEventListener("click", () => window.open(REPO_URL, "_blank", "noopener"));
   if (state.user.isAdmin) header.querySelector("#btn-admin").addEventListener("click", () => navigate("admin"));
 
   app.appendChild(el(`<h2>Mijn legers</h2>`));
