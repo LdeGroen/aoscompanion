@@ -8,7 +8,7 @@ import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from 
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { createArmyMenus } from "./armymenus.js";
 import { teamGameContext } from "./teamgames.js";
-import { openArmyNotes } from "./armynotes.js";
+import { openArmyNotes, loadArmyNotes, GENERAL } from "./armynotes.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { parseListText, resolveList } from "./listimport.js";
 import { snapshotFromParsedList } from "./gamelist.js";
@@ -342,14 +342,28 @@ export function renderCompanion(ctx) {
     </div>`);
     app.appendChild(oppCard);
     const subSel = oppCard.querySelector("#opp-subfaction");
-    // Notities over deze army uit de AoS Army Repository, zodra de faction bekend is.
+    // Notities over deze army uit de AoS Army Repository, zodra de faction bekend is. Heeft de
+    // army meerdere archetypes (builds), dan kies je hier welke je tegenstander speelt
+    // (`opp.archetype`); de notities openen dan op dat archetype.
     const notesBox = oppCard.querySelector("[data-notesbtn]");
     const drawNotesBtn = () => {
       notesBox.innerHTML = "";
       if (!opp.faction) return;
-      const b = el(`<button class="small" style="margin-top:8px">${icon("book")} Notities over ${esc(opp.faction)}</button>`);
-      b.addEventListener("click", () => openArmyNotes(opp.faction, { el, esc }));
-      notesBox.appendChild(b);
+      const faction = opp.faction;
+      const row = el(`<div class="row" style="align-items:end;margin-top:8px">
+        <div data-archsel style="display:none"><label>Archetype</label><select></select></div>
+        <div style="flex:0 0 auto"><button class="small">${icon("book")} Notities over ${esc(faction)}</button></div>
+      </div>`);
+      row.querySelector("button").addEventListener("click", () => openArmyNotes(faction, { el, esc, archetype: opp.archetype || GENERAL }));
+      notesBox.appendChild(row);
+      loadArmyNotes(faction).then(({ archetypes }) => {
+        if (opp.faction !== faction || !row.isConnected || archetypes.length < 2) return;
+        const box = row.querySelector("[data-archsel]");
+        const sel = box.querySelector("select");
+        sel.innerHTML = archetypes.map((a) => `<option value="${esc(a.id)}"${a.id === (opp.archetype || GENERAL) ? " selected" : ""}>${esc(a.name)}</option>`).join("");
+        sel.addEventListener("change", () => { opp.archetype = sel.value === GENERAL ? "" : sel.value; saveData(); });
+        box.style.display = "";
+      }).catch(() => { /* offline: alleen de knop */ });
     };
     drawNotesBtn();
     // Army of Renown van de tegenstander: keuze uit de AoR's van zijn faction. AoR en
@@ -397,7 +411,7 @@ export function renderCompanion(ctx) {
         .catch(() => {});
     }
     oppCard.querySelector("#opp-name").addEventListener("input", (e) => { opp.name = e.target.value; saveData(); });
-    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; setAoR(""); fillSubs(); fillAoR(); drawNotesBtn(); saveData(); });
+    oppCard.querySelector("#opp-faction").addEventListener("change", (e) => { opp.faction = e.target.value; opp.subfaction = ""; opp.archetype = ""; setAoR(""); fillSubs(); fillAoR(); drawNotesBtn(); saveData(); });
     subSel.addEventListener("change", (e) => {
       opp.subfaction = e.target.value;
       if (opp.subfaction && opp.aor) { setAoR(""); fillAoR(); }

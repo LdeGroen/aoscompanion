@@ -47,15 +47,20 @@ function sanitize(html) {
   return root.innerHTML;
 }
 
-async function loadPosts(faction) {
+// Posts en archetypes (builds) van één army. Gearchiveerde posts (`archivedAt`) tellen niet mee.
+// Archetype "general" bestaat altijd; posts zonder archetype horen daarbij (zelfde regel als de site).
+export const GENERAL = "general";
+export async function loadArmyNotes(faction) {
   const res = await fetch(`${API_URL}/api?action=publicShared`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ app: "aosarmies", key: `army:${faction}` }),
   });
   const j = await res.json();
   if (!j.ok) throw new Error(j.error || `HTTP ${res.status}`);
-  // Gearchiveerde posts (`archivedAt`) horen niet meer bij de actuele notities.
-  return (Array.isArray(j.data?.posts) ? j.data.posts : []).filter((p) => !p.archivedAt);
+  const posts = (Array.isArray(j.data?.posts) ? j.data.posts : []).filter((p) => !p.archivedAt);
+  const archetypes = Array.isArray(j.data?.archetypes) ? [...j.data.archetypes] : [];
+  if (!archetypes.some((a) => a.id === GENERAL)) archetypes.unshift({ id: GENERAL, name: "General" });
+  return { posts, archetypes };
 }
 
 const same = (a, b) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
@@ -93,42 +98,65 @@ async function openRef(refString, { el, esc }) {
   openModal(wrap, el);
 }
 
-// De popup met alle posts over één army, gegroepeerd per vraag.
-export async function openArmyNotes(faction, { el, esc }) {
+// De popup met alle posts over één army, per vraag. `archetype` = de build die je tegenstander
+// speelt (id); bovenaan kun je wisselen tussen de archetypes van die army.
+export async function openArmyNotes(faction, { el, esc, archetype = GENERAL } = {}) {
   const wrap = el(`<div class="army-notes">
     <h2>${icon("book")} ${esc(faction)}</h2>
     <p class="subtitle">Uit de <a href="${repoArmyUrl(faction)}" target="_blank" rel="noopener">AoS Army Repository</a> — daar schrijf je ook zelf mee.</p>
+    <div data-arch></div>
     <div data-body><p class="empty">Laden…</p></div>
   </div>`);
   openModal(wrap, el);
   const body = wrap.querySelector("[data-body]");
-  let posts;
+  const archBox = wrap.querySelector("[data-arch]");
+  let notes;
   try {
-    posts = await loadPosts(faction);
+    notes = await loadArmyNotes(faction);
   } catch (e) {
     body.innerHTML = "";
     body.appendChild(el(`<p class="empty">Kon de notities niet laden (${esc(e.message)}). Offline?</p>`));
     return;
   }
-  body.innerHTML = "";
-  if (!posts.length) {
-    body.appendChild(el(`<p class="empty">Nog geen notities over ${esc(faction)}. <a href="${repoArmyUrl(faction)}" target="_blank" rel="noopener">Schrijf de eerste op de site.</a></p>`));
-    return;
-  }
-  // Lege vragen klappen dicht; vragen met posts staan open.
-  for (const [key, title] of QUESTIONS) {
-    const qs = posts.filter((p) => p.q === key).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-    const det = el(`<details class="type-group" ${qs.length ? "open" : ""}><summary>${esc(title)} <span class="count">(${qs.length})</span></summary><div data-p></div></details>`);
-    const box = det.querySelector("[data-p]");
-    for (const p of qs) {
-      const d = new Date(p.createdAt);
-      box.appendChild(el(`<article class="army-note">
-        <div class="post-content">${sanitize(p.html)}</div>
-        <div class="subtitle">${esc(p.author || "?")}${Number.isNaN(d.getTime()) ? "" : " · " + d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}</div>
-      </article>`));
+  let cur = notes.archetypes.some((a) => a.id === archetype) ? archetype : GENERAL;
+  const drawArch = () => {
+    archBox.innerHTML = "";
+    if (notes.archetypes.length < 2) return;
+    const row = el(`<div class="chips arch-switch"></div>`);
+    for (const a of notes.archetypes) {
+      const n = notes.posts.filter((p) => (p.a || GENERAL) === a.id).length;
+      const c = el(`<button class="chip${a.id === cur ? " active" : ""}">${esc(a.name)} (${n})</button>`);
+      c.addEventListener("click", () => { cur = a.id; drawArch(); draw(); });
+      row.appendChild(c);
     }
-    body.appendChild(det);
-  }
+    archBox.appendChild(row);
+    const desc = notes.archetypes.find((a) => a.id === cur)?.description;
+    if (desc) archBox.appendChild(el(`<p class="subtitle">${esc(desc)}</p>`));
+  };
+  const draw = () => {
+    body.innerHTML = "";
+    const posts = notes.posts.filter((p) => (p.a || GENERAL) === cur);
+    if (!posts.length) {
+      body.appendChild(el(`<p class="empty">Nog geen notities${notes.archetypes.length > 1 ? " voor dit archetype" : ""} over ${esc(faction)}. <a href="${repoArmyUrl(faction)}" target="_blank" rel="noopener">Schrijf de eerste op de site.</a></p>`));
+      return;
+    }
+    // Lege vragen klappen dicht; vragen met posts staan open.
+    for (const [key, title] of QUESTIONS) {
+      const qs = posts.filter((p) => p.q === key).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+      const det = el(`<details class="type-group" ${qs.length ? "open" : ""}><summary>${esc(title)} <span class="count">(${qs.length})</span></summary><div data-p></div></details>`);
+      const box = det.querySelector("[data-p]");
+      for (const p of qs) {
+        const d = new Date(p.createdAt);
+        box.appendChild(el(`<article class="army-note">
+          <div class="post-content">${sanitize(p.html)}</div>
+          <div class="subtitle">${esc(p.author || "?")}${Number.isNaN(d.getTime()) ? "" : " · " + d.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}</div>
+        </article>`));
+      }
+      body.appendChild(det);
+    }
+  };
+  drawArch();
+  draw();
   body.addEventListener("click", (e) => {
     const a = e.target.closest("a.ref");
     if (!a) return;

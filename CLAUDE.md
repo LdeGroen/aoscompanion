@@ -642,7 +642,11 @@ site). In de battle set-up (zodra de faction van de tegenstander gekozen is) en 
 Tegenstander-menu een knop **Notities over <faction>** → popup met de posts per vraag, opgehaald
 via appsync `publicShared` (`aosarmies` / `army:<faction>`, zonder token). Posts worden opgeschoond
 met dezelfde whitelist als op de site; verwijzingen (`a.ref`, `data-ref="kind|faction|name"`)
-openen de warscroll/regel uit onze eigen database. ⚠ De site laadt `modelview.js`,
+openen de warscroll/regel uit onze eigen database. **Archetypes**: heeft de army er op de site
+meer dan één (builds, `archetypes` in de blob; `general` altijd), dan staat naast de knop een
+keuzelijst **Archetype** (`opp.archetype`, leeg = General; gewist bij een andere faction). De popup
+opent op dat archetype en heeft bovenaan chips om te wisselen (`openArmyNotes(faction, {archetype})`,
+`loadArmyNotes`). ⚠ De site laadt `modelview.js`,
 `abilityview.js`, `factions.js`, `icons.js` en `css/styles.css` rechtstreeks uit deze repo (op de
 Pi via `/aos/…`): verander je daar exports of de `lang`-optie, check dan ook de site.
 

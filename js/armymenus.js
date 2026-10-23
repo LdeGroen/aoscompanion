@@ -332,7 +332,7 @@ export function createArmyMenus({ army, game = null, el, esc, saveData = () => {
       ${o.faction ? `<button class="small" data-notes>${icon("book")} Notities over ${esc(o.faction)}</button>` : ""}
       <div data-list></div>
     </div>`);
-    wrap.querySelector("[data-notes]")?.addEventListener("click", () => openArmyNotes(o.faction, { el, esc }));
+    wrap.querySelector("[data-notes]")?.addEventListener("click", () => openArmyNotes(o.faction, { el, esc, archetype: o.archetype || undefined }));
     const list = wrap.querySelector("[data-list]");
     const models = o.models || [];
     if (!models.length) {
