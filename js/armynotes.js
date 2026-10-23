@@ -54,7 +54,8 @@ async function loadPosts(faction) {
   });
   const j = await res.json();
   if (!j.ok) throw new Error(j.error || `HTTP ${res.status}`);
-  return Array.isArray(j.data?.posts) ? j.data.posts : [];
+  // Gearchiveerde posts (`archivedAt`) horen niet meer bij de actuele notities.
+  return (Array.isArray(j.data?.posts) ? j.data.posts : []).filter((p) => !p.archivedAt);
 }
 
 const same = (a, b) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
