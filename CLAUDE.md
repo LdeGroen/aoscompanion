@@ -1088,6 +1088,33 @@ schrijft met 250 ms vertraging naar schijf.
 | `migrate-khazalite-ror.mjs` | RoR's: Fyreslayers → Khazalite Holds in `allowedArmies`, KH-RoR's (Fjori's, Gotrek, nieuw: Fjori's Vengeance, Thengin's Grudgesettlers) opnieuw uit de KH-blob |
 | `archive-fyreslayers.mjs` | Archief van de oude regels in de gedeelde blob `archive:Fyreslayers` (faction-blob, de AoR Lofnir Drothkeepers, oude versies van gewijzigde RoR's), uit de back-up van vóór de overgang |
 
+### Regelarchief (`js/rulesarchive.js`, `ko-import/rulesarchive.mjs`)
+Luc (08-11-2026): bij **grote** wijzigingen (nieuw boek, puntenupdate, nieuw GHB-seizoen, nieuwe
+editie; geen kleine tekstcorrecties) de oude regels bewaren, en bij een oude game de regels van toen
+kunnen teruglezen.
+- **Index**: gedeelde blob `rulesarchive` = `{current: {edition, ghb}, editions, ghbSeasons, versions}`.
+  Een versie `{id, kind, subject, label, until, edition, ghb, key}` is de stand zoals die gold **tot**
+  `until`; de inhoud staat in de gedeelde blob `key`. kind `faction` (`{faction, armiesOfRenown}`),
+  `gamedata` (GHB), `renown` (`{regimentsOfRenown, armiesOfRenown}`), `universal`.
+  Eerste versies (08-11-2026): `archive:Fyreslayers` en `archive:renown:2026-11-08`.
+- **Elke game** (`buildGameRecord`) krijgt `rules: {edition, ghb}` = `currentRules()`; de companion
+  laadt de index bij het openen van een game. Games zonder `rules` gelden als AoS 4 + GHB 2026-27
+  (`DEFAULT_RULES`); alle 15 bestaande games zijn met `rulesarchive.mjs init` zo ingevuld.
+  Te wijzigen bij "Gegevens bewerken" in het archief (die laat ook een opgeheven faction staan).
+- **Archief**: detail toont "Regels van deze game" (`sourcesForGame`): editie, GHB-seizoen (versie op
+  `ghb`), de factions van beide kanten (eerste faction-versie met `until` > speeldatum; anders huidig, of
+  "bestaat niet meer"), en RoR/AoR-versies. RoR/AoR tellen alleen als oud als er in die game een AoR of
+  RoR gespeeld is (anders kreeg elke game na een RoR-update het label). Kaartje toont "Oude regels".
+  "Regels van toen" opent de snapshot read-only (battle traits, formations, enhancements, lores,
+  warscrolls met de gewone popup, AoR's; GHB: seasonal rules, battleplans, tactics). Snapshots worden
+  niet in localStorage gecachet (te groot); offline dus niet te openen.
+- **Werkwijze** (op de Pi, eerst `REPORT=1`): vóór een nieuw boek of puntenupdate
+  `KIND=faction SUBJECT="<faction>" LABEL="vóór …" node rulesarchive.mjs snapshot` (en `KIND=renown`
+  als de RoR's/AoR's veranderen); bij een nieuw seizoen `ID=ghb-2027-28 NAME="General's Handbook
+  2027-28" node rulesarchive.mjs season` vóór het seeden van de nieuwe gamedata; bij een nieuwe editie
+  `rulesarchive.mjs edition` (archiveert gamedata, renown en universal). Kernregels van een editie
+  staan niet in de app; "Editie" is alleen het label.
+
 ### Khazalite Holds (nov 2026): Fyreslayers opgeheven
 - De Fyreslayers zijn opgegaan in **Khazalite Holds** (nieuw battletome, ook duardin van Cities/
   Kharadron en nieuwe units). `AOS_FACTIONS` kent alleen nog Khazalite Holds (formations War Callers,
@@ -1108,6 +1135,7 @@ schrijft met 250 ms vertraging naar schijf.
   Hobgrotz Vandalz, Gelgus Pust en de Kurnoth Hunters aangevuld.
 
 ### Werkwijze bij een puntenupdate of nieuw boek
+0. **Eerst archiveren** (regelarchief, zie boven): `rulesarchive.mjs snapshot` voor die faction / de RoR's / een nieuw GHB-seizoen.
 1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`), daarna `fix-enhancement-points.mjs` voor die faction.
 2. **Sigdex-export** maken (zie boven) en `update-points-sigdex.mjs` + `fix-regiment-options.mjs`.
 3. `fix-warscroll-gaps.mjs`, `fix-weapons.mjs`, `fix-timings.mjs`, `sync-ability-text.mjs`,

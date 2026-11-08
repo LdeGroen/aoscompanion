@@ -3,6 +3,7 @@ import { icon } from "./icons.js";
 import { listBlock, diffBlock, diffLists, hasChanges, buildListSnapshot, snapshotFromParsedList } from "./gamelist.js";
 import { parseListText } from "./listimport.js";
 import { AOS_FACTIONS } from "./factions.js";
+import { loadRulesIndex, rulesSectionEl, rulesOf, editionName, ghbName, sourcesForGame, hasOldRules } from "./rulesarchive.js";
 
 // Archief: afgeronde games (scorekaarten) teruglezen, delen, bewerken of verwijderen.
 // Records staan in state.data.gameArchive en syncen mee met de userdata.
@@ -12,6 +13,9 @@ export function renderArchive(ctx) {
   let detail = null; // record dat open staat
   let editRec = null; // werkkopie tijdens bewerken (null = niet in bewerkmodus)
   let editMeta = false; // basisgegevens (datum, tegenstander, leger) bewerken
+  // Regelarchief (editie, GHB-seizoen, oude regels): laadt op de achtergrond.
+  let rulesIdx = null;
+  loadRulesIndex().then((i) => { rulesIdx = i; if (!editRec && !editMeta) draw(); });
 
   const fmtDate = (iso) => {
     const d = new Date(iso);
@@ -39,6 +43,7 @@ export function renderArchive(ctx) {
 
     if (detail) {
       app.appendChild(buildScoreSummary(detail, { el, esc }));
+      if (rulesIdx) app.appendChild(rulesSectionEl(detail, rulesIdx, { el, esc }));
       const actions = el(`<div class="btnrow">
         <button class="small" id="ar-edit">${icon("edit")} Scores bewerken</button>
         <button class="small" id="ar-meta">${icon("edit")} Gegevens bewerken</button>
@@ -103,6 +108,13 @@ export function renderArchive(ctx) {
   // met welk leger. Handig voor een verkeerd gespelde naam, een faction die bij
   // het invoeren niet ingevuld was, of een leger dat je later hernoemd hebt —
   // de statistieken groeperen op `player.army`, dus dat laatste telt echt mee.
+  // Opties voor editie/GHB-seizoen; de huidige waarde blijft staan als de index hem niet kent.
+  function idxOpts(list, waarde, naamVan) {
+    const ids = (list || []).map((x) => x.id);
+    if (waarde && !ids.includes(waarde)) ids.unshift(waarde);
+    return ids.map((id) => `<option value="${esc(id)}"${id === waarde ? " selected" : ""}>${esc(rulesIdx ? naamVan(rulesIdx, id) : id)}</option>`).join("");
+  }
+
   function drawMetaEditor(rec) {
     rec.player = rec.player || {};
     rec.opponent = rec.opponent || {};
@@ -111,9 +123,10 @@ export function renderArchive(ctx) {
     const isoDatum = Number.isNaN(d.getTime())
       ? ""
       : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // Een faction die niet meer bestaat (Fyreslayers) blijft als optie staan.
     const facSelect = (id, waarde) => `<select id="${id}">
       <option value="">— geen —</option>
-      ${facties.map((f) => `<option value="${esc(f)}"${f === waarde ? " selected" : ""}>${esc(f)}</option>`).join("")}
+      ${(waarde && !facties.includes(waarde) ? [waarde, ...facties] : facties).map((f) => `<option value="${esc(f)}"${f === waarde ? " selected" : ""}>${esc(f)}</option>`).join("")}
     </select>`;
 
     const wrap = el(`<div class="card">
@@ -138,6 +151,12 @@ export function renderArchive(ctx) {
       </div>
       <label>Battleplan</label>
       <input type="text" id="m-plan" value="${esc(rec.battleplan || "")}" />
+
+      <h3 style="margin-top:14px">Regels</h3>
+      <div class="row">
+        <div><label>Editie</label><select id="m-edition">${idxOpts(rulesIdx?.editions, rulesOf(rec).edition, editionName)}</select></div>
+        <div><label>General's Handbook</label><select id="m-ghb">${idxOpts(rulesIdx?.ghbSeasons, rulesOf(rec).ghb, ghbName)}</select></div>
+      </div>
 
       <div class="btnrow">
         <button class="primary" id="m-save">${icon("check")} Opslaan</button>
@@ -181,6 +200,7 @@ export function renderArchive(ctx) {
       rec.player.faction = wrap.querySelector("#m-myfac").value;
       rec.player.subfaction = wrap.querySelector("#m-mysub").value;
       rec.battleplan = wrap.querySelector("#m-plan").value.trim();
+      rec.rules = { edition: wrap.querySelector("#m-edition").value, ghb: wrap.querySelector("#m-ghb").value };
       saveData();
       editMeta = false;
       draw();
@@ -357,6 +377,7 @@ export function renderArchive(ctx) {
         </div>
         <span class="chip tag ${res.win === true ? "" : "dim"}">${esc(res.text)}</span>
       </div>
+      ${rulesIdx && hasOldRules(sourcesForGame(rec, rulesIdx)) ? `<div class="chips"><span class="chip legends">${icon("book")} Oude regels</span></div>` : ""}
     </div>`);
     card.addEventListener("click", () => { detail = rec; draw(); });
     return card;

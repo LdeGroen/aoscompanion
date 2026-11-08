@@ -2,6 +2,7 @@ import { calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { uid } from "./storage.js";
 import { icon } from "./icons.js";
 import { buildListSnapshot } from "./gamelist.js";
+import { currentRules } from "./rulesarchive.js";
 
 // Scorekaart van een afgeronde game: opbouw van het game-record (voor het
 // archief), het samenvattingsscherm, en export als tekst of PNG-afbeelding
@@ -24,6 +25,9 @@ export function buildGameRecord(army, game, playerName) {
       aor: game.opponent?.aor || "",
     },
     battleplan: game.battleplan?.name || "",
+    // Met welke regels er gespeeld is (editie + General's Handbook-seizoen), zodat het archief
+    // later de regels van toen kan tonen (rulesarchive.js).
+    rules: currentRules(),
     // Momentopname van de lijst: een leger houdt zijn naam maar de lijst ontwikkelt
     // zich, dus zonder dit is achteraf niet te zien wat je toen speelde.
     list: buildListSnapshot(army),

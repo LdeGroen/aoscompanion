@@ -4,6 +4,7 @@ import { icon } from "./icons.js";
 import { openModal, weaponTable as sharedWeaponTable, buildModelPopupContent } from "./modelview.js";
 import { filterWeapons } from "./weaponoptions.js";
 import * as sharedb from "./sharedb.js";
+import { loadRulesIndex } from "./rulesarchive.js";
 import { loadGamedata, scoringOptionsFor, calcScores, TACTIC_STEP_POINTS } from "./battleplans.js";
 import { buildGameRecord, buildScoreSummary, buildExportButtons } from "./scorecard.js";
 import { createArmyMenus } from "./armymenus.js";
@@ -307,6 +308,7 @@ export function renderCompanion(ctx) {
   function renderBattleSetup() {
     topbar("Battle set-up");
     if (!gamedataLoaded) {
+      loadRulesIndex(); // huidige editie + GHB-seizoen voor het game-record
       loadGamedata()
         .then(({ db }) => { gamedata = db; gamedataLoaded = true; rerender(); })
         .catch(() => { gamedata = null; gamedataLoaded = true; rerender(); });
