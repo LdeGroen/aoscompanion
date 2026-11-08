@@ -75,11 +75,22 @@ export function sourcesForGame(rec, idx) {
     const wie = [rec.player?.faction === f ? "jouw army" : "", rec.opponent?.faction === f ? "tegenstander" : ""].filter(Boolean).join(" en ");
     out.push({ kind: "faction", subject: f, title: f, sub: `${wie}${bestaat ? "" : " · bestaat niet meer"}`, version: v, current: !v && bestaat, missing: !v && !bestaat });
   }
-  // RoR's en AoR's tellen alleen als ze in deze game meededen (anders zou elke game na een
-  // RoR-update "oude regels" krijgen); terug te lezen zijn ze dan nog wel.
+  // RoR's en AoR's tellen alleen als een in deze game gespeelde AoR/RoR zelf veranderd is, of
+  // niet meer mag bij de army van die kant. `changed`/`removedArmies` op de versie komen van
+  // `rulesarchive.mjs diff`; zonder die gegevens telt elke gespeelde AoR/RoR als mogelijk oud.
+  // Teruglezen kan altijd.
   const rv = versionAt(idx, "renown", null, date);
-  const gespeeld = [...new Set([rec.player?.aor, rec.opponent?.aor, ...((rec.list?.ror || []).map((x) => x.name)), ...((rec.opponentList?.ror || []).map((x) => x.name))].filter(Boolean))];
-  if (rv) out.push({ kind: "renown", title: "Regiments en Armies of Renown", sub: gespeeld.length ? `in deze game: ${gespeeld.join(", ")}` : "niet gespeeld in deze game", version: rv, current: !gespeeld.length, oldButUnused: !gespeeld.length });
+  if (rv) {
+    const gespeeld = [];
+    for (const [kant, list] of [[rec.player, rec.list], [rec.opponent, rec.opponentList]]) {
+      if (kant?.aor) gespeeld.push({ naam: kant.aor, key: `aor:${kant.faction}/${kant.aor}`, faction: kant.faction });
+      for (const x of list?.ror || []) gespeeld.push({ naam: x.name, key: `ror:${x.name}`, faction: kant?.faction });
+    }
+    const oud = gespeeld.filter((g) => !rv.changed || rv.changed.includes(g.key) || (rv.removedArmies?.[g.key] || []).includes(g.faction));
+    const sub = !gespeeld.length ? "niet gespeeld in deze game"
+      : `in deze game: ${gespeeld.map((g) => g.naam).join(", ")}${oud.length ? ` · sindsdien veranderd: ${oud.map((g) => g.naam).join(", ")}` : " · ongewijzigd"}`;
+    out.push({ kind: "renown", title: "Regiments en Armies of Renown", sub, version: rv, current: !oud.length });
+  }
   const uv = versionAt(idx, "universal", null, date);
   if (uv) out.push({ kind: "universal", title: "Universele lores en manifestations", sub: "", version: uv, current: false });
   return out;
@@ -100,8 +111,7 @@ export function rulesSectionEl(rec, idx, { el, esc }) {
   </div>`);
   const box = wrap.querySelector(".rules-src");
   for (const s of sources) {
-    const status = s.oldButUnused ? `<span class="chip tag">gewijzigd na deze game</span>`
-      : s.current ? `<span class="chip tag">huidig</span>`
+    const status = s.current ? `<span class="chip tag">huidig</span>`
       : s.version ? `<span class="chip legends">gold tot ${esc(fmtDate(s.version.until))}</span>`
       : s.missing ? `<span class="chip tag">niet gearchiveerd</span>` : "";
     const row = el(`<div class="rules-src-row">
@@ -134,7 +144,7 @@ async function openSnapshot(version, rec, { el, esc }) {
   body.innerHTML = "";
   if (!data) { body.appendChild(el(`<p class="empty">Deze versie is niet (meer) te vinden.</p>`)); return; }
   const render = { faction: renderFaction, gamedata: renderGamedata, renown: renderRenown, universal: renderUniversal }[version.kind];
-  if (render) render(body, data, rec, { el, esc });
+  if (render) render(body, data, rec, { el, esc }, version);
 }
 
 const ruleHtml = (r, esc) => `<div class="ability"><span class="aname">${esc(r.name)}</span>${abilityBodyHtml(r, esc)}</div>`;
@@ -174,7 +184,7 @@ function renderFaction(body, data, rec, { el, esc }) {
     aor.some((a) => a.name === rec?.player?.aor || a.name === rec?.opponent?.aor)));
 }
 
-const aorHtml = (a, esc) => `<h4>${esc(a.name)}</h4>${(a.rules || []).map((r) => ruleHtml(r, esc)).join("")}
+const aorHtml = (a, esc, chip = "") => `<h4>${esc(a.name)}${chip}</h4>${(a.rules || []).map((r) => ruleHtml(r, esc)).join("")}
   ${(a.enhancements || []).map((e) => `<div class="ability enhancement"><span class="aname">${esc(e.name)}</span> <span class="asrc">— ${esc(enhancementCategoryLabel(e.category))}</span>${abilityBodyHtml(e, esc)}</div>`).join("")}
   ${(a.units || []).length ? `<p class="subtitle">Units: ${esc(a.units.join(", "))}</p>` : ""}`;
 
@@ -190,14 +200,24 @@ function renderGamedata(body, data, rec, { el, esc }) {
     t.map((x) => `<h4>${esc(x.name)}</h4>${(x.steps || []).map((s) => `<div class="ability"><span class="aname">${esc(s.name)}</span><div class="subtitle">${esc(s.description || "")}</div></div>`).join("")}`).join("")));
 }
 
-function renderRenown(body, data, rec, { el, esc }) {
+// Per AoR/RoR: nog geldig, veranderd, of niet meer toegestaan (uit `rulesarchive.mjs diff`).
+function statusChip(version, key, faction, esc) {
+  if (!version?.changed) return "";
+  if (version.changed.includes(key)) return ` <span class="chip legends">sindsdien veranderd</span>`;
+  const weg = version.removedArmies?.[key] || [];
+  if (faction && weg.includes(faction)) return ` <span class="chip legends">niet meer voor ${esc(faction)}</span>`;
+  return ` <span class="chip tag">nog geldig</span>`;
+}
+
+function renderRenown(body, data, rec, { el, esc }, version) {
   const facties = [rec?.player?.faction, rec?.opponent?.faction].filter(Boolean);
+  if (version?.changed) body.appendChild(el(`<p class="subtitle">De stand van vóór ${esc(fmtDate(version.until))}. Alleen wat "sindsdien veranderd" heeft, is anders dan nu; de rest geldt nog precies zo.</p>`));
   const aor = (data.armiesOfRenown || []).filter((a) => !facties.length || facties.includes(a.faction));
-  if (aor.length) body.appendChild(section(el, esc, `Armies of Renown van ${facties.join(" en ")} (${aor.length})`, aor.map((a) => aorHtml(a, esc)).join(""),
+  if (aor.length) body.appendChild(section(el, esc, `Armies of Renown van ${facties.join(" en ")} (${aor.length})`, aor.map((a) => aorHtml(a, esc, statusChip(version, `aor:${a.faction}/${a.name}`, null, esc))).join(""),
     aor.some((a) => a.name === rec?.player?.aor || a.name === rec?.opponent?.aor)));
   const ror = (data.regimentsOfRenown || []).filter((r) => !facties.length || facties.some((f) => (r.allowedArmies || []).includes(f)));
   if (ror.length) body.appendChild(section(el, esc, `Regiments of Renown voor ${facties.join(" en ")} (${ror.length})`,
-    ror.map((r) => `<h4>${esc(r.name)} <span class="subtitle">${esc(String(r.points || 0))} pts · ${esc((r.units || []).map((u) => `${u.count || 1}× ${u.name}`).join(", "))}</span></h4>${(r.abilities || []).map((a) => ruleHtml(a, esc)).join("")}`).join("")));
+    ror.map((r) => `<h4>${esc(r.name)}${statusChip(version, `ror:${r.name}`, facties.find((f) => (r.allowedArmies || []).includes(f)), esc)} <span class="subtitle">${esc(String(r.points || 0))} pts · ${esc((r.units || []).map((u) => `${u.count || 1}× ${u.name}`).join(", "))}</span></h4>${(r.abilities || []).map((a) => ruleHtml(a, esc)).join("")}`).join("")));
 }
 
 function renderUniversal(body, data, rec, { el, esc }) {

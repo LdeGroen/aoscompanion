@@ -1104,7 +1104,10 @@ kunnen teruglezen.
 - **Archief**: detail toont "Regels van deze game" (`sourcesForGame`): editie, GHB-seizoen (versie op
   `ghb`), de factions van beide kanten (eerste faction-versie met `until` > speeldatum; anders huidig, of
   "bestaat niet meer"), en RoR/AoR-versies. RoR/AoR tellen alleen als oud als er in die game een AoR of
-  RoR gespeeld is (anders kreeg elke game na een RoR-update het label). Kaartje toont "Oude regels".
+  RoR gespeeld is én juist die veranderd is of niet meer mag bij die army: `rulesarchive.mjs diff`
+  zet per renown-versie `changed` (inhoud anders/verdwenen, hernoemingen genegeerd via `HERNOEMD`) en
+  `removedArmies`. **Draai `diff` na elke RoR/AoR-update.** Het snapshot-venster zet per AoR/RoR "nog
+  geldig" / "sindsdien veranderd" / "niet meer voor X". Kaartje toont "Oude regels".
   "Regels van toen" opent de snapshot read-only (battle traits, formations, enhancements, lores,
   warscrolls met de gewone popup, AoR's; GHB: seasonal rules, battleplans, tactics). Snapshots worden
   niet in localStorage gecachet (te groot); offline dus niet te openen.
