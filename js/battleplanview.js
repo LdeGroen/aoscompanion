@@ -1,6 +1,7 @@
 import { openModal } from "./modelview.js";
 import { icon } from "./icons.js";
 import { abilityBodyHtml } from "./abilityview.js";
+import { loadGamedata } from "./battleplans.js";
 
 // Alles wat je over één battleplan wilt zien: het kaartje (klikbaar → schermvullend),
 // de twist, de abilities en het scoreschema. Gedeeld door de companion (knop
@@ -42,4 +43,36 @@ export function openBattleplanModal(bp, { el, esc }) {
   const wrap = el(`<div><h2>${icon("map")} Battleplan${bp ? " — " + esc(bp.name) : ""}</h2><div data-body></div></div>`);
   wrap.querySelector("[data-body]").appendChild(buildBattleplanDetail(bp, { el, esc }));
   return openModal(wrap, el);
+}
+
+// Alle battleplans van het huidige General's Handbook (knop Battleplans op het startscherm):
+// een lijst met kaartjes; tik er een aan voor het volledige battleplan, terug met de knop.
+export async function openAllBattleplansModal({ el, esc }) {
+  const wrap = el(`<div><h2>${icon("map")} Battleplans</h2><div data-body><p class="empty">Laden…</p></div></div>`);
+  const body = wrap.querySelector("[data-body]");
+  openModal(wrap, el);
+  let plans = [];
+  try { plans = (await loadGamedata()).db.battleplans || []; } catch { /* lege lijst */ }
+  const showList = () => {
+    body.innerHTML = "";
+    if (!plans.length) { body.appendChild(el(`<p class="empty">Geen battleplans gevonden.</p>`)); return; }
+    for (const bp of plans) {
+      const row = el(`<button class="card inner" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;cursor:pointer">
+        ${bp.card ? `<img src="${esc(bp.card)}" alt="" loading="lazy" style="width:64px;height:auto;border-radius:6px;flex:none" />` : ""}
+        <span style="flex:1"><strong>${esc(bp.name || "Naamloos battleplan")}</strong>${bp.twist ? `<span class="muted-list" style="display:block">${esc(bp.twist.length > 110 ? bp.twist.slice(0, 110) + "…" : bp.twist)}</span>` : ""}</span>
+      </button>`);
+      row.addEventListener("click", () => showDetail(bp));
+      body.appendChild(row);
+    }
+  };
+  const showDetail = (bp) => {
+    body.innerHTML = "";
+    const back = el(`<button class="small">← Alle battleplans</button>`);
+    back.addEventListener("click", () => { showList(); wrap.closest(".modal")?.scrollTo(0, 0); });
+    body.appendChild(back);
+    body.appendChild(el(`<h3>${esc(bp.name || "")}</h3>`));
+    body.appendChild(buildBattleplanDetail(bp, { el, esc }));
+    wrap.closest(".modal")?.scrollTo(0, 0);
+  };
+  showList();
 }

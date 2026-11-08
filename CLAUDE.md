@@ -147,7 +147,8 @@ laadt dezelfde URL.
   het aantal volgt het formaat) én later per game-regel op de toernooipagina. Bij het starten
   van die game zet companion `setupBattleplanId`, zodat de battle set-up hem al goed heeft
   staan. Het volledige battleplan (kaartje, twist, abilities, scoreschema) toont
-  `js/battleplanview.js` — gedeeld met de Battleplan-knop in de companion-topbar, zodat je
+  `js/battleplanview.js` — gedeeld met de Battleplan-knop in de companion-topbar (en de knop
+  **Battleplans** op het startscherm: `openAllBattleplansModal`, lijst → detail), zodat je
   vooraf net zoveel ziet als tijdens het potje. ⚠️ Het aanmaakformulier zet
   `onBattleplansReady` zodat een late gamedata-lading alleen de keuzelijsten hertekent en
   niet het hele formulier (anders ben je je getypte naam kwijt).

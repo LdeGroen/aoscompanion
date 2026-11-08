@@ -13,6 +13,7 @@ import { renderStats } from "./stats.js";
 import { icon } from "./icons.js";
 import { openModal } from "./modelview.js";
 import { armyTotalsHtml } from "./armystats.js";
+import { openAllBattleplansModal } from "./battleplanview.js";
 
 const app = document.getElementById("app");
 
@@ -395,6 +396,7 @@ function renderHome() {
       <button class="small" id="btn-archive">${icon("flag")} Archief</button>
       <button class="small" id="btn-stats">${icon("chart")} Statistieken</button>
       <button class="small" id="btn-db">${icon("book")} Database</button>
+      <button class="small" id="btn-bps">${icon("map")} Battleplans</button>
       ${state.user.isAdmin ? `<button class="small" id="btn-admin">${icon("users")} Accounts</button>` : ""}
       <button class="small" id="btn-logout">${icon("logout")} ${esc(state.user.name)}</button>
     </div>
@@ -402,6 +404,7 @@ function renderHome() {
   app.appendChild(header);
   header.querySelector("#btn-logout").addEventListener("click", logout);
   header.querySelector("#btn-db").addEventListener("click", () => navigate("database", { armyId: null, dbReturn: "home" }));
+  header.querySelector("#btn-bps").addEventListener("click", () => openAllBattleplansModal({ el, esc }));
   header.querySelector("#btn-archive").addEventListener("click", () => navigate("archive"));
   header.querySelector("#btn-stats").addEventListener("click", () => navigate("stats"));
   header.querySelector("#btn-tournament").addEventListener("click", () => navigate("tournament", { tournamentOpenId: null }));
