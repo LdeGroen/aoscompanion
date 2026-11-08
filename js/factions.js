@@ -9,7 +9,7 @@ export const AOS_FACTIONS = {
   "Daughters of Khaine": ["Coven of Blood", "Frenzied Devotees", "Cold-Hearted Murderers", "Fervent Ritualists"],
   "Idoneth Deepkin": ["Soul-raid Ambushers", "Namarti Corps", "Isharann Council", "Akhelian Beastmasters"],
   "Kharadron Overlords": ["Endrineers Guild Expeditionary Force", "Veteran Ground Troops", "Rapid Redeployment Squadron", "Pioneers and Scavengers"],
-  "Fyreslayers": ["Forge Brethren", "Scales of Vulcatrix", "Warrior Kinband", "Lords of the Lodge"],
+  "Khazalite Holds": ["War Callers", "Hearthsworn Defenders", "Unyielding Anvil", "Wayfarer Nomads"],
 
   // --- CHAOS ---
   "Slaves to Darkness": ["Darkoath Horde", "Legion of Chaos", "Despoilers", "Godswrath Warband"],

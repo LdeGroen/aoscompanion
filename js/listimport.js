@@ -7,6 +7,9 @@
 // uit (hoofdletters, andere bullets, regels die wij niet kennen). Wat we niet
 // begrijpen slaan we over en melden we — er wordt niets geraden.
 
+// Opgeheven facties → hun opvolger, zodat een oudere lijst nog herkend wordt.
+const FACTION_ALIASES = { Fyreslayers: "Khazalite Holds" };
+
 const SECTIONS = [
   [/^general'?s\s+regiment\b/i, "General's Regiment"],
   [/^regiments?\s+of\s+renown\b/i, "Regiment of Renown"],
@@ -100,7 +103,8 @@ export function parseListText(text, { factions = {} } = {}) {
     // Faction / subfaction (alleen vóór de eerste sectie, daar staan ze)
     if (!seenSection) {
       const kaal = stripPoints(line);
-      const fac = factionNames.find((f) => normName(f) === normName(kaal));
+      const alias = Object.keys(FACTION_ALIASES).find((a) => normName(a) === normName(kaal));
+      const fac = factionNames.find((f) => normName(f) === normName(alias ? FACTION_ALIASES[alias] : kaal));
       if (fac) { out.faction = fac; continue; }
       const subOwner = factionNames.find((f) => (factions[f] || []).some((sf) => normName(sf) === normName(kaal)));
       if (subOwner) {

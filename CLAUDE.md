@@ -1081,6 +1081,31 @@ schrijft met 250 ms vertraging naar schijf.
 | `fix-unsourced-text.mjs` | Expliciete lijst: tikfouten in namen rechtzetten + tekst overnemen |
 | `rename-warscrolls-sigdex.mjs` | Warscrolls hernoemen naar de Sigdex-naam: vervangt elke exact gelijke string in alle aoscompanion-data (kaartje, regiment-opties, RoR/AoR, legers, lijst-momentopnames). Stopt als de nieuwe naam al bestaat |
 | `update-army-points.mjs` / `update-army-gaps.mjs` | Hetzelfde voor de kopieën in **opgeslagen legers** |
+| `sigdex-main-overlay.mjs <map>` + `sigdex-local.mjs` | ⚠ De openbare `warscrolls.json`/`factions.json` lopen achter (nov 2026: nog Fyreslayers, geen Khazalite Holds). De overlay maakt een kopie waarin de facties uit `FACTIONS` (standaard Khazalite Holds) uit de actuele main-blob komen; de rest blijft byte-gelijk. Schrijft ook `sigdex-regiments.json` en `sigdex-formations.json` (voor `fix-regiment-options`/`sync-formation-text`). Draaien zonder de scripts aan te passen: `SIGDEX_DIR=<map> ONLY_FACTIONS="<faction>" node --import ./sigdex-local.mjs <script>.mjs` — `ONLY_FACTIONS` laat het script alleen die faction-blobs zien (back-ups blijven volledig) |
+| `refresh-khazalite.mjs` | Nieuwe faction Khazalite Holds uit BSData (kopie van `refresh-sob`), mét de SoA-varianten uit BSData (`soa:true`) |
+| `audit-khazalite.mjs` (`FIX=1`) | Khazalite Holds vs Sigdex: punten, unitgrootte, ward, legends, regiment-opties, enhancement-/lore-/formation-punten, ontbrekende namen. `FIX=1` zet lore-punten en ward/punten van de SoA-content (die de sync-scripts overslaan) gelijk |
+| `audit-ror-sigdex.mjs` / `fix-ror-sigdex.mjs` | Regiments of Renown vs Sigdex (punten, legers, units, abilities). Fix: `allowedArmies` = Sigdex' `selectableIn` beperkt tot onze facties (Sigdex noemt ook Legends-legers als Beasts of Chaos), abilities als de namen afwijken, ontbrekende RoR's toevoegen als hun units bestaan. Units die bij ons geen warscroll hebben (manifestations in Coven of Thryx/Sigil Convocation) en Heroes of the Jade Abbey (geen vaste units) worden alleen gemeld |
+| `migrate-khazalite-ror.mjs` | RoR's: Fyreslayers → Khazalite Holds in `allowedArmies`, KH-RoR's (Fjori's, Gotrek, nieuw: Fjori's Vengeance, Thengin's Grudgesettlers) opnieuw uit de KH-blob |
+| `archive-fyreslayers.mjs` | Archief van de oude regels in de gedeelde blob `archive:Fyreslayers` (faction-blob, de AoR Lofnir Drothkeepers, oude versies van gewijzigde RoR's), uit de back-up van vóór de overgang |
+
+### Khazalite Holds (nov 2026): Fyreslayers opgeheven
+- De Fyreslayers zijn opgegaan in **Khazalite Holds** (nieuw battletome, ook duardin van Cities/
+  Kharadron en nieuwe units). `AOS_FACTIONS` kent alleen nog Khazalite Holds (formations War Callers,
+  Hearthsworn Defenders, Unyielding Anvil, Wayfarer Nomads); de lijst-import leest "Fyreslayers"
+  als Khazalite Holds (`FACTION_ALIASES` in listimport.js). De Army Repository is meegenomen.
+- **Niets verwijderd** (Luc: archiveren): `faction:Fyreslayers` staat nog in de database (onzichtbaar,
+  want niet in `AOS_FACTIONS`) en alles van vóór de overgang staat ook in `archive:Fyreslayers`.
+  Scripts die over alle `faction:*` lopen zien Fyreslayers dus nog — sla die faction over.
+- Opbouw: `refresh-khazalite.mjs` → `fix-enhancement-points` → `fix-regiment-options` en de
+  sync-scripts via de overlay (zie tabel) → `audit-khazalite.mjs FIX=1` (eindstand: geen verschillen
+  met Sigdex) → AoR's met `driver-aor.mjs ONLY="Khazalite Holds"` (4 AoR's; The Duardin Ascendant
+  is Legends en blijft weg, net als bij Cities/Kharadron) → `migrate-khazalite-ror.mjs`.
+- ⚠ Throngankor Alliance laat ook Kharadron-units toe; de unit-picker kiest uit de faction-blob,
+  dus die units zijn in de app (nog) niet te kiezen.
+- Tegelijk op Lucs verzoek alle overige RoR-verschillen met Sigdex rechtgezet (`fix-ror-sigdex.mjs`;
+  3 RoR's toegevoegd: Okar's Torrbad, Urrgar's Maulerguts, Krong the Club), "Outlaw Cannonade Cogford"
+  hernoemd naar Sigdex' "Cogfort" (ook in Lucs leger en archief) en de openstaande warscroll-gaten van
+  Hobgrotz Vandalz, Gelgus Pust en de Kurnoth Hunters aangevuld.
 
 ### Werkwijze bij een puntenupdate of nieuw boek
 1. **Nieuw boek**: `refresh-<faction>.mjs` (kopie van `refresh-ogor.mjs`), daarna `fix-enhancement-points.mjs` voor die faction.
