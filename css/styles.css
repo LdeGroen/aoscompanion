@@ -38,6 +38,15 @@
 
 * { box-sizing: border-box; }
 
+/* Nooit breder dan het scherm (Luc, 08-11-2026): lange woorden en chips breken af in plaats
+   van de pagina opzij te duwen. Brede tabellen scrollen in hun eigen omhulsel (.weapons-wrap,
+   statgrid); de clip op body is alleen het vangnet. */
+html, body { overflow-x: clip; }
+body { overflow-wrap: break-word; }
+img, svg, video, canvas, iframe { max-width: 100%; }
+pre { white-space: pre-wrap; }
+/* (chips: zie het eind van dit bestand — moet ná de chip-regels staan) */
+
 html, body {
   margin: 0;
   padding: 0;
@@ -866,3 +875,9 @@ details.card > summary h3 { margin: 0; }
 .rules-src-row:first-child { border-top: 0; }
 .rules-src-row .subtitle { margin: 2px 0 0; }
 .rules-src-row button { flex-shrink: 0; }
+
+/* Nooit breder dan het scherm: een lange chip ("Reaction: Opponent declared a …") breekt af
+   in plaats van de regel opzij te duwen. Staat bewust onderaan, ná de chip-regels. */
+.tchip, .chip, .lval { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+/* Flex-kinderen met tekst mogen smaller worden dan hun langste regel. */
+.checkline > span, .checkline > div, .rules-src-row > *, .tl-row > *, .scorecard .sc-score > * { min-width: 0; }

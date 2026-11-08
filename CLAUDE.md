@@ -1322,3 +1322,15 @@ zonder (ruwe kaartjes-stats). Modal hangt in document.body, dus overleeft rerend
 ## Ideeën voor later
 Release-signing voor de Android-app; conflictdetectie bij gelijktijdig bewerken op
 twee apparaten.
+
+## Nooit breder dan het scherm (mobiel)
+Luc (08-11-2026): op de telefoon moest je soms opzij scrollen. Oorzaak: chips met
+`white-space: nowrap` en een lange tekst (timing-chip "Reaction: Opponent declared a …", de
+regiment-opties in de warscroll-popup) en flex-kinderen zonder `min-width: 0`. Opgelost in
+styles.css: `.tchip`/`.chip`/`.lval` mogen afbreken (die regel staat **onderaan** het bestand,
+anders wint de eerdere `nowrap`), `overflow-wrap` op body, `max-width: 100%` op media, en
+`overflow-x: clip` op html/body als vangnet. Brede tabellen scrollen in hun eigen omhulsel
+(`.weapons-wrap`, `statgrid`). Gecontroleerd op 375 px: alle factions + elke popup in de database,
+set-up, de hele beurt in companion, archief (detail, regels van toen, bewerken), statistieken.
+Nieuwe chip of flex-rij met lange tekst? Geen `nowrap` zonder `max-width`, en `min-width: 0` op het
+tekstkind.
