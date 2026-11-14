@@ -141,7 +141,7 @@ export function buildModelPopupContent(m, { el, esc, army = null, extraTag = "",
   const wrap = el(`<div>
     <div class="ws-head">
       <h2>${esc(m.name)}</h2>
-      ${(tags.length || isParagon || m.legends) ? `<div class="chips">${m.legends ? '<span class="chip legends">Legends</span>' : ""}${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
+      ${(tags.length || isParagon || m.legends || m.archivedVersion) ? `<div class="chips">${m.archivedVersion ? `<span class="chip legends" title="Bewust de oude versie">Oude versie: ${esc(m.archivedVersion)}</span>` : ""}${m.legends ? '<span class="chip legends">Legends</span>' : ""}${isParagon ? `<span class="chip paragon">${icon("star")} Paragon</span>` : ""}${tags.map((t) => `<span class="chip tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <div class="stats">
       ${stat("move", M.move + '"', e.changed.has("move"))}

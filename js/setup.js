@@ -457,11 +457,13 @@ export function renderSetup(ctx) {
   function showRoRRules(reg) {
     const ror = reg.ror || {};
     let abilities = ror.abilities;
-    if ((!abilities || !abilities.length) && rorList) abilities = (rorList.find((r) => r.name === ror.name) || {}).abilities;
+    // Een bewust bewaarde oude versie (ror.version) haalt geen regels uit de huidige database.
+    if ((!abilities || !abilities.length) && rorList && !ror.version) abilities = (rorList.find((r) => r.name === ror.name) || {}).abilities;
     const inReg = army.models.filter((m) => m.regimentId === reg.id);
     const wrap = el(`<div>
       <h2>${icon("star")} ${esc(ror.name)}</h2>
       <p class="subtitle">${parseInt(ror.points) || 0} pts · ${inReg.map((m) => esc(m.name)).join(", ")}</p>
+      ${ror.version ? `<p><span class="chip legends">Oude versie: ${esc(ror.version)}</span></p>` : ""}
       <div data-abs></div>
     </div>`);
     const ab = wrap.querySelector("[data-abs]");
@@ -476,8 +478,8 @@ export function renderSetup(ctx) {
   function renderRoR(reg) {
     const inReg = army.models.filter((m) => m.regimentId === reg.id);
     const card = el(`<div class="card">
-      <div class="card-header clickable" data-info><h3>${icon("star")} ${esc(reg.ror.name)} <span class="chip tag">RoR</span></h3><span class="subtitle">${parseInt(reg.ror.points) || 0} pts ${icon("book")}</span></div>
-      <p class="subtitle" style="margin-top:0">Klik voor de RoR-regel(s).</p>
+      <div class="card-header clickable" data-info><h3>${icon("star")} ${esc(reg.ror.name)} <span class="chip tag">RoR</span>${reg.ror.version ? ' <span class="chip legends">Oude versie</span>' : ""}</h3><span class="subtitle">${parseInt(reg.ror.points) || 0} pts ${icon("book")}</span></div>
+      <p class="subtitle" style="margin-top:0">${reg.ror.version ? `Bewust de versie ${esc(reg.ror.version)}. ` : ""}Klik voor de RoR-regel(s).</p>
       <div data-units></div>
       <div class="btnrow"><button class="small danger" data-del>${icon("trash")} Regiment of Renown verwijderen</button></div>
     </div>`);

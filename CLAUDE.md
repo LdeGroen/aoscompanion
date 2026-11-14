@@ -1334,3 +1334,16 @@ anders wint de eerdere `nowrap`), `overflow-wrap` op body, `max-width: 100%` op 
 set-up, de hele beurt in companion, archief (detail, regels van toen, bewerken), statistieken.
 Nieuwe chip of flex-rij met lange tekst? Geen `nowrap` zonder `max-width`, en `min-width: 0` op het
 tekstkind.
+
+## Bewust een oude versie in een leger (`ror.version`, `model.archivedVersion`)
+Luc (14-11-2026) wilde voor een toernooi in "I see a little siluetto of a man…" de Gotrek-RoR
+van vóór Khazalite Holds houden: 320 pt, oude warscroll ('I'll Get There Myself!' + Unstoppable
+Battle Fury i.p.v. de drie nieuwe abilities). Gezet met `ko-import/set-old-gotrek.mjs` (bron:
+de Sigdex-export van 24-09-2026, `~/ko-import/sigdex.json` — BSData's `age-of-sigmar-4th` gaf in
+nov 2026 een 404 op GitHub). Een RoR met `ror.version` / een unit met `archivedVersion` krijgt de
+chip **Oude versie** (set-up-kaart, RoR-popup, warscroll-popup) en `showRoRRules` vult zijn regels
+dan niet aan uit de huidige database. De update-scripts raken zo'n kopie niet, want ze werken
+legerkopieën alleen bij als die gelijk waren aan de oude databasewaarde. Terug naar de huidige
+versie: RoR verwijderen en opnieuw toevoegen.
+Het script zette ook de echte oude Gotrek-warscroll in `archive:renown:2026-11-08` (daar stond
+alleen een lege plaatshouder, want vóór Khazalite Holds had onze RoR-blob nooit een Gotrek-kaartje).
