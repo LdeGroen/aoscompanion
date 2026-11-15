@@ -1,6 +1,6 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1",
+  "versionCode": 3,
+  "versionName": "1.2",
   "url": "https://aos.lucdegroen.nl/downloads/aoscompanion.apk",
-  "notes": "Nieuwe URL (aos.lucdegroen.nl), licht thema en automatische updatecheck."
+  "notes": "Uitslag delen als afbeelding werkt nu ook in de app (Android-deelmenu)."
 }

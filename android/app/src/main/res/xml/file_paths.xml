@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alleen de deel-map in de cache is via de FileProvider bereikbaar. -->
+<paths>
+    <cache-path name="shared" path="shared/" />
+</paths>

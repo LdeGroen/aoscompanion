@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.util.Base64
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -16,9 +18,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -32,6 +36,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var updateBar: LinearLayout
     private var updateUrl: String = ""
+    // Huidige pagina; de deel-brug werkt alleen voor onze eigen site.
+    @Volatile private var pageUrl: String = ""
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,7 +87,14 @@ class MainActivity : AppCompatActivity() {
         // Zonder WebChromeClient toont een WebView geen JavaScript-dialogen:
         // confirm() doet dan stilletjes alsof je annuleert en alert() verdwijnt.
         webView.webChromeClient = WebChromeClient()
+        webView.addJavascriptInterface(ShareBridge(), "AoSAndroid")
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                pageUrl = url ?: ""
+            }
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                pageUrl = url ?: ""
+            }
             override fun onReceivedError(
                 view: WebView,
                 request: android.webkit.WebResourceRequest,
@@ -105,6 +118,35 @@ class MainActivity : AppCompatActivity() {
         })
 
         checkForUpdate()
+    }
+
+    // Brug voor de webapp: een WebView kent geen Web Share en doet niets met downloads.
+    // window.AoSAndroid.shareImage(dataUrl, naam) zet de PNG in de cache en opent het
+    // Android-deelmenu (WhatsApp, Foto's, …). Alleen voor aos.lucdegroen.nl.
+    inner class ShareBridge {
+        @JavascriptInterface
+        fun shareImage(dataUrl: String, fileName: String): Boolean {
+            if (Uri.parse(pageUrl).host != Uri.parse(APP_URL).host) return false
+            val prefix = "data:image/png;base64,"
+            if (!dataUrl.startsWith(prefix) || dataUrl.length > 15_000_000) return false
+            return try {
+                val bytes = Base64.decode(dataUrl.substring(prefix.length), Base64.DEFAULT)
+                val dir = File(cacheDir, "shared").apply { mkdirs() }
+                val safe = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "afbeelding.png" }
+                val file = File(dir, if (safe.endsWith(".png")) safe else "$safe.png")
+                file.writeBytes(bytes)
+                val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.files", file)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                runOnUiThread { startActivity(Intent.createChooser(send, "Delen")) }
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
     }
 
     // Balk met "Nieuwe versie beschikbaar" + Updaten-knop; opent de APK-URL in de

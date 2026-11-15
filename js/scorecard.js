@@ -3,6 +3,7 @@ import { uid } from "./storage.js";
 import { icon } from "./icons.js";
 import { buildListSnapshot } from "./gamelist.js";
 import { currentRules } from "./rulesarchive.js";
+import { openModal } from "./modelview.js";
 
 // Scorekaart van een afgeronde game: opbouw van het game-record (voor het
 // archief), het samenvattingsscherm, en export als tekst of PNG-afbeelding
@@ -271,10 +272,22 @@ export function buildExportButtons(rec, { el }) {
   });
   row.querySelector('[data-act="img"]').addEventListener("click", () => {
     const canvas = drawScoreImage(rec);
+    const NAME = "aos-score.png";
+    // Android-app (WebView): geen Web Share en downloads doen niets — de app heeft daarvoor
+    // een eigen brug (AoSAndroid.shareImage, vanaf app-versie 3) naar het Android-deelmenu.
+    if (window.AoSAndroid?.shareImage) {
+      try { if (window.AoSAndroid.shareImage(canvas.toDataURL("image/png"), NAME)) return; } catch { /* valt terug */ }
+    }
+    // Oudere app zonder brug: de afbeelding tonen (dan kun je een screenshot maken).
+    if (/; wv\)/.test(navigator.userAgent)) { showImage(canvas, el, "Werk de app bij (update-balk bovenaan) om de afbeelding te kunnen delen."); return; }
     canvas.toBlob(async (blob) => {
-      const file = new File([blob], "aos-score.png", { type: "image/png" });
+      if (!blob) { showImage(canvas, el); return; }
+      const file = new File([blob], NAME, { type: "image/png" });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: "AoS score" }); return; } catch { /* geannuleerd → download */ }
+        try { await navigator.share({ files: [file], title: "AoS score" }); return; } catch (err) {
+          if (err?.name === "AbortError") return; // zelf geannuleerd
+          // anders (bv. iOS: "niet toegestaan" na het asynchrone tekenen) → downloaden
+        }
       }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -284,4 +297,14 @@ export function buildExportButtons(rec, { el }) {
     }, "image/png");
   });
   return row;
+}
+
+// Laatste redmiddel: de afbeelding in een popup (opslaan via lang indrukken of een screenshot).
+function showImage(canvas, el, note = "") {
+  const wrap = el(`<div><h2>Uitslag als afbeelding</h2>
+    ${note ? `<p class="subtitle">${note}</p>` : ""}
+    <img alt="Uitslag" style="width:100%;border-radius:8px" />
+  </div>`);
+  wrap.querySelector("img").src = canvas.toDataURL("image/png");
+  openModal(wrap, el);
 }

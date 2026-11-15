@@ -887,6 +887,13 @@ draai appsync lokaal (`node server.mjs` in die repo, poort 3100) en zet API_URL 
 - targetSdk 35 dwingt edge-to-edge af; MainActivity zet daarom de systeembalk-insets
   als padding op een FrameLayout-wrapper rond de WebView (anders valt de app onder de
   statusbalk van Android).
+- **Afbeelding delen** (vanaf versionCode 3, 15-11-2026): een WebView kent geen Web Share en doet
+  niets met downloads, dus "Deel als afbeelding" (scorecard.js) deed in de app niets. MainActivity
+  heeft daarom een `@JavascriptInterface` **`window.AoSAndroid.shareImage(dataUrl, naam)`**: zet de
+  PNG in `cache/shared/` en opent via de FileProvider (`${applicationId}.files`, `res/xml/file_paths.xml`)
+  het Android-deelmenu; werkt alleen als de pagina op aos.lucdegroen.nl staat. Oudere app zonder brug
+  (user agent met `; wv)`) → de afbeelding in een popup met "werk de app bij". Breid de brug zo uit
+  als iets anders ook niet werkt in de WebView (bijv. bestanden downloaden).
 - Nog **debug-signed**: prima om te sideloaden, niet voor de Play Store. Release-keystore
   bestaat nog niet voor deze app.
 - `local.properties` (sdk.dir) staat bewust niet in git; maak hem aan op een nieuwe machine.
