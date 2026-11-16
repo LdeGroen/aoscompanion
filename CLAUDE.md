@@ -1284,6 +1284,25 @@ Legers worden gematcht op **`player.army` (de naam)**, want een record bewaart g
 Hernoem je een leger, dan splitst zijn historie. Records van vóór dit veld vallen onder
 "Onbekend leger".
 
+Filter **Seizoen** (editie + GHB uit `rules`, verschijnt pas bij meer dan één seizoen): AoS 3-
+scores (~20 punten) zijn niet te vergelijken met AoS 4 (~60).
+
+## Games uit Tabletop Battles (`source: "tabletopbattles"`)
+Lucs 67 oude games uit de Tabletop Battles-app (Goonhammer) zijn in nov 2026 overgenomen
+(ko-import/ttb-harvest.mjs leest de app via adb uit, ttb-grid.py de vinkjes uit schermafdrukken,
+ttb-parse.mjs maakt er records van). Zulke records hebben `source`, `ttb: {tab, title, finished,
+scoring, footer, round?}`, `rules` van toen (aos3/aos4, ghb-2023-24 t/m 2026-27), geen `list`, en
+toernooigames een synthetische `tournamentId` ("ttb-…").
+- Scoringsvormen die niet in het model passen staan in **`rec.scoreRows = {player, enemy}`**:
+  `tactic` (AoS 3: 2 pt, AoS 4 2024-25: 4 pt, één per ronde: `round`, `points`), `grandStrategy`
+  (AoS 3, `points`/3) en `primary` (uitsplitsing als de primary uit meer regels bestaat, bv.
+  Power Flux; de som staat al in `rounds`). `extraPoints()`/`extraRows()` in scorecard.js: de
+  tactic- en grand-strategy-punten tellen mee in `recomputeTotals`, en scoreblad, tekst en
+  afbeelding tonen de regels. Ze staan bewust **niet** in `rec.tactics`: de tactic-statistieken
+  gaan uit van kaarten van 5 punten in 3 stappen.
+- Regelarchief: een versie hoort alleen bij een game uit hetzelfde GHB-seizoen (`versionAt` met
+  `ghb`); voor een ouder seizoen zonder bewaarde versie staat er "niet gearchiveerd" i.p.v. "huidig".
+
 ## Waarom de telefoon achterliep op de webversie
 Onze eigen server stuurt `Cache-Control: no-cache` (server.mjs), maar **Cloudflare stuurt er
 `max-age=14400` overheen** naar de client (zone-instelling *Browser Cache TTL*). Een WebView

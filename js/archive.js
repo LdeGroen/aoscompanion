@@ -43,6 +43,9 @@ export function renderArchive(ctx) {
 
     if (detail) {
       app.appendChild(buildScoreSummary(detail, { el, esc }));
+      if (detail.source === "tabletopbattles") {
+        app.appendChild(el(`<p class="subtitle">Overgenomen uit Tabletop Battles${detail.ttb?.finished === false ? " (daar niet afgesloten)" : ""}. Je lijst van toen is niet bekend.</p>`));
+      }
       if (rulesIdx) app.appendChild(rulesSectionEl(detail, rulesIdx, { el, esc }));
       const actions = el(`<div class="btnrow">
         <button class="small" id="ar-edit">${icon("edit")} Scores bewerken</button>
@@ -377,7 +380,12 @@ export function renderArchive(ctx) {
         </div>
         <span class="chip tag ${res.win === true ? "" : "dim"}">${esc(res.text)}</span>
       </div>
-      ${rulesIdx && hasOldRules(sourcesForGame(rec, rulesIdx)) ? `<div class="chips"><span class="chip legends">${icon("book")} Oude regels</span></div>` : ""}
+      ${(() => {
+        const chips = [];
+        if (rulesIdx && hasOldRules(sourcesForGame(rec, rulesIdx))) chips.push(`<span class="chip legends">${icon("book")} Oude regels</span>`);
+        if (rec.source === "tabletopbattles") chips.push(`<span class="chip">Tabletop Battles</span>`);
+        return chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
+      })()}
     </div>`);
     card.addEventListener("click", () => { detail = rec; draw(); });
     return card;

@@ -1,5 +1,6 @@
 import { TACTIC_STEP_POINTS } from "./battleplans.js";
-import { resultLabel } from "./scorecard.js";
+import { resultLabel, extraPoints } from "./scorecard.js";
+import { rulesOf } from "./rulesarchive.js";
 import { icon } from "./icons.js";
 import { diffLists, hasChanges } from "./gamelist.js";
 
@@ -21,6 +22,9 @@ const avg = (list) => (list.length ? sum(list) / list.length : null);
 const fmt = (n, dec = 1) => (n === null || n === undefined || Number.isNaN(n) ? "–" : n.toFixed(dec).replace(".", ","));
 const pct = (n, d) => (d ? Math.round((n / d) * 100) + "%" : "–");
 const armyOf = (rec) => rec.player?.army || "Onbekend leger";
+// Seizoen van een game: editie + General's Handbook ("aos4 ghb-2025-26").
+const seasonOf = (rec) => { const r = rulesOf(rec); return `${r.edition} ${r.ghb}`; };
+const seasonLabel = (k) => { const [ed, ghb] = k.split(" "); return `${ed === "aos3" ? "AoS 3" : ed === "aos4" ? "AoS 4" : ed} · ${(ghb || "").replace(/^ghb-/, "")}`; };
 
 // Win = meer punten. resultLabel geeft ook major/minor terug (>10 verschil = major).
 const isWin = (rec) => rec.totals.player > rec.totals.enemy;
@@ -36,6 +40,7 @@ export function renderStats(ctx) {
 
   let armyFilter = null;              // null = alle legers
   let scope = "all";                  // all | tournament | team | casual
+  let season = null;                  // null = alle seizoenen, anders "aos4 ghb-2025-26"
 
   function selection() {
     return all.filter((r) => {
@@ -43,6 +48,7 @@ export function renderStats(ctx) {
       if (scope === "tournament" && !r.tournamentId) return false;
       if (scope === "team" && !r.teamEventId) return false;
       if (scope === "casual" && (r.tournamentId || r.teamEventId)) return false;
+      if (season && seasonOf(r) !== season) return false;
       return true;
     });
   }
@@ -91,6 +97,8 @@ export function renderStats(ctx) {
       <div class="chips" data-armies></div>
       <div class="subtitle" style="margin-top:8px">Soort game</div>
       <div class="chips" data-scope></div>
+      <div data-seasonwrap hidden><div class="subtitle" style="margin-top:8px">Seizoen</div>
+      <div class="chips" data-season></div></div>
     </div>`);
 
     const armyBox = wrap.querySelector("[data-armies]");
@@ -109,6 +117,17 @@ export function renderStats(ctx) {
       const c = el(`<button class="chip${scope === key ? " active" : ""}">${esc(label)}</button>`);
       c.addEventListener("click", () => { scope = key; draw(); });
       scopeBox.appendChild(c);
+    }
+    // Seizoen (editie + GHB): scores van AoS 3 en AoS 4 zijn niet goed te vergelijken.
+    const seasons = [...new Set(all.map(seasonOf))].sort().reverse();
+    if (seasons.length > 1) {
+      wrap.querySelector("[data-seasonwrap]").hidden = false;
+      const box = wrap.querySelector("[data-season]");
+      for (const [value, label] of [[null, `Alle seizoenen (${all.length})`], ...seasons.map((k) => [k, `${seasonLabel(k)} (${all.filter((r) => seasonOf(r) === k).length})`])]) {
+        const c = el(`<button class="chip${season === value ? " active" : ""}">${esc(label)}</button>`);
+        c.addEventListener("click", () => { season = value; draw(); });
+        box.appendChild(c);
+      }
     }
     return wrap;
   }
@@ -352,7 +371,7 @@ export function renderStats(ctx) {
     const worstGame = [...recs].sort((a, b) => (a.totals.player - a.totals.enemy) - (b.totals.player - b.totals.enemy))[0];
 
     const objTotal = sum(recs.map((x) => objPoints(x, "player")));
-    const tacTotal = sum(recs.map((x) => tacticSteps(x, "player") * TACTIC_STEP_POINTS));
+    const tacTotal = sum(recs.map((x) => tacticSteps(x, "player") * TACTIC_STEP_POINTS + extraPoints(x, "player")));
     const grand = sum(recs.map((x) => x.totals.player)) || 1;
 
     const underdogRounds = recs.flatMap((x) => x.rounds || []).filter((r) => r.underdog === "player").length;

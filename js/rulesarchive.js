@@ -48,13 +48,18 @@ export async function loadRulesIndex() {
 export const currentRules = () => ({ ...(cache || FALLBACK_INDEX).current });
 
 export const rulesOf = (rec) => ({ ...DEFAULT_RULES, ...(rec?.rules || {}) });
-export const editionName = (idx, id) => idx.editions.find((e) => e.id === id)?.name || id;
-export const ghbName = (idx, id) => idx.ghbSeasons.find((s) => s.id === id)?.name || id;
+// Namen ook voor edities/seizoenen die niet in de index staan (bv. games uit Tabletop Battles).
+const EDITION_NAMES = { aos3: "Age of Sigmar 3rd edition", aos4: "Age of Sigmar 4th edition" };
+export const editionName = (idx, id) => idx.editions.find((e) => e.id === id)?.name || EDITION_NAMES[id] || id;
+export const ghbName = (idx, id) => idx.ghbSeasons.find((s) => s.id === id)?.name
+  || (/^ghb-(\d{4}-\d{2})$/.test(id || "") ? `General's Handbook ${id.slice(4)}` : id);
 
 // De versie die gold op `date`: de eerste die ná die datum is gearchiveerd. Geen → de huidige regels.
-function versionAt(idx, kind, subject, date) {
+// Alleen versies uit hetzelfde GHB-seizoen als de game: een versie van later (bv. gearchiveerd in
+// 2026) zegt niets over de regels van een game uit 2024.
+function versionAt(idx, kind, subject, date, ghb) {
   return idx.versions
-    .filter((v) => v.kind === kind && (v.subject || null) === (subject || null) && v.until > date)
+    .filter((v) => v.kind === kind && (v.subject || null) === (subject || null) && v.until > date && (!ghb || !v.ghb || v.ghb === ghb))
     .sort((a, b) => a.until.localeCompare(b.until))[0] || null;
 }
 
@@ -70,16 +75,18 @@ export function sourcesForGame(rec, idx) {
   out.push({ kind: "gamedata", title: ghbName(idx, r.ghb), sub: "battleplans, battle tactics en seasonal rules", version: ghbVersion, current: r.ghb === idx.current.ghb, missing: r.ghb !== idx.current.ghb && !ghbVersion });
   const facties = [...new Set([rec.player?.faction, rec.opponent?.faction].filter(Boolean))];
   for (const f of facties) {
-    const v = versionAt(idx, "faction", f, date);
+    const v = versionAt(idx, "faction", f, date, r.ghb);
     const bestaat = !!AOS_FACTIONS[f];
     const wie = [rec.player?.faction === f ? "jouw army" : "", rec.opponent?.faction === f ? "tegenstander" : ""].filter(Boolean).join(" en ");
-    out.push({ kind: "faction", subject: f, title: f, sub: `${wie}${bestaat ? "" : " · bestaat niet meer"}`, version: v, current: !v && bestaat, missing: !v && !bestaat });
+    // Game uit een ouder seizoen zonder bewaarde versie: de huidige regels zijn niet die van toen.
+    const ouder = r.ghb !== idx.current.ghb;
+    out.push({ kind: "faction", subject: f, title: f, sub: `${wie}${bestaat ? "" : " · bestaat niet meer"}`, version: v, current: !v && bestaat && !ouder, missing: !v && (!bestaat || ouder) });
   }
   // RoR's en AoR's tellen alleen als een in deze game gespeelde AoR/RoR zelf veranderd is, of
   // niet meer mag bij de army van die kant. `changed`/`removedArmies` op de versie komen van
   // `rulesarchive.mjs diff`; zonder die gegevens telt elke gespeelde AoR/RoR als mogelijk oud.
   // Teruglezen kan altijd.
-  const rv = versionAt(idx, "renown", null, date);
+  const rv = versionAt(idx, "renown", null, date, r.ghb);
   if (rv) {
     const gespeeld = [];
     for (const [kant, list] of [[rec.player, rec.list], [rec.opponent, rec.opponentList]]) {
@@ -91,7 +98,7 @@ export function sourcesForGame(rec, idx) {
       : `in deze game: ${gespeeld.map((g) => g.naam).join(", ")}${oud.length ? ` · sindsdien veranderd: ${oud.map((g) => g.naam).join(", ")}` : " · ongewijzigd"}`;
     out.push({ kind: "renown", title: "Regiments en Armies of Renown", sub, version: rv, current: !oud.length });
   }
-  const uv = versionAt(idx, "universal", null, date);
+  const uv = versionAt(idx, "universal", null, date, r.ghb);
   if (uv) out.push({ kind: "universal", title: "Universele lores en manifestations", sub: "", version: uv, current: false });
   return out;
 }

@@ -62,7 +62,7 @@ export function recomputeTotals(rec) {
     const list = side === "player" ? rec.tactics : rec.enemyTactics;
     const tac = (list || []).reduce((a, t) => a + (t.scoredRounds || []).length * TACTIC_STEP_POINTS, 0);
     const eb = rec.endBonus && rec.endBonus.owner === side ? rec.endBonus.points : 0;
-    return obj + tac + eb;
+    return obj + tac + eb + extraPoints(rec, side);
   };
   rec.totals = { player: sideTotal("player"), enemy: sideTotal("enemy") };
   return rec;
@@ -76,6 +76,27 @@ export function resultLabel(rec) {
 }
 
 const tacticsFor = (rec, side) => (side === "player" ? rec.tactics : rec.enemyTactics) || [];
+
+// Scoreregels die niet in het standaardmodel passen, van games uit Tabletop Battles (ko-import/
+// ttb-parse.mjs): battle tactics van AoS 3 / AoS 4 2024-25 (2 of 4 punten, één per ronde), de
+// grand strategy van AoS 3 en de uitsplitsing van een primary met meer regels (bv. Power Flux).
+// rec.scoreRows = {player: [...], enemy: [...]}, met kind "primary" | "tactic" | "grandStrategy".
+// De tactic- en grand-strategy-punten tellen mee in het totaal; de primary-regels zitten al in rounds.
+export function extraPoints(rec, side) {
+  return (rec.scoreRows?.[side] || [])
+    .filter((x) => x.kind === "tactic" || x.kind === "grandStrategy")
+    .reduce((a, x) => a + (Number(x.points) || 0), 0);
+}
+// Als weergaveregels: {label, cells: [5], total}.
+export function extraRows(rec, side) {
+  const out = [];
+  for (const x of rec.scoreRows?.[side] || []) {
+    if (x.kind === "primary") out.push({ label: x.label, cells: x.cells.map((c) => (c === "-" ? "·" : c)), total: "" });
+    else if (x.kind === "tactic") out.push({ label: x.label, cells: [1, 2, 3, 4, 5].map((r) => (x.round === r ? (x.cells?.[r - 1] === "-" ? "✗" : String(x.points)) : "·")), total: String(x.points) });
+    else if (x.kind === "grandStrategy") out.push({ label: `Grand strategy: ${x.label}`, cells: ["", "", "", "", ""], total: `${x.points}/${x.max || 3}` });
+  }
+  return out;
+}
 
 const fmtDate = (iso) => {
   const d = new Date(iso);
@@ -141,6 +162,7 @@ function sideBlock(rec, side, { el, esc }) {
       rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? String(TACTIC_STEP_POINTS) : "·")),
       `${t.scoredRounds.length * TACTIC_STEP_POINTS}/${3 * TACTIC_STEP_POINTS}`);
   }
+  for (const x of extraRows(rec, side)) row(esc(x.label), x.cells.map((c) => esc(c)), esc(x.total));
   if (rec.liferoot) {
     rows.appendChild(el(`<tr><td class="lbl">Liferoot points</td><td class="cell" colspan="5">${rec.liferoot[side] || 0}</td><td class="tot"></td></tr>`));
   }
@@ -167,6 +189,9 @@ export function recordAsText(rec) {
     for (const t of tacticsFor(rec, side)) {
       lines.push(`  ${t.name}: ${rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "-")).join(" | ")} = ${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
     }
+    for (const x of extraRows(rec, side)) {
+      lines.push(x.cells.some((c) => c) ? `  ${x.label}: ${x.cells.map((c) => (c === "·" ? "-" : c)).join(" | ")}${x.total ? " = " + x.total : ""}` : `  ${x.label}: ${x.total}`);
+    }
     if (rec.liferoot) lines.push(`  Liferoot points: ${rec.liferoot[side] || 0}`);
     if (rec.endBonus && rec.endBonus.owner === side) lines.push(`  ${rec.endBonus.label}: +${rec.endBonus.points}`);
     lines.push(`  Totaal: ${rec.totals[side]}`);
@@ -180,8 +205,8 @@ export function recordAsText(rec) {
 export function drawScoreImage(rec) {
   const W = 640;
   const rowH = 30;
-  const playerRows = 3 + tacticsFor(rec, "player").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "player" ? 1 : 0) + 1;
-  const enemyRows = 3 + tacticsFor(rec, "enemy").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "enemy" ? 1 : 0) + 1;
+  const playerRows = 3 + tacticsFor(rec, "player").length + extraRows(rec, "player").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "player" ? 1 : 0) + 1;
+  const enemyRows = 3 + tacticsFor(rec, "enemy").length + extraRows(rec, "enemy").length + (rec.liferoot ? 1 : 0) + (rec.endBonus?.owner === "enemy" ? 1 : 0) + 1;
   const H = 170 + (playerRows + enemyRows) * rowH + 2 * 46 + 40;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -243,6 +268,7 @@ export function drawScoreImage(rec) {
     for (const t of tacticsFor(rec, side)) {
       drawRow(t.name, rec.rounds.map((r) => (t.scoredRounds.includes(r.round) ? TACTIC_STEP_POINTS : "·")), `${t.scoredRounds.length * TACTIC_STEP_POINTS}/15`);
     }
+    for (const x of extraRows(rec, side)) drawRow(x.label, x.cells, x.total);
     if (rec.liferoot) drawRow("Liferoot points", [rec.liferoot[side] || 0, "", "", "", ""], "");
     if (rec.endBonus?.owner === side) drawRow(rec.endBonus.label, ["", "", "", "", ""], `+${rec.endBonus.points}`);
     drawRow("Totaal", ["", "", "", "", ""], rec.totals[side], true);
