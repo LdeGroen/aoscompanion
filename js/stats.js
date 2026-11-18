@@ -22,6 +22,7 @@ const avg = (list) => (list.length ? sum(list) / list.length : null);
 const fmt = (n, dec = 1) => (n === null || n === undefined || Number.isNaN(n) ? "–" : n.toFixed(dec).replace(".", ","));
 const pct = (n, d) => (d ? Math.round((n / d) * 100) + "%" : "–");
 const armyOf = (rec) => rec.player?.army || "Onbekend leger";
+const factionOf = (rec) => rec.player?.faction || "Onbekende faction";
 // Seizoen van een game: editie + General's Handbook ("aos4 ghb-2025-26").
 const seasonOf = (rec) => { const r = rulesOf(rec); return `${r.edition} ${r.ghb}`; };
 const seasonLabel = (k) => { const [ed, ghb] = k.split(" "); return `${ed === "aos3" ? "AoS 3" : ed === "aos4" ? "AoS 4" : ed} · ${(ghb || "").replace(/^ghb-/, "")}`; };
@@ -38,12 +39,14 @@ export function renderStats(ctx) {
   const { state, app, navigate, el, esc } = ctx;
   const all = state.data.gameArchive || [];
 
+  let factionFilter = null;           // null = alle factions (alle legers van die faction samen)
   let armyFilter = null;              // null = alle legers
   let scope = "all";                  // all | tournament | team | casual
   let season = null;                  // null = alle seizoenen, anders "aos4 ghb-2025-26"
 
   function selection() {
     return all.filter((r) => {
+      if (factionFilter && factionOf(r) !== factionFilter) return false;
       if (armyFilter && armyOf(r) !== armyFilter) return false;
       if (scope === "tournament" && !r.tournamentId) return false;
       if (scope === "team" && !r.teamEventId) return false;
@@ -83,6 +86,7 @@ export function renderStats(ctx) {
     app.appendChild(tacticsCard(recs));
     app.appendChild(battleplanCard(recs));
     app.appendChild(opponentCard(recs));
+    if (!factionFilter && !armyFilter) app.appendChild(factionCard(recs));
     if (!armyFilter) app.appendChild(armyCard(recs));
     app.appendChild(listCard(recs));
     app.appendChild(funCard(recs));
@@ -91,9 +95,15 @@ export function renderStats(ctx) {
 
   // ---------- filters ----------
   function filterBar() {
-    const armies = [...new Set(all.map(armyOf))].sort((a, b) => a.localeCompare(b));
+    // Legers binnen de gekozen faction; een leger kan in theorie bij meer factions horen
+    // (hernoemd), dus tellen op de combinatie.
+    const inFaction = factionFilter ? all.filter((r) => factionOf(r) === factionFilter) : all;
+    const armies = [...new Set(inFaction.map(armyOf))].sort((a, b) => a.localeCompare(b));
+    const factions = [...new Set(all.map(factionOf))].sort((a, b) => a.localeCompare(b));
     const wrap = el(`<div class="card">
-      <div class="subtitle">Leger</div>
+      <div class="subtitle">Faction</div>
+      <div class="chips" data-factions></div>
+      <div class="subtitle" style="margin-top:8px">Leger</div>
       <div class="chips" data-armies></div>
       <div class="subtitle" style="margin-top:8px">Soort game</div>
       <div class="chips" data-scope></div>
@@ -107,8 +117,20 @@ export function renderStats(ctx) {
       c.addEventListener("click", () => { armyFilter = value; draw(); });
       armyBox.appendChild(c);
     };
-    addArmy(`Alle legers (${all.length})`, null);
-    for (const a of armies) addArmy(`${a} (${all.filter((r) => armyOf(r) === a).length})`, a);
+    addArmy(factionFilter ? `Alle ${factionFilter}-legers (${inFaction.length})` : `Alle legers (${all.length})`, null);
+    for (const a of armies) addArmy(`${a} (${inFaction.filter((r) => armyOf(r) === a).length})`, a);
+
+    const facBox = wrap.querySelector("[data-factions]");
+    for (const [label, value] of [[`Alle factions (${all.length})`, null], ...factions.map((f) => [`${f} (${all.filter((r) => factionOf(r) === f).length})`, f])]) {
+      const c = el(`<button class="chip${factionFilter === value ? " active" : ""}">${esc(label)}</button>`);
+      c.addEventListener("click", () => {
+        factionFilter = value;
+        // een gekozen leger van een andere faction loslaten
+        if (armyFilter && value && !all.some((r) => armyOf(r) === armyFilter && factionOf(r) === value)) armyFilter = null;
+        draw();
+      });
+      facBox.appendChild(c);
+    }
 
     const scopeBox = wrap.querySelector("[data-scope]");
     const nTour = all.filter((r) => r.tournamentId).length;
@@ -346,6 +368,26 @@ export function renderStats(ctx) {
   }
 
   // ---------- 7. per leger ----------
+  // Per faction: alle legers van een faction samen.
+  function factionCard(recs) {
+    const per = new Map();
+    for (const rec of recs) {
+      const key = factionOf(rec);
+      if (!per.has(key)) per.set(key, []);
+      per.get(key).push(rec);
+    }
+    const rows = [...per.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([name, set]) => {
+        const r = record(set);
+        const steps = set.filter((x) => (x.tactics || []).length).map((x) => tacticSteps(x, "player"));
+        return [esc(name), new Set(set.map(armyOf)).size, set.length, `${r.w}-${r.d}-${r.l}`, r.rate,
+          fmt(avg(set.map((x) => x.totals.player))), fmt(avg(set.map((x) => x.totals.player - x.totals.enemy))), fmt(avg(steps.map((s) => s * TACTIC_STEP_POINTS)))];
+      });
+    return section(`${icon("shield", 18)} Per faction`, table(["Faction", "Legers", "Games", "W-G-V", "Winst%", "Gem. score", "Gem. saldo", "Gem. tacticpunten"], rows)
+      + `<p class="subtitle">Kies hierboven een faction om alle statistieken voor die faction samen te zien.</p>`);
+  }
+
   function armyCard(recs) {
     const per = new Map();
     for (const rec of recs) {

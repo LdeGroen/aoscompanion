@@ -1284,6 +1284,9 @@ Legers worden gematcht op **`player.army` (de naam)**, want een record bewaart g
 Hernoem je een leger, dan splitst zijn historie. Records van vóór dit veld vallen onder
 "Onbekend leger".
 
+Filter **Faction** (`player.faction`): alle legers van een faction samen; de legerchips tonen dan
+alleen legers van die faction, en zonder filter staat er een tabel "Per faction".
+
 Filter **Seizoen** (editie + GHB uit `rules`, verschijnt pas bij meer dan één seizoen): AoS 3-
 scores (~20 punten) zijn niet te vergelijken met AoS 4 (~60).
 
