@@ -475,7 +475,14 @@ export function renderArchive(ctx) {
       <div class="card-header">
         <div>
           <h3>${esc(rec.player.name)} ${rec.totals.player} — ${rec.totals.enemy} ${esc(rec.opponent.name)}</h3>
-          <div class="subtitle">${rec.gameLabel ? esc(rec.gameLabel) + " · " : ""}${fmtDate(rec.date)} · ${esc(rec.opponent.faction || "?")}${rec.battleplan ? " · " + esc(rec.battleplan) : ""}</div>
+          <div class="subtitle">${rec.gameLabel ? esc(rec.gameLabel) + " · " : ""}${fmtDate(rec.date)}${rec.battleplan ? " · " + esc(rec.battleplan) : ""}</div>
+          ${(() => {
+            // Met welk leger (en tegen welk) — eigen legernaam alleen als die afwijkt van de faction.
+            const p = rec.player || {};
+            const mine = [p.army && p.army !== p.faction ? p.army : "", p.faction, p.subfaction].filter(Boolean);
+            const theirs = [rec.opponent.faction || "?", rec.opponent.subfaction].filter(Boolean);
+            return `<div class="arch-armies">${icon("shield")}<span class="mine">${esc(mine[0] || "?")}</span>${mine.length > 1 ? `<span class="sub">${esc(mine.slice(1).join(" · "))}</span>` : ""}<span class="vs">vs</span><span class="theirs">${esc(theirs.join(" · "))}</span></div>`;
+          })()}
         </div>
         <span class="chip tag ${res.win === true ? "" : "dim"}">${esc(res.text)}</span>
       </div>

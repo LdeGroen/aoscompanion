@@ -137,6 +137,8 @@ laadt dezelfde URL.
     **Tijdlijn** (`timelineEl`) = totalen, per jaar → per maand een gestapelde balk winst/gelijk/verlies
     (ook lege maanden, gedimd) en onder de maand de toernooien/team-events (maand van hun eerste game)
     met W-G-V. Tik op een maand of event → Games-weergave, gescrold naar die maand (`jumpMonth`).
+    Elke kaart heeft een regel `.arch-armies`: eigen leger (legernaam als die afwijkt van de faction,
+    dan faction · subfaction) vs faction · subfaction van de tegenstander.
     Helpers `monthKey`/`monthName`/`wdl`/`kindOf` staan bovenin archive.js; CSS onder "Archief: chronologische lijst + tijdlijn".
   - **Basisgegevens van een archief-record zijn bewerkbaar** ('Gegevens bewerken' →
     `drawMetaEditor` in archive.js): datum, naam/faction/subfaction van de tegenstander,

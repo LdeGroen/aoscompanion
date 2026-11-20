@@ -923,3 +923,11 @@ details.card > summary h3 { margin: 0; }
 .tchip, .chip, .lval { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 /* Flex-kinderen met tekst mogen smaller worden dan hun langste regel. */
 .checkline > span, .checkline > div, .rules-src-row > *, .tl-row > *, .scorecard .sc-score > * { min-width: 0; }
+
+/* Archief-kaart: met welk leger gespeeld */
+.arch-armies { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 4px; font-size: 0.88rem; min-width: 0; }
+.arch-armies svg { width: 14px; height: 14px; flex: none; color: var(--gold); }
+.arch-armies .mine { font-weight: bold; color: var(--gold); overflow-wrap: anywhere; }
+.arch-armies .sub { color: var(--text-dim); font-size: 0.8rem; overflow-wrap: anywhere; }
+.arch-armies .vs { color: var(--text-dim); font-size: 0.78rem; font-style: italic; }
+.arch-armies .theirs { color: var(--text); overflow-wrap: anywhere; }
