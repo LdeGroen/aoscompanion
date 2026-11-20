@@ -130,6 +130,14 @@ laadt dezelfde URL.
   tekst-export en PNG-export (handgetekend canvas — geen dependencies). Afgeronde
   games met battleplan worden automatisch in `state.data.gameArchive` gezet
   (synct mee); js/archive.js is het archiefscherm (route `archive`).
+  - **Archief: lijst + tijdlijn** (Luc, 20-11-2026): geen groepering per soort meer. Twee weergaven
+    (`view` in renderArchive): **Games** = alle records op `date` gesorteerd (nieuwste eerst, bij gelijke
+    datum archiefvolgorde) met per maand een kopje `h3.arch-month#arch-m-YYYY-MM` (aantal + W-G-V), en
+    op elke kaart een soort-chip (`kindOf`: Toernooi: naam / Teamtoernooi of Scrimdag: naam / Losse game).
+    **Tijdlijn** (`timelineEl`) = totalen, per jaar → per maand een gestapelde balk winst/gelijk/verlies
+    (ook lege maanden, gedimd) en onder de maand de toernooien/team-events (maand van hun eerste game)
+    met W-G-V. Tik op een maand of event → Games-weergave, gescrold naar die maand (`jumpMonth`).
+    Helpers `monthKey`/`monthName`/`wdl`/`kindOf` staan bovenin archive.js; CSS onder "Archief: chronologische lijst + tijdlijn".
   - **Basisgegevens van een archief-record zijn bewerkbaar** ('Gegevens bewerken' →
     `drawMetaEditor` in archive.js): datum, naam/faction/subfaction van de tegenstander,
     je eigen leger/faction/subfaction en het battleplan. Bij het wijzigen van de datum blijft
@@ -162,8 +170,8 @@ laadt dezelfde URL.
   record getagd met `tournamentId`/`tournamentName`/`gameLabel`, het slot `done`+`archivedId`
   gezet, en `goBack()` gaat terug naar het toernooi i.p.v. home. ⚠️ Normaal potje: bij game-over
   "terug" moet `army.game` gewist worden (host.clear) — toernooi-game niet (afgeronde game blijft
-  op het slot staan). Het archief groepeert getagde games per toernooi achter een uitvouw
-  (`recCard` + `details.type-group`); losse games staan los bovenaan. Voorbije toernooien staan
+  op het slot staan). Het archief toont alles chronologisch (zie "Archief: lijst + tijdlijn"
+  hieronder); een chip op `recCard` zegt of het een toernooi-, team- of losse game is. Voorbije toernooien staan
   in de Toernooi-tab ook achter een uitvouw. Nieuw icoon `trophy` in icons.js.
 - Models in een army hebben een eigen `id`. Herbruikbare kaartjes komen uit de
   **gedeelde database** (picker "Kaartje uit de database" in set-up: faction-kaartjes +
@@ -670,7 +678,7 @@ teamSize, notes, myTeam: {name, players}, …}]`.
   Bij de start staan naam/faction/subfaction van de tegenstander al ingevuld en zijn lijsttekst
   klaar onder "Lijst plakken" (`game.opponentListText`).
 - **Archief**: records krijgen `teamEventId`, `teamEventName`, `teamEventKind`, `gameLabel`,
-  `opponentTeam`, `myTeam`; het archief groepeert ze per scrimdag/teamtoernooi, de statistieken
+  `opponentTeam`, `myTeam`; het archief toont ze met een chip "Scrimdag/Teamtoernooi: naam", de statistieken
   hebben een filter **Team games**. `reconcileTeamEvents` (app.js, bij login en na elke merge)
   koppelt records terug aan hun slot via `teamEventId` + `gameLabel`. `teamEvents` staat in
   `LIST_KEYS` van de sync.

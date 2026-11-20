@@ -5,6 +5,27 @@ import { parseListText } from "./listimport.js";
 import { AOS_FACTIONS } from "./factions.js";
 import { loadRulesIndex, rulesSectionEl, rulesOf, editionName, ghbName, sourcesForGame, hasOldRules } from "./rulesarchive.js";
 
+// Maand van een game als "2026-11" (lokale tijd); "0000-00" zonder geldige datum.
+const monthKey = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "0000-00" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+const monthName = (key, short = false) => {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("nl-NL", short ? { month: "short" } : { month: "long", year: "numeric" });
+};
+const wdl = (set) => ({
+  w: set.filter((r) => r.totals.player > r.totals.enemy).length,
+  d: set.filter((r) => r.totals.player === r.totals.enemy).length,
+  l: set.filter((r) => r.totals.player < r.totals.enemy).length,
+});
+// Soort game: toernooi, teamtoernooi / scrimdag, of los.
+const kindOf = (r) => r.teamEventId
+  ? { kind: "team", icon: r.teamEventKind === "scrim" ? "users" : "trophy", label: r.teamEventKind === "scrim" ? "Scrimdag" : "Teamtoernooi", name: r.teamEventName || "" }
+  : r.tournamentId
+    ? { kind: "tournament", icon: "trophy", label: "Toernooi", name: r.tournamentName || "" }
+    : { kind: "casual", icon: "sword", label: "Losse game", name: "" };
+
 // Archief: afgeronde games (scorekaarten) teruglezen, delen, bewerken of verwijderen.
 // Records staan in state.data.gameArchive en syncen mee met de userdata.
 export function renderArchive(ctx) {
@@ -13,6 +34,8 @@ export function renderArchive(ctx) {
   let detail = null; // record dat open staat
   let editRec = null; // werkkopie tijdens bewerken (null = niet in bewerkmodus)
   let editMeta = false; // basisgegevens (datum, tegenstander, leger) bewerken
+  let view = "games";   // "games" (chronologische lijst) | "timeline" (per maand + toernooien)
+  let jumpMonth = null; // na een tik in de tijdlijn: naar deze maand ("2026-11") in de lijst
   // Regelarchief (editie, GHB-seizoen, oude regels): laadt op de achtergrond.
   let rulesIdx = null;
   loadRulesIndex().then((i) => { rulesIdx = i; if (!editRec && !editMeta) draw(); });
@@ -72,39 +95,115 @@ export function renderArchive(ctx) {
       return;
     }
 
-    const games = [...state.data.gameArchive].reverse(); // nieuwste eerst
+    // Alles chronologisch, nieuwste eerst (niet per soort gegroepeerd). Bij gelijke datum
+    // blijft de volgorde van het archief (later toegevoegd = later gespeeld) staan.
+    const games = state.data.gameArchive
+      .map((r, i) => [r, i])
+      .sort((x, y) => String(y[0].date).localeCompare(String(x[0].date)) || y[1] - x[1])
+      .map(([r]) => r);
     if (!games.length) {
       app.appendChild(el(`<p class="empty">Nog geen games in het archief. Een afgeronde game (met battleplan) wordt aan het einde automatisch opgeslagen.</p>`));
       return;
     }
 
-    // Losse games apart; toernooi- en teamgames gegroepeerd per toernooi / scrimdag /
-    // teamtoernooi achter een uitvouw.
-    const solo = games.filter((r) => !r.tournamentId && !r.teamEventId);
-    const groups = new Map(); // id -> { name, icon, recs }
-    for (const r of games) {
+    const switcher = el(`<div class="chips arch-views" role="tablist">
+      <button class="chip${view === "games" ? " active" : ""}" data-v="games" role="tab" aria-selected="${view === "games"}">${icon("list")} Games</button>
+      <button class="chip${view === "timeline" ? " active" : ""}" data-v="timeline" role="tab" aria-selected="${view === "timeline"}">${icon("chart")} Tijdlijn</button>
+    </div>`);
+    switcher.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { view = b.dataset.v; jumpMonth = null; draw(); }));
+    app.appendChild(switcher);
+
+    if (view === "timeline") { app.appendChild(timelineEl(games)); return; }
+
+    // Per maand een kopje met het aantal games en W-G-V.
+    let month = null;
+    for (const rec of games) {
+      const key = monthKey(rec.date);
+      if (key !== month) {
+        month = key;
+        const set = games.filter((r) => monthKey(r.date) === key);
+        const r = wdl(set);
+        app.appendChild(el(`<h3 class="arch-month" id="arch-m-${key}">${esc(key === "0000-00" ? "Zonder datum" : monthName(key))}
+          <span class="count">${set.length} ${set.length === 1 ? "game" : "games"} · ${r.w}W ${r.d}G ${r.l}V</span></h3>`));
+      }
+      app.appendChild(recCard(rec));
+    }
+    if (jumpMonth) {
+      const target = document.getElementById(`arch-m-${jumpMonth}`);
+      jumpMonth = null;
+      if (target) target.scrollIntoView({ block: "start" });
+    }
+  }
+
+  // ---------- tijdlijn ----------
+  function timelineEl(games) {
+    const wrap = el(`<div class="card arch-timeline"></div>`);
+    const total = wdl(games);
+    // Toernooien en teamevents, gekoppeld aan de maand van hun eerste game.
+    const events = new Map();
+    for (const r of [...games].reverse()) {
       const id = r.tournamentId || r.teamEventId;
       if (!id) continue;
-      if (!groups.has(id)) {
-        groups.set(id, r.teamEventId
-          ? { name: `${r.teamEventKind === "scrim" ? "Scrimdag" : "Teamtoernooi"}: ${r.teamEventName || ""}`, icon: r.teamEventKind === "scrim" ? "users" : "trophy", recs: [] }
-          : { name: r.tournamentName || "Toernooi", icon: "trophy", recs: [] });
+      if (!events.has(id)) events.set(id, { ...kindOf(r), month: monthKey(r.date), first: r.date, recs: [] });
+      events.get(id).recs.push(r);
+    }
+    const nT = [...events.values()].filter((e) => e.kind === "tournament").length;
+    wrap.appendChild(el(`<div class="stats">
+      <div class="stat"><span class="v">${games.length}</span><span class="k">games</span></div>
+      <div class="stat"><span class="v">${total.w}-${total.d}-${total.l}</span><span class="k">W-G-V</span></div>
+      <div class="stat"><span class="v">${nT}</span><span class="k">toernooien</span></div>
+      <div class="stat"><span class="v">${events.size - nT}</span><span class="k">team-events</span></div>
+    </div>`));
+    wrap.appendChild(el(`<div class="tl-legend subtitle"><span><span class="tl-dot win"></span> gewonnen</span><span><span class="tl-dot draw"></span> gelijk</span><span><span class="tl-dot loss"></span> verloren</span><span class="tl-hint">Tik op een maand of toernooi voor de games.</span></div>`));
+
+    // Alle maanden van de nieuwste tot de oudste game, ook lege (dan zie je de pauzes).
+    const keys = games.map((r) => monthKey(r.date)).filter((k) => k !== "0000-00");
+    if (!keys.length) return wrap;
+    const [ny, nm] = keys[0].split("-").map(Number);
+    const [oy, om] = keys[keys.length - 1].split("-").map(Number);
+    const months = [];
+    for (let y = ny, m = nm; y > oy || (y === oy && m >= om); ) {
+      months.push(`${y}-${String(m).padStart(2, "0")}`);
+      if (m === 1) { y--; m = 12; } else m--;
+    }
+    const per = new Map(months.map((k) => [k, games.filter((r) => monthKey(r.date) === k)]));
+    const max = Math.max(...[...per.values()].map((s) => s.length));
+    const pct = (n) => (max ? (n / max) * 100 : 0);
+    const jump = (key) => { view = "games"; jumpMonth = key; draw(); };
+
+    let year = null;
+    for (const key of months) {
+      const y = key.slice(0, 4);
+      if (y !== year) {
+        year = y;
+        const inYear = games.filter((r) => monthKey(r.date).startsWith(y));
+        const ry = wdl(inYear);
+        wrap.appendChild(el(`<h3 class="tl-year">${y} <span class="count">${inYear.length} games · ${ry.w}W ${ry.d}G ${ry.l}V</span></h3>`));
       }
-      groups.get(id).recs.push(r);
+      const set = per.get(key);
+      const r = wdl(set);
+      const row = el(`<button class="tl-row tl-month${set.length ? "" : " empty"}"${set.length ? "" : " disabled"}>
+        <span class="tl-lbl">${esc(monthName(key, true))}</span>
+        <span class="tl-bar tl-stack"><span class="win" style="width:${pct(r.w)}%"></span><span class="draw" style="width:${pct(r.d)}%"></span><span class="loss" style="width:${pct(r.l)}%"></span></span>
+        <span class="tl-val">${set.length ? `${set.length} · ${r.w}-${r.d}-${r.l}` : "–"}</span>
+      </button>`);
+      if (set.length) {
+        row.setAttribute("aria-label", `${monthName(key)}: ${set.length} games, ${r.w} gewonnen, ${r.d} gelijk, ${r.l} verloren`);
+        row.addEventListener("click", () => jump(key));
+      }
+      wrap.appendChild(row);
+      const evs = [...events.values()].filter((e) => e.month === key).sort((a, b) => String(b.first).localeCompare(String(a.first)));
+      for (const ev of evs) {
+        const re = wdl(ev.recs);
+        const evRow = el(`<button class="tl-event ${ev.kind}">
+          ${icon(ev.icon)}<span class="tl-ev-name">${esc(ev.name || ev.label)}</span>
+          <span class="tl-ev-meta">${esc(ev.label)} · ${fmtDate(ev.first)} · ${re.w}-${re.d}-${re.l}</span>
+        </button>`);
+        evRow.addEventListener("click", () => jump(key));
+        wrap.appendChild(evRow);
+      }
     }
-
-    for (const rec of solo) app.appendChild(recCard(rec));
-
-    for (const grp of groups.values()) {
-      const wins = grp.recs.filter((r) => r.totals.player > r.totals.enemy).length;
-      const det = el(`<details class="type-group" open style="margin-top:6px">
-        <summary>${icon(grp.icon)} ${esc(grp.name)} <span class="count">(${grp.recs.length} games · ${wins} gewonnen)</span></summary>
-        <div data-grp></div>
-      </details>`);
-      const box = det.querySelector("[data-grp]");
-      for (const rec of grp.recs) box.appendChild(recCard(rec));
-      app.appendChild(det);
-    }
+    return wrap;
   }
 
   // Basisgegevens van een gearchiveerde game rechtzetten: wanneer, tegen wie en
@@ -383,6 +482,8 @@ export function renderArchive(ctx) {
       ${(() => {
         const chips = [];
         if (rulesIdx && hasOldRules(sourcesForGame(rec, rulesIdx))) chips.push(`<span class="chip legends">${icon("book")} Oude regels</span>`);
+        const k = kindOf(rec);
+        chips.unshift(`<span class="chip kind-${k.kind}">${icon(k.icon)} ${esc(k.kind === "casual" ? k.label : `${k.label}: ${k.name}`)}</span>`);
         if (rec.source === "tabletopbattles") chips.push(`<span class="chip">Tabletop Battles</span>`);
         return chips.length ? `<div class="chips">${chips.join("")}</div>` : "";
       })()}

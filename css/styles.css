@@ -762,6 +762,48 @@ table.statgrid tbody tr:hover td { background: var(--bg-input); }
 }
 .tl-val { width: 74px; text-align: right; color: var(--text-dim); flex: none; font-variant-numeric: tabular-nums; }
 
+/* --- Archief: chronologische lijst + tijdlijn --- */
+.arch-views { margin: 4px 0 10px; }
+.arch-month { margin: 16px 0 6px; font-size: 1rem; color: var(--gold); text-transform: capitalize; scroll-margin-top: 70px; }
+.arch-month .count, .tl-year .count { font-size: 0.8rem; color: var(--text-dim); font-weight: normal; text-transform: none; margin-left: 6px; }
+.chip.kind-tournament { color: var(--gold); border-color: var(--gold-dark); }
+.chip.kind-team { color: var(--blue); border-color: var(--blue); }
+.chip.kind-casual { color: var(--text-dim); }
+.arch-timeline .tl-year { margin: 14px 0 4px; font-size: 1rem; color: var(--gold); }
+.arch-timeline button.tl-row, .arch-timeline button.tl-event {
+  width: 100%; background: none; border: none; border-radius: 6px; text-align: left;
+  color: var(--text); font: inherit; cursor: pointer; transform: none;
+}
+.arch-timeline button.tl-row { padding: 4px 2px; font-size: 0.85rem; }
+.arch-timeline button.tl-row:hover:not(:disabled), .arch-timeline button.tl-event:hover { background: var(--bg-input); }
+.arch-timeline button.tl-row:disabled { cursor: default; opacity: 0.55; }
+.arch-timeline .tl-lbl { text-transform: capitalize; }
+.tl-stack { display: flex; }
+.tl-stack > span { border-radius: 0; flex: none; }
+.tl-bar.tl-stack > span.win { background: var(--green); }
+.tl-bar.tl-stack > span.draw { background: var(--text-dim); }
+.tl-bar.tl-stack > span.loss { background: var(--red); }
+.tl-val { white-space: nowrap; }
+.arch-timeline .tl-val { width: 84px; }
+.tl-event {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px;
+  justify-content: flex-start;
+  margin: 2px 0 4px; padding: 5px 8px 5px 72px; font-size: 0.85rem;
+}
+.tl-event svg { width: 14px; height: 14px; flex: none; align-self: center; color: var(--gold); }
+.tl-event.team svg { color: var(--blue); }
+.tl-ev-name { font-weight: bold; min-width: 0; overflow-wrap: anywhere; }
+.tl-ev-meta { color: var(--text-dim); font-size: 0.78rem; }
+.arch-timeline .stat > span { display: block; }
+.tl-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 4px 0 2px; }
+.tl-legend > span { white-space: nowrap; margin-right: 6px; }
+.tl-legend > .tl-hint { flex-basis: 100%; white-space: normal; }
+.tl-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.tl-dot.win { background: var(--green); }
+.tl-dot.draw { background: var(--text-dim); }
+.tl-dot.loss { background: var(--red); }
+@media (max-width: 480px) { .tl-event { padding-left: 12px; } }
+
 /* --- Modal (model-popup en units-menu in companion mode) --- */
 .modal-overlay {
   position: fixed;
